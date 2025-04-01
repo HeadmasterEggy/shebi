@@ -18,7 +18,7 @@ class Config:
     model_dir = "./model"
     stopword_path = "./data/stopword.txt"
     train_path = "data/train.txt"
-    val_path = "./data/validation.txt"
+    val_path = "./data/val.txt"
     test_path = "./data/test.txt"
     pre_path = "./data/pre.txt"
     word2id_path = "./word2vec/word2id.txt"
