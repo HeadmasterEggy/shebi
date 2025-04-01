@@ -65,7 +65,8 @@ def train(train_dataloader, model, device, epoches, lr):
         total = 0
 
         train_dataloader_cur = tqdm.tqdm(train_dataloader)
-        train_dataloader_cur.set_description('[Epoch: {:04d}/{:04d} lr: {:.6f}]'.format(epoch + 1, epoches, scheduler.get_last_lr()[0]))
+        train_dataloader_cur.set_description(
+            '[Epoch: {:04d}/{:04d} lr: {:.6f}]'.format(epoch + 1, epoches, scheduler.get_last_lr()[0]))
         for i, data_ in enumerate(train_dataloader_cur):
             # 清空梯度
             optimizer.zero_grad()
@@ -95,7 +96,10 @@ def train(train_dataloader, model, device, epoches, lr):
             F1 = f1_score(target.cpu(), predicted.cpu(), average="weighted")
             Recall = recall_score(target.cpu(), predicted.cpu(), average="micro")
 
-            postfix = {"train_loss: {:.5f}, train_acc: {:.3f}%, F1: {:.3f}%, Recall: {:.3f}%".format(train_loss / (i + 1), 100 * correct / total, 100 * F1, 100 * Recall)}
+            postfix = {
+                "train_loss: {:.5f}, train_acc: {:.3f}%, F1: {:.3f}%, Recall: {:.3f}%".format(train_loss / (i + 1),
+                                                                                              100 * correct / total,
+                                                                                              100 * F1, 100 * Recall)}
             train_dataloader_cur.set_postfix(log=postfix)
 
             # 计算 epoch 平均指标
@@ -114,7 +118,7 @@ def train(train_dataloader, model, device, epoches, lr):
         # 注意：val_dataloader 为全局变量，在 __main__ 中定义，用于模型验证
         acc = val_accuracy(model, val_dataloader, device, criterion)
         model.train()
-        
+
         if acc > best_acc:
             best_acc = acc
             if not os.path.exists(Config.model_dir):
@@ -153,7 +157,8 @@ if __name__ == "__main__":
 
     # 构建数据加载器
     train_loader = Data_set(train_array, train_label)
-    train_dataloader = DataLoader(train_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)  # 注意：num_workers设置为0时速度较快
+    train_dataloader = DataLoader(train_loader, batch_size=Config.batch_size, shuffle=True,
+                                  num_workers=0)  # 注意：num_workers设置为0时速度较快
 
     val_loader = Data_set(val_array, val_label)
     val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)

@@ -36,18 +36,21 @@ graph TD
 ## 主要功能
 
 ### 1. 文本预处理
+
 - 文本清洗（去除标签、链接、表情等）
 - 中文分词
 - 停用词过滤
 - 序列填充
 
 ### 2. 模型特点
+
 - 支持LSTM和LSTM+Attention两种模型
 - 双向LSTM提升特征提取能力
 - 注意力机制关注关键词
 - 支持词向量微调
 
 ### 3. 评估指标
+
 - 准确率（Accuracy）
 - F1分数
 - 召回率
@@ -90,6 +93,7 @@ graph TD
 ## 安装和使用
 
 ### 环境要求
+
 - Python 3.6+
 - PyTorch 1.7+
 - Flask
@@ -101,17 +105,20 @@ graph TD
 ### 安装步骤
 
 1. 克隆项目
+
 ```bash
 git clone [项目地址]
 cd [项目目录]
 ```
 
 2. 安装依赖
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. 下载预训练词向量
+
 ```bash
 # 下载wiki中文词向量到word2vec目录
 wget [词向量下载地址] -O word2vec/wiki_word2vec_50.bin
@@ -120,16 +127,19 @@ wget [词向量下载地址] -O word2vec/wiki_word2vec_50.bin
 ### 使用说明
 
 1. 训练模型
+
 ```bash
 python main.py --train
 ```
 
 2. 启动Web服务
+
 ```bash
 python app.py
 ```
 
 3. API调用示例
+
 ```python
 import requests
 

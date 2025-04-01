@@ -1,9 +1,5 @@
 import logging
 import os
-import pickle
-import hashlib
-import json
-from pathlib import Path
 
 import jieba
 import torch
@@ -14,9 +10,8 @@ from torch.utils.data import DataLoader
 
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
-from model import LSTM_attention
 from eval import CacheManager  # 导入 CacheManager
-from data_Process import process_texts, stopwords_list, clean_text, tokenize
+from model import LSTM_attention
 
 # 从eval模块导入预测函数
 
@@ -47,6 +42,7 @@ torch.serialization.add_safe_globals([
 
 # 创建全局缓存管理器实例
 cache_manager = CacheManager(cache_dir="./cache")
+
 
 @app.route('/')
 def index():
@@ -84,10 +80,10 @@ def pre(word2id, model, seq_length, path):
 
         # 获取模型预测的输出
         output_p = model(sen_p)
-        
+
         # 获取概率分布
         probs = torch.softmax(output_p, dim=1)
-        
+
         # 获取每个文本的预测类别
         _, pred = torch.max(output_p, 1)
 
@@ -96,7 +92,7 @@ def pre(word2id, model, seq_length, path):
             prob = probs[i].tolist()
             predictions.append(prediction)
             probabilities.append(prob)
-            
+
             # 分词并统计词频
             text = texts[i].strip()
             if text:  # 只处理非空文本
@@ -110,7 +106,7 @@ def pre(word2id, model, seq_length, path):
                 confidence = max(prob) * 100
                 pos_prob = prob[1] * 100
                 neg_prob = prob[0] * 100
-                
+
                 logger.info("-" * 50)
                 logger.info(f"输入文本: {text}")
                 logger.info(f"情感倾向: {sentiment}")
@@ -139,7 +135,7 @@ def pre(word2id, model, seq_length, path):
     # 将词频统计转换为列表格式
     word_freq_list = [{"word": word, "count": count} for word, count in word_freq.items()]
     word_freq_list.sort(key=lambda x: x["count"], reverse=True)  # 按词频降序排序
-    
+
     # 输出高频词统计
     logger.info("-" * 50)
     logger.info("高频词统计 (Top 10):")
@@ -180,13 +176,13 @@ def initialize_data():
         "test_path": Config.test_path,
         "seq_length": Config.max_sen_len
     }
-    
+
     # 尝试从缓存加载数据
     cached_data = cache_manager.load("processed_data", cache_params)
     if cached_data is not None:
         logging.info("从缓存加载预处理数据...")
-        return (cached_data["word2id"], cached_data["test_dataloader"], 
-                cached_data["val_dataloader"], cached_data["train_array"], 
+        return (cached_data["word2id"], cached_data["test_dataloader"],
+                cached_data["val_dataloader"], cached_data["train_array"],
                 cached_data["train_label"])
 
     logging.info("初始化数据...")
@@ -233,7 +229,7 @@ def initialize_model(w2vec):
         "hidden_dim": Config.hidden_dim,
         "num_layers": Config.num_layers
     }
-    
+
     model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
@@ -266,7 +262,7 @@ def initialize_model(w2vec):
 
     # 保存模型状态到缓存
     cache_manager.save(model.state_dict(), "model_state", model_cache_params)
-    
+
     model.eval()  # 设置为评估模式
     return model
 
@@ -309,7 +305,7 @@ def analyze():
         result = pre(word2id, model, Config.max_sen_len, Config.pre_path)
         logger.info("分析完成")
         logger.info("=" * 80)
-        
+
         return jsonify(result), 200
 
     except Exception as e:
@@ -317,6 +313,7 @@ def analyze():
         logger.error(error_msg)
         logger.error("=" * 80)
         return jsonify({'error': error_msg}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=False, port=5002)

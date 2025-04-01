@@ -13,11 +13,12 @@
             background-color: #f5f5f5;
             min-height: 100vh;
         }
+
         .main-container {
             height: calc(100vh - 40px);
             background-color: white;
             border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -25,12 +26,14 @@
             gap: 20px;
             padding: 20px;
         }
+
         .header {
             grid-column: 1 / -1;
             text-align: center;
             padding: 10px;
             border-bottom: 2px solid #f0f0f0;
         }
+
         .left-panel {
             display: flex;
             flex-direction: column;
@@ -38,6 +41,7 @@
             padding-right: 10px;
             border-right: 2px solid #f0f0f0;
         }
+
         .right-panel {
             display: flex;
             flex-direction: column;
@@ -45,18 +49,21 @@
             padding-left: 10px;
             overflow-y: auto;
         }
+
         .input-section {
             background-color: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
+
         .result-card {
             background-color: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
+
         .sentence-card {
             margin: 10px 0;
             padding: 15px;
@@ -65,24 +72,30 @@
             background-color: white;
             transition: transform 0.2s;
         }
+
         .sentence-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
+
         .positive {
             border-left: 4px solid #28a745;
         }
+
         .negative {
             border-left: 4px solid #dc3545;
         }
+
         .progress {
             height: 15px;
             margin: 10px 0;
             border-radius: 7.5px;
         }
+
         .progress-bar {
             transition: width 0.6s ease;
         }
+
         .word-freq-item {
             display: inline-block;
             margin: 5px;
@@ -93,34 +106,39 @@
             transition: all 0.3s;
             cursor: default;
         }
+
         .word-freq-item:hover {
             background-color: #dee2e6;
             transform: scale(1.05);
         }
+
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
         }
+
         .metric-item {
             text-align: center;
             padding: 15px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
+
         .loading {
             display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgba(255,255,255,0.9);
+            background-color: rgba(255, 255, 255, 0.9);
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             z-index: 1000;
         }
+
         .error-message {
             color: #dc3545;
             margin-top: 10px;
@@ -130,24 +148,27 @@
             background-color: #fff;
             border: 1px solid #dc3545;
         }
+
         .btn-analyze {
             background: linear-gradient(45deg, #007bff, #0056b3);
             border: none;
             padding: 10px 25px;
             transition: all 0.3s;
         }
+
         .btn-analyze:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             background: linear-gradient(45deg, #0056b3, #004085);
         }
+
         .charts-container {
             display: flex;
             flex-direction: column;
             gap: 20px;
             margin-top: 20px;
         }
-        
+
         .chart-wrapper {
             width: 100%;
             height: 400px;
@@ -155,26 +176,26 @@
             background-color: white;
             border-radius: 10px;
             padding: 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
-        
+
         .chart {
             width: 100% !important;
             height: 100% !important;
         }
-        
+
         .wordcloud-container {
             width: 100%;
             height: 400px;
             margin-top: 20px;
         }
-        
+
         .tab-buttons {
             display: flex;
             gap: 10px;
             margin-bottom: 15px;
         }
-        
+
         .tab-button {
             padding: 8px 16px;
             border: none;
@@ -184,562 +205,562 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        
+
         .tab-button.active {
             background-color: #007bff;
             color: white;
         }
-        
+
         .tab-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body>
-    <div class="main-container">
-        <div class="header">
-            <h1>情感分析系统</h1>
-        </div>
-        
-        <!-- 左侧面板 -->
-        <div class="left-panel">
+<div class="main-container">
+    <div class="header">
+        <h1>情感分析系统</h1>
+    </div>
+
+    <!-- 左侧面板 -->
+    <div class="left-panel">
         <!-- 输入区域 -->
-            <div class="input-section">
-                <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
-                <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
-                <div class="text-center">
-                    <button class="btn btn-primary btn-analyze" onclick="analyzeText()">开始分析</button>
-                </div>
-                <div id="errorMessage" class="error-message mt-3"></div>
+        <div class="input-section">
+            <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
+            <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
+            <div class="text-center">
+                <button class="btn btn-primary btn-analyze" onclick="analyzeText()">开始分析</button>
             </div>
-
-            <!-- 整体分析结果 -->
-            <div id="overallResult" class="result-card" style="display: none;">
-                <h4 class="mb-3">整体分析结果</h4>
-                <div class="overall-sentiment">
-                    <h5>情感倾向：<span id="overallSentiment" class="badge bg-primary"></span></h5>
-                    <div class="progress">
-                        <div id="overallPositive" class="progress-bar bg-success" role="progressbar"></div>
-                        <div id="overallNegative" class="progress-bar bg-danger" role="progressbar"></div>
-                    </div>
-                    <div class="text-muted small">
-                        积极：<span id="overallPositiveProb"></span>% | 
-                        消极：<span id="overallNegativeProb"></span>%
+            <div id="errorMessage" class="error-message mt-3"></div>
         </div>
-                            </div>
-                <div class="chart-container">
-                    <div id="overallPieChart" class="chart"></div>
-                            </div>
-                        </div>
 
-            <!-- 模型评估指标 -->
-            <div id="modelMetrics" class="result-card" style="display: none;">
-                <h4 class="mb-3">模型评估指标</h4>
-                <div class="metrics-grid">
-                    <div class="metric-item">
-                        <div class="small text-muted">准确率</div>
-                        <div class="h4 mb-0 text-primary"><span id="accuracy"></span>%</div>
-                                    </div>
-                    <div class="metric-item">
-                        <div class="small text-muted">F1分数</div>
-                        <div class="h4 mb-0 text-success"><span id="f1Score"></span>%</div>
-                                    </div>
-                    <div class="metric-item">
-                        <div class="small text-muted">召回率</div>
-                        <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-        <!-- 右侧面板 -->
-        <div class="right-panel">
-            <!-- 句子分析结果 -->
-            <div id="sentenceResults" class="result-card" style="display: none;">
-                <div class="tab-buttons">
-                    <button class="tab-button active" onclick="switchTab('list')">列表视图</button>
-                    <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
-                                </div>
-                <div id="listView">
-                    <h4 class="mb-3">句子分析结果</h4>
-                    <div id="sentenceList"></div>
-                                </div>
-                <div id="chartView" style="display: none;">
-                    <div class="charts-container">
-                        <div class="chart-wrapper">
-                            <div id="sentimentPieChart" class="chart"></div>
-                                </div>
-                        <div class="chart-wrapper">
-                            <div id="sentimentBarChart" class="chart"></div>
-                        </div>
-                        </div>
-                    </div>
+        <!-- 整体分析结果 -->
+        <div id="overallResult" class="result-card" style="display: none;">
+            <h4 class="mb-3">整体分析结果</h4>
+            <div class="overall-sentiment">
+                <h5>情感倾向：<span id="overallSentiment" class="badge bg-primary"></span></h5>
+                <div class="progress">
+                    <div id="overallPositive" class="progress-bar bg-success" role="progressbar"></div>
+                    <div id="overallNegative" class="progress-bar bg-danger" role="progressbar"></div>
                 </div>
-
-            <!-- 词频统计 -->
-            <div id="wordFreq" class="result-card" style="display: none;">
-                <h4 class="mb-3">词频统计</h4>
-                <div class="tab-buttons">
-                    <button class="tab-button active" onclick="switchWordFreqTab('tags')">标签视图</button>
-                    <button class="tab-button" onclick="switchWordFreqTab('chart')">图表视图</button>
+                <div class="text-muted small">
+                    积极：<span id="overallPositiveProb"></span>% |
+                    消极：<span id="overallNegativeProb"></span>%
                 </div>
-                <div id="wordFreqTags" class="mt-3"></div>
-                <div id="wordFreqCharts" style="display: none;">
-                    <div class="chart-wrapper">
-                        <div id="wordFreqBarChart" class="chart"></div>
-                    </div>
-                    <div class="chart-wrapper">
-                        <div id="wordCloudChart" class="chart"></div>
-                    </div>
+            </div>
+            <div class="chart-container">
+                <div id="overallPieChart" class="chart"></div>
+            </div>
+        </div>
+
+        <!-- 模型评估指标 -->
+        <div id="modelMetrics" class="result-card" style="display: none;">
+            <h4 class="mb-3">模型评估指标</h4>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="small text-muted">准确率</div>
+                    <div class="h4 mb-0 text-primary"><span id="accuracy"></span>%</div>
+                </div>
+                <div class="metric-item">
+                    <div class="small text-muted">F1分数</div>
+                    <div class="h4 mb-0 text-success"><span id="f1Score"></span>%</div>
+                </div>
+                <div class="metric-item">
+                    <div class="small text-muted">召回率</div>
+                    <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 加载动画 -->
-    <div id="loading" class="loading">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">分析中...</span>
+    <!-- 右侧面板 -->
+    <div class="right-panel">
+        <!-- 句子分析结果 -->
+        <div id="sentenceResults" class="result-card" style="display: none;">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('list')">列表视图</button>
+                <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
+            </div>
+            <div id="listView">
+                <h4 class="mb-3">句子分析结果</h4>
+                <div id="sentenceList"></div>
+            </div>
+            <div id="chartView" style="display: none;">
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <div id="sentimentPieChart" class="chart"></div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <div id="sentimentBarChart" class="chart"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <p class="mb-0 mt-2">正在分析中，请稍候...</p>
+
+        <!-- 词频统计 -->
+        <div id="wordFreq" class="result-card" style="display: none;">
+            <h4 class="mb-3">词频统计</h4>
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchWordFreqTab('tags')">标签视图</button>
+                <button class="tab-button" onclick="switchWordFreqTab('chart')">图表视图</button>
+            </div>
+            <div id="wordFreqTags" class="mt-3"></div>
+            <div id="wordFreqCharts" style="display: none;">
+                <div class="chart-wrapper">
+                    <div id="wordFreqBarChart" class="chart"></div>
+                </div>
+                <div class="chart-wrapper">
+                    <div id="wordCloudChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 加载动画 -->
+<div id="loading" class="loading">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">分析中...</span>
+    </div>
+    <p class="mb-0 mt-2">正在分析中，请稍候...</p>
 </div>
 
 <script>
-        async function analyzeText() {
-            const text = document.getElementById('textInput').value.trim();
-            if (!text) {
-                showError('请输入要分析的文本');
-                return;
-            }
-
-            // 显示加载动画，隐藏其他结果
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('errorMessage').style.display = 'none';
-            document.getElementById('overallResult').style.display = 'none';
-            document.getElementById('sentenceResults').style.display = 'none';
-            document.getElementById('wordFreq').style.display = 'none';
-            document.getElementById('modelMetrics').style.display = 'none';
-
-            try {
-                const response = await fetch('/api/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ text }),
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    displayResults(data);
-                } else {
-                    showError(data.error || '分析失败');
-                }
-                } catch (error) {
-                showError('请求失败：' + error.message);
-                } finally {
-                document.getElementById('loading').style.display = 'none';
-            }
+    async function analyzeText() {
+        const text = document.getElementById('textInput').value.trim();
+        if (!text) {
+            showError('请输入要分析的文本');
+            return;
         }
 
-        function displayResults(data) {
-            // 显示整体结果
-            const overall = data.overall;
-            document.getElementById('overallSentiment').textContent = overall.sentiment;
-            document.getElementById('overallPositive').style.width = `${overall.probabilities.positive}%`;
-            document.getElementById('overallNegative').style.width = `${overall.probabilities.negative}%`;
-            document.getElementById('overallPositiveProb').textContent = overall.probabilities.positive.toFixed(2);
-            document.getElementById('overallNegativeProb').textContent = overall.probabilities.negative.toFixed(2);
-            document.getElementById('overallResult').style.display = 'block';
+        // 显示加载动画，隐藏其他结果
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('errorMessage').style.display = 'none';
+        document.getElementById('overallResult').style.display = 'none';
+        document.getElementById('sentenceResults').style.display = 'none';
+        document.getElementById('wordFreq').style.display = 'none';
+        document.getElementById('modelMetrics').style.display = 'none';
 
-            // 显示每个句子的结果
-            const sentenceList = document.getElementById('sentenceList');
-            sentenceList.innerHTML = '';
-            data.sentences.forEach((sentence, index) => {
-                const sentenceDiv = document.createElement('div');
-                sentenceDiv.className = `sentence-card ${sentence.sentiment === '积极' ? 'positive' : 'negative'}`;
-                sentenceDiv.innerHTML = `
+        try {
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({text}),
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                displayResults(data);
+            } else {
+                showError(data.error || '分析失败');
+            }
+        } catch (error) {
+            showError('请求失败：' + error.message);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    function displayResults(data) {
+        // 显示整体结果
+        const overall = data.overall;
+        document.getElementById('overallSentiment').textContent = overall.sentiment;
+        document.getElementById('overallPositive').style.width = `${overall.probabilities.positive}%`;
+        document.getElementById('overallNegative').style.width = `${overall.probabilities.negative}%`;
+        document.getElementById('overallPositiveProb').textContent = overall.probabilities.positive.toFixed(2);
+        document.getElementById('overallNegativeProb').textContent = overall.probabilities.negative.toFixed(2);
+        document.getElementById('overallResult').style.display = 'block';
+
+        // 显示每个句子的结果
+        const sentenceList = document.getElementById('sentenceList');
+        sentenceList.innerHTML = '';
+        data.sentences.forEach((sentence, index) => {
+            const sentenceDiv = document.createElement('div');
+            sentenceDiv.className = `sentence-card ${sentence.sentiment === '积极' ? 'positive' : 'negative'}`;
+            sentenceDiv.innerHTML = `
                     <h5>句子 ${index + 1}</h5>
                     <p class="mb-2">${sentence.text}</p>
                     <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" 
-                             style="width: ${sentence.probabilities.positive}%" 
-                             aria-valuenow="${sentence.probabilities.positive}" 
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: ${sentence.probabilities.positive}%"
+                             aria-valuenow="${sentence.probabilities.positive}"
                              aria-valuemin="0" aria-valuemax="100"></div>
-                        <div class="progress-bar bg-danger" role="progressbar" 
-                             style="width: ${sentence.probabilities.negative}%" 
-                             aria-valuenow="${sentence.probabilities.negative}" 
+                        <div class="progress-bar bg-danger" role="progressbar"
+                             style="width: ${sentence.probabilities.negative}%"
+                             aria-valuenow="${sentence.probabilities.negative}"
                              aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                     <div class="text-muted small">
-                        情感倾向：<span class="badge ${sentence.sentiment === '积极' ? 'bg-success' : 'bg-danger'}">${sentence.sentiment}</span> | 
-                        积极：${sentence.probabilities.positive.toFixed(2)}% | 
+                        情感倾向：<span class="badge ${sentence.sentiment === '积极' ? 'bg-success' : 'bg-danger'}">${sentence.sentiment}</span> |
+                        积极：${sentence.probabilities.positive.toFixed(2)}% |
                         消极：${sentence.probabilities.negative.toFixed(2)}%
                     </div>
                 `;
-                sentenceList.appendChild(sentenceDiv);
-            });
-            document.getElementById('sentenceResults').style.display = 'block';
+            sentenceList.appendChild(sentenceDiv);
+        });
+        document.getElementById('sentenceResults').style.display = 'block';
 
-            // 显示词频统计
-            const wordFreqTags = document.getElementById('wordFreqTags');
-            wordFreqTags.innerHTML = data.wordFreq.map(item => 
-                `<span class="word-freq-item">${item.word} <span class="badge bg-secondary">${item.count}</span></span>`
-            ).join('');
-            document.getElementById('wordFreq').style.display = 'block';
+        // 显示词频统计
+        const wordFreqTags = document.getElementById('wordFreqTags');
+        wordFreqTags.innerHTML = data.wordFreq.map(item =>
+            `<span class="word-freq-item">${item.word} <span class="badge bg-secondary">${item.count}</span></span>`
+        ).join('');
+        document.getElementById('wordFreq').style.display = 'block';
 
-            // 显示模型评估指标
-            document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
-            document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
-            document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
-            document.getElementById('modelMetrics').style.display = 'block';
+        // 显示模型评估指标
+        document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
+        document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
+        document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
+        document.getElementById('modelMetrics').style.display = 'block';
 
-            // 初始化图表
-            initCharts(data);
-        }
+        // 初始化图表
+        initCharts(data);
+    }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-            document.getElementById('loading').style.display = 'none';
-        }
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+    }
 
-        function switchTab(view) {
-            const listView = document.getElementById('listView');
-            const chartView = document.getElementById('chartView');
-            const buttons = document.querySelectorAll('#sentenceResults .tab-button');
-            
-            if (view === 'list') {
-                listView.style.display = 'block';
-                chartView.style.display = 'none';
-            } else {
-                listView.style.display = 'none';
-                chartView.style.display = 'block';
-                // 当切换到图表视图时，重新调整图表大小
-                setTimeout(() => {
-                    const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
-                    const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
-                    if (pieChart) pieChart.resize();
-                    if (barChart) barChart.resize();
-                }, 0);
-            }
-            
-            buttons.forEach(button => {
-                button.classList.toggle('active', 
-                    (view === 'list' && button.textContent === '列表视图') ||
-                    (view === 'chart' && button.textContent === '图表视图')
-                );
-            });
-        }
+    function switchTab(view) {
+        const listView = document.getElementById('listView');
+        const chartView = document.getElementById('chartView');
+        const buttons = document.querySelectorAll('#sentenceResults .tab-button');
 
-        function switchWordFreqTab(view) {
-            const tagsView = document.getElementById('wordFreqTags');
-            const chartsView = document.getElementById('wordFreqCharts');
-            const buttons = document.querySelectorAll('#wordFreq .tab-button');
-            
-            if (view === 'tags') {
-                tagsView.style.display = 'block';
-                chartsView.style.display = 'none';
-            } else {
-                tagsView.style.display = 'none';
-                chartsView.style.display = 'block';
-                // 当切换到图表视图时，重新调整图表大小
-                setTimeout(() => {
-                    const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
-                    const wordCloud = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
-                    if (wordFreqBar) wordFreqBar.resize();
-                    if (wordCloud) wordCloud.resize();
-                }, 0);
-            }
-            
-            buttons.forEach(button => {
-                button.classList.toggle('active', 
-                    (view === 'tags' && button.textContent === '标签视图') ||
-                    (view === 'chart' && button.textContent === '图表视图')
-                );
-            });
-        }
-
-        function initCharts(data) {
-            // 确保在 DOM 更新后再初始化图表
+        if (view === 'list') {
+            listView.style.display = 'block';
+            chartView.style.display = 'none';
+        } else {
+            listView.style.display = 'none';
+            chartView.style.display = 'block';
+            // 当切换到图表视图时，重新调整图表大小
             setTimeout(() => {
-                // 初始化整体情感分布饼图
-                const overallPieChart = echarts.init(document.getElementById('overallPieChart'));
-                const overallPieOption = {
-                    title: {
-                        text: '整体情感分布',
-                        left: 'center',
-                        top: 20
-                    },
-                    tooltip: {
-                        trigger: 'item',
-                        formatter: '{b}: {c}% ({d}%)'
-                    },
-                    legend: {
-                        orient: 'vertical',
-                        left: '5%',
-                        top: 'middle'
-                    },
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '70%'],
-                        center: ['60%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: {
-                            borderRadius: 10,
-                            borderColor: '#fff',
-                            borderWidth: 2
-                        },
-                        label: {
-                            show: true,
-                            formatter: '{b}\n{c}%'
-                        },
-                        data: [
-                            { 
-                                value: Number(data.overall.probabilities.positive.toFixed(2)), 
-                                name: '积极',
-                                itemStyle: { color: '#28a745' }
-                            },
-                            { 
-                                value: Number(data.overall.probabilities.negative.toFixed(2)), 
-                                name: '消极',
-                                itemStyle: { color: '#dc3545' }
-                            }
-                        ]
-                    }]
-                };
-                overallPieChart.setOption(overallPieOption);
-
-                // 初始化情感分布饼图
-                const pieChart = echarts.init(document.getElementById('sentimentPieChart'));
-                const pieOption = {
-                    title: {
-                        text: '整体情感分布',
-                        left: 'center',
-                        top: 20
-                    },
-                    tooltip: {
-                        trigger: 'item',
-                        formatter: '{b}: {c}% ({d}%)'
-                    },
-                    legend: {
-                        orient: 'vertical',
-                        left: '5%',
-                        top: 'middle'
-                    },
-                    grid: {
-                        containLabel: true
-                    },
-                    series: [{
-                        type: 'pie',
-                        radius: ['40%', '70%'],
-                        center: ['60%', '50%'],
-                        avoidLabelOverlap: true,
-                        itemStyle: {
-                            borderRadius: 10,
-                            borderColor: '#fff',
-                            borderWidth: 2
-                        },
-                        label: {
-                            show: true,
-                            formatter: '{b}\n{c}%'
-                        },
-                        data: [
-                            { 
-                                value: Number(data.overall.probabilities.positive.toFixed(2)), 
-                                name: '积极',
-                                itemStyle: { color: '#28a745' }
-                            },
-                            { 
-                                value: Number(data.overall.probabilities.negative.toFixed(2)), 
-                                name: '消极',
-                                itemStyle: { color: '#dc3545' }
-                            }
-                        ]
-                    }]
-                };
-                pieChart.setOption(pieOption);
-
-                // 初始化句子情感条形图
-                const barChart = echarts.init(document.getElementById('sentimentBarChart'));
-                const sentenceData = data.sentences.map((s, index) => ({
-                    positive: Number(s.probabilities.positive.toFixed(2)),
-                    negative: Number(s.probabilities.negative.toFixed(2)),
-                    index: `句子${index + 1}`
-                }));
-                
-                const barOption = {
-                    title: {
-                        text: '句子情感分布',
-                        left: 'center',
-                        top: 20
-                    },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'shadow'
-                        },
-                        formatter: function(params) {
-                            return params[0].name + '<br/>' +
-                                   params[0].seriesName + ': ' + params[0].value.toFixed(2) + '%<br/>' +
-                                   params[1].seriesName + ': ' + params[1].value.toFixed(2) + '%';
-                        }
-                    },
-                    legend: {
-                        data: ['积极', '消极'],
-                        top: 50
-                    },
-                    grid: {
-                        left: '3%',
-                        right: '4%',
-                        bottom: '3%',
-                        containLabel: true,
-                        top: 100
-                    },
-                    xAxis: {
-                        type: 'value',
-                        boundaryGap: [0, 0.01],
-                        axisLabel: {
-                            formatter: '{value}%'
-                        }
-                    },
-                    yAxis: {
-                        type: 'category',
-                        data: sentenceData.map(d => d.index)
-                    },
-                    series: [
-                        {
-                            name: '积极',
-                            type: 'bar',
-                            data: sentenceData.map(d => d.positive),
-                            itemStyle: { color: '#28a745' }
-                        },
-                        {
-                            name: '消极',
-                            type: 'bar',
-                            data: sentenceData.map(d => d.negative),
-                            itemStyle: { color: '#dc3545' }
-                        }
-                    ]
-                };
-                barChart.setOption(barOption);
-
-                // 初始化词频柱状图
-                const wordFreqBar = echarts.init(document.getElementById('wordFreqBarChart'));
-                const wordFreqData = data.wordFreq.slice(0, 10);
-                const wordFreqBarOption = {
-                    title: {
-                        text: '高频词汇统计',
-                        left: 'center',
-                        top: 20
-                    },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'shadow'
-                        }
-                    },
-                    grid: {
-                        left: '3%',
-                        right: '4%',
-                        bottom: '15%',
-                        top: 60,
-                        containLabel: true
-                    },
-                    xAxis: {
-                        type: 'category',
-                        data: wordFreqData.map(item => item.word),
-                        axisLabel: {
-                            interval: 0,
-                            rotate: 45
-                        }
-                    },
-                    yAxis: {
-                        type: 'value'
-                    },
-                    series: [{
-                        data: wordFreqData.map(item => ({
-                            value: item.count,
-                            itemStyle: {
-                                color: `rgb(${Math.random() * 150 + 50}, ${Math.random() * 150 + 50}, ${Math.random() * 150 + 50})`
-                            }
-                        })),
-                        type: 'bar',
-                        barWidth: '40%'
-                    }]
-                };
-                wordFreqBar.setOption(wordFreqBarOption);
-
-                // 初始化词云图
-                const wordCloud = echarts.init(document.getElementById('wordCloudChart'));
-                const wordCloudOption = {
-                    title: {
-                        text: '词云展示',
-                        left: 'center',
-                        top: 20
-                    },
-                    tooltip: {
-                        show: true,
-                        formatter: function(params) {
-                            return params.name + ': ' + (params.value/100).toFixed(0);
-                        }
-                    },
-                    series: [{
-                        type: 'wordCloud',
-                        shape: 'circle',
-                        left: 'center',
-                        top: 'center',
-                        width: '95%',
-                        height: '95%',
-                        right: null,
-                        bottom: null,
-                        sizeRange: [15, 70],
-                        rotationRange: [-45, 45],
-                        rotationStep: 45,
-                        gridSize: 8,
-                        drawOutOfBound: false,
-                        textStyle: {
-                            fontFamily: 'sans-serif',
-                            fontWeight: 'bold',
-                            color: function () {
-                                return 'rgb(' + 
-                                    Math.round(Math.random() * 150 + 50) + ',' + 
-                                    Math.round(Math.random() * 150 + 50) + ',' + 
-                                    Math.round(Math.random() * 150 + 50) + ')'
-                            }
-                        },
-                        emphasis: {
-                            focus: 'self',
-                            textStyle: {
-                                shadowBlur: 10,
-                                shadowColor: '#333'
-                            }
-                        },
-                        data: data.wordFreq.map(item => ({
-                            name: item.word,
-                            value: item.count * 100
-                        }))
-                    }]
-                };
-                wordCloud.setOption(wordCloudOption);
-
-                // 监听窗口大小变化，调整图表大小
-                window.addEventListener('resize', function() {
-                    overallPieChart.resize();
-                    pieChart.resize();
-                    barChart.resize();
-                    wordFreqBar.resize();
-                    wordCloud.resize();
-                });
-
-                // 手动触发一次 resize 事件
-                [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud].forEach(chart => {
-                    chart.resize();
-                });
+                const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
+                const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
+                if (pieChart) pieChart.resize();
+                if (barChart) barChart.resize();
             }, 0);
         }
+
+        buttons.forEach(button => {
+            button.classList.toggle('active',
+                (view === 'list' && button.textContent === '列表视图') ||
+                (view === 'chart' && button.textContent === '图表视图')
+            );
+        });
+    }
+
+    function switchWordFreqTab(view) {
+        const tagsView = document.getElementById('wordFreqTags');
+        const chartsView = document.getElementById('wordFreqCharts');
+        const buttons = document.querySelectorAll('#wordFreq .tab-button');
+
+        if (view === 'tags') {
+            tagsView.style.display = 'block';
+            chartsView.style.display = 'none';
+        } else {
+            tagsView.style.display = 'none';
+            chartsView.style.display = 'block';
+            // 当切换到图表视图时，重新调整图表大小
+            setTimeout(() => {
+                const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
+                const wordCloud = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
+                if (wordFreqBar) wordFreqBar.resize();
+                if (wordCloud) wordCloud.resize();
+            }, 0);
+        }
+
+        buttons.forEach(button => {
+            button.classList.toggle('active',
+                (view === 'tags' && button.textContent === '标签视图') ||
+                (view === 'chart' && button.textContent === '图表视图')
+            );
+        });
+    }
+
+    function initCharts(data) {
+        // 确保在 DOM 更新后再初始化图表
+        setTimeout(() => {
+            // 初始化整体情感分布饼图
+            const overallPieChart = echarts.init(document.getElementById('overallPieChart'));
+            const overallPieOption = {
+                title: {
+                    text: '整体情感分布',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}% ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: '5%',
+                    top: 'middle'
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['60%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}\n{c}%'
+                    },
+                    data: [
+                        {
+                            value: Number(data.overall.probabilities.positive.toFixed(2)),
+                            name: '积极',
+                            itemStyle: {color: '#28a745'}
+                        },
+                        {
+                            value: Number(data.overall.probabilities.negative.toFixed(2)),
+                            name: '消极',
+                            itemStyle: {color: '#dc3545'}
+                        }
+                    ]
+                }]
+            };
+            overallPieChart.setOption(overallPieOption);
+
+            // 初始化情感分布饼图
+            const pieChart = echarts.init(document.getElementById('sentimentPieChart'));
+            const pieOption = {
+                title: {
+                    text: '整体情感分布',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}% ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: '5%',
+                    top: 'middle'
+                },
+                grid: {
+                    containLabel: true
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['60%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}\n{c}%'
+                    },
+                    data: [
+                        {
+                            value: Number(data.overall.probabilities.positive.toFixed(2)),
+                            name: '积极',
+                            itemStyle: {color: '#28a745'}
+                        },
+                        {
+                            value: Number(data.overall.probabilities.negative.toFixed(2)),
+                            name: '消极',
+                            itemStyle: {color: '#dc3545'}
+                        }
+                    ]
+                }]
+            };
+            pieChart.setOption(pieOption);
+
+            // 初始化句子情感条形图
+            const barChart = echarts.init(document.getElementById('sentimentBarChart'));
+            const sentenceData = data.sentences.map((s, index) => ({
+                positive: Number(s.probabilities.positive.toFixed(2)),
+                negative: Number(s.probabilities.negative.toFixed(2)),
+                index: `句子${index + 1}`
+            }));
+
+            const barOption = {
+                title: {
+                    text: '句子情感分布',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    formatter: function (params) {
+                        return params[0].name + '<br/>' +
+                            params[0].seriesName + ': ' + params[0].value.toFixed(2) + '%<br/>' +
+                            params[1].seriesName + ': ' + params[1].value.toFixed(2) + '%';
+                    }
+                },
+                legend: {
+                    data: ['积极', '消极'],
+                    top: 50
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true,
+                    top: 100
+                },
+                xAxis: {
+                    type: 'value',
+                    boundaryGap: [0, 0.01],
+                    axisLabel: {
+                        formatter: '{value}%'
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: sentenceData.map(d => d.index)
+                },
+                series: [
+                    {
+                        name: '积极',
+                        type: 'bar',
+                        data: sentenceData.map(d => d.positive),
+                        itemStyle: {color: '#28a745'}
+                    },
+                    {
+                        name: '消极',
+                        type: 'bar',
+                        data: sentenceData.map(d => d.negative),
+                        itemStyle: {color: '#dc3545'}
+                    }
+                ]
+            };
+            barChart.setOption(barOption);
+
+            // 初始化词频柱状图
+            const wordFreqBar = echarts.init(document.getElementById('wordFreqBarChart'));
+            const wordFreqData = data.wordFreq.slice(0, 10);
+            const wordFreqBarOption = {
+                title: {
+                    text: '高频词汇统计',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    top: 60,
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: wordFreqData.map(item => item.word),
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: [{
+                    data: wordFreqData.map(item => ({
+                        value: item.count,
+                        itemStyle: {
+                            color: `rgb(${Math.random() * 150 + 50}, ${Math.random() * 150 + 50}, ${Math.random() * 150 + 50})`
+                        }
+                    })),
+                    type: 'bar',
+                    barWidth: '40%'
+                }]
+            };
+            wordFreqBar.setOption(wordFreqBarOption);
+
+            // 初始化词云图
+            const wordCloud = echarts.init(document.getElementById('wordCloudChart'));
+            const wordCloudOption = {
+                title: {
+                    text: '词云展示',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    show: true,
+                    formatter: function (params) {
+                        return params.name + ': ' + (params.value / 100).toFixed(0);
+                    }
+                },
+                series: [{
+                    type: 'wordCloud',
+                    shape: 'circle',
+                    left: 'center',
+                    top: 'center',
+                    width: '95%',
+                    height: '95%',
+                    right: null,
+                    bottom: null,
+                    sizeRange: [15, 70],
+                    rotationRange: [-45, 45],
+                    rotationStep: 45,
+                    gridSize: 8,
+                    drawOutOfBound: false,
+                    textStyle: {
+                        fontFamily: 'sans-serif',
+                        fontWeight: 'bold',
+                        color: function () {
+                            return 'rgb(' +
+                                Math.round(Math.random() * 150 + 50) + ',' +
+                                Math.round(Math.random() * 150 + 50) + ',' +
+                                Math.round(Math.random() * 150 + 50) + ')'
+                        }
+                    },
+                    emphasis: {
+                        focus: 'self',
+                        textStyle: {
+                            shadowBlur: 10,
+                            shadowColor: '#333'
+                        }
+                    },
+                    data: data.wordFreq.map(item => ({
+                        name: item.word,
+                        value: item.count * 100
+                    }))
+                }]
+            };
+            wordCloud.setOption(wordCloudOption);
+
+            // 监听窗口大小变化，调整图表大小
+            window.addEventListener('resize', function () {
+                overallPieChart.resize();
+                pieChart.resize();
+                barChart.resize();
+                wordFreqBar.resize();
+                wordCloud.resize();
+            });
+
+            // 手动触发一次 resize 事件
+            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud].forEach(chart => {
+                chart.resize();
+            });
+        }, 0);
+    }
 </script>
 </body>
 </html>

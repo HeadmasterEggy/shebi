@@ -1,9 +1,5 @@
 import logging
 import os
-import pickle
-import hashlib
-import json
-from pathlib import Path
 
 import jieba
 import torch
@@ -14,9 +10,8 @@ from torch.utils.data import DataLoader
 
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
-from model import LSTM_attention
 from eval import CacheManager  # 导入 CacheManager
-from data_Process import process_texts, stopwords_list, clean_text, tokenize
+from model import LSTM_attention
 
 # 从eval模块导入预测函数
 
@@ -47,6 +42,7 @@ torch.serialization.add_safe_globals([
 
 # 创建全局缓存管理器实例
 cache_manager = CacheManager(cache_dir="./cache")
+
 
 @app.route('/')
 def index():
@@ -317,6 +313,7 @@ def analyze():
         logger.error(error_msg)
         logger.error("=" * 80)
         return jsonify({'error': error_msg}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=False, port=5003)

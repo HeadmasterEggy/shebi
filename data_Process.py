@@ -14,13 +14,15 @@ from __future__ import unicode_literals, print_function, division
 import logging
 import re
 from io import open
-import jieba
+
 import gensim
+import jieba
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
+
 from config import Config
 
 # 设置日志格式
@@ -179,6 +181,7 @@ def build_word2vec(fname, word2id, save_to_path=None):
     # 返回生成的词向量矩阵
     return word_vecs
 
+
 def clean_text(review):
     """
     对文本进行清洗：
@@ -234,6 +237,7 @@ def process_texts(review, stopwords):
 
     return tokenized_texts
 
+
 def text_to_array(word2id, seq_length, path):
     """
     @description: 文本转为索引数字模式。将原始文本数据集中的每个词转为对应的索引数字，并返回句子和标签。
@@ -256,7 +260,7 @@ def text_to_array(word2id, seq_length, path):
             parts = line.strip().split()
             label = int(parts[0])  # 第一部分是标签
             sentence = parts[1:]  # 其余部分是文本
-  
+
             # 将文本转换为索引，未找到的词汇用0填充
             indexed_sentence = [word2id.get(word, 0) for word in sentence]
 

@@ -10,23 +10,20 @@
 @LastEditTime: 2025-03-27 10:07:58
 """
 from __future__ import unicode_literals, print_function, division
-import torch.nn.functional as F
-import logging
-import os
-import re
+
 import argparse
-from io import open
-import pickle
 import hashlib
 import json
+import logging
+import os
+import pickle
+from io import open
 from pathlib import Path
 
-import jieba
-import pandas as pd
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from config import Config
 from data_Process import (
@@ -54,13 +51,14 @@ from sklearn.metrics import f1_score, recall_score, confusion_matrix
 import torch
 import torch.nn as nn
 
+
 class CacheManager:
     """缓存管理器，用于管理所有缓存操作"""
-    
+
     def __init__(self, cache_dir="./cache"):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
-        
+
     def _get_cache_path(self, cache_name, params=None):
         """获取缓存文件路径"""
         if params:
@@ -69,13 +67,13 @@ class CacheManager:
             cache_id = hashlib.md5(params_str.encode()).hexdigest()
             return self.cache_dir / f"{cache_name}_{cache_id}.pkl"
         return self.cache_dir / f"{cache_name}.pkl"
-    
+
     def save(self, data, cache_name, params=None):
         """保存数据到缓存"""
         cache_path = self._get_cache_path(cache_name, params)
         with open(cache_path, 'wb') as f:
             pickle.dump(data, f)
-            
+
     def load(self, cache_name, params=None):
         """从缓存加载数据"""
         cache_path = self._get_cache_path(cache_name, params)
@@ -83,10 +81,11 @@ class CacheManager:
             with open(cache_path, 'rb') as f:
                 return pickle.load(f)
         return None
-    
+
     def exists(self, cache_name, params=None):
         """检查缓存是否存在"""
         return self._get_cache_path(cache_name, params).exists()
+
 
 def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss()):
     """
@@ -202,7 +201,6 @@ def test_accuracy(model, test_dataloader, device):
     return accuracy
 
 
-
 def pre(word2id, model, seq_length, path, device=None):
     """
     给定文本，预测其情感标签。
@@ -223,13 +221,13 @@ def pre(word2id, model, seq_length, path, device=None):
         model = model.cpu()
     else:
         model = model.to(device)
-    
+
     model.eval()  # 确保模型处于评估模式
 
     # 读取文件中的文本
     with open(path, "r", encoding="utf-8") as file:
         texts = file.readlines()
-     # 读取停用词
+    # 读取停用词
     # stopwords = []
     # with open("data/stopword.txt", "r", encoding="utf-8") as f:
     #      for line in f.readlines():
@@ -267,14 +265,14 @@ def pre(word2id, model, seq_length, path, device=None):
 def initialize_data(cache_manager=None, force_reload=False):
     """
     初始化数据、字典和模型，支持缓存。
-    
+
     Args:
         cache_manager: 缓存管理器实例
         force_reload: 是否强制重新加载数据
     """
     if cache_manager is None:
         cache_manager = CacheManager()
-        
+
     # 定义缓存参数
     cache_params = {
         "word2id_path": Config.word2id_path,
@@ -283,11 +281,11 @@ def initialize_data(cache_manager=None, force_reload=False):
         "test_path": Config.test_path,
         "seq_length": Config.max_sen_len
     }
-    
+
     if not force_reload and cache_manager.exists("processed_data", cache_params):
         logging.info("从缓存加载预处理数据...")
         return cache_manager.load("processed_data", cache_params)
-        
+
     logging.info("初始化数据...")
     word2id = build_word2id(Config.word2id_path)
     id2word = build_id2word(word2id)
@@ -315,10 +313,10 @@ def initialize_data(cache_manager=None, force_reload=False):
         "train_array": train_array,
         "train_label": train_label
     }
-    
+
     # 保存到缓存
     cache_manager.save(processed_data, "processed_data", cache_params)
-    
+
     return processed_data
 
 
@@ -328,7 +326,7 @@ def initialize_model(w2vec, device, cache_manager=None):
     """
     if cache_manager is None:
         cache_manager = CacheManager()
-        
+
     # 检查是否有缓存的模型状态
     model_cache_params = {
         "vocab_size": Config.vocab_size,
@@ -336,7 +334,7 @@ def initialize_model(w2vec, device, cache_manager=None):
         "hidden_dim": Config.hidden_dim,
         "num_layers": Config.num_layers
     }
-    
+
     model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
@@ -368,7 +366,7 @@ def initialize_model(w2vec, device, cache_manager=None):
                 model.load_state_dict(loaded_model)
             else:
                 model.load_state_dict(loaded_model.state_dict())
-                
+
         # 保存模型状态到缓存
         cache_manager.save(model.state_dict(), "model_state", model_cache_params)
 
@@ -404,7 +402,7 @@ def main():
         w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
         w2vec = torch.from_numpy(w2vec).float()
         cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
-    
+
     # 初始化模型
     model = initialize_model(w2vec, device, cache_manager)
 

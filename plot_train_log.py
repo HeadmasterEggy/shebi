@@ -1,6 +1,7 @@
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.ndimage import gaussian_filter1d
+
 
 def plot_training_log(log_path="train_log.csv", save_path="training_metrics_with_val.png"):
     df = pd.read_csv(log_path)
@@ -89,6 +90,7 @@ def plot_training_log(log_path="train_log.csv", save_path="training_metrics_with
     plt.savefig(save_path, dpi=150)
     print(f"✅ 训练 + 验证图已保存至：{save_path}")
     plt.show()
+
 
 if __name__ == "__main__":
     plot_training_log()
