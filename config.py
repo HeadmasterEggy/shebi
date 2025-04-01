@@ -1,4 +1,4 @@
-# !usr/bin/env python3
+    # !usr/bin/env python3
 # -*- coding:utf-8 -*-
 
 
@@ -22,7 +22,6 @@ class Config:
     test_path = "./data/test.txt"
     pre_path = "./data/pre.txt"
     word2id_path = "./word2vec/word2id.txt"
-    input_text_path = "./data/input.txt"
     pre_word2vec_path = "./word2vec/wiki_word2vec_50.bin"
     corpus_word2vec_path = "./word2vec/word_vec.txt"
     model_state_dict_path = "./model/sen_model.pth"  # 训练模型保存的地址
