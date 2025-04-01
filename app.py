@@ -1,13 +1,15 @@
 import logging
 import os
+import re
 
 import jieba
 import torch
+import pandas as pd
 import torch.nn as nn
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from torch.utils.data import DataLoader
-
+from tqdm import tqdm
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from eval import CacheManager  # 导入 CacheManager
@@ -40,14 +42,73 @@ torch.serialization.add_safe_globals([
     LSTM_attention
 ])
 
+# ===================== 正则表达式预编译 =====================
+TAG_RE = re.compile(r'<[^>]+>')
+URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9\$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF]|[\u2600-\u26FF]|[\u2700-\u27BF]')
+PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff，。！？、]')
+DIGITS_RE = re.compile(r'\d+')
+REPEAT_CHARS_RE = re.compile(r'([\u4e00-\u9fff])\1{2,}')
+SPACE_RE = re.compile(r'\s+')
+# 新增：用于去除英文字符
+ENGLISH_RE = re.compile(r'[a-zA-Z]+')
 # 创建全局缓存管理器实例
 cache_manager = CacheManager(cache_dir="./cache")
-
+# 读取停用词
+stopwords = []
+with open("data/stopword.txt", "r", encoding="utf-8") as f:
+    for line in f.readlines():
+        stopwords.append(line.strip())
 
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
 
+
+
+def clean_text(review):
+    """
+    对文本进行清洗：
+      - 去除标签、链接、表情、标点、数字及重复字符
+      - 去除英文字符
+      - 去除多余空格
+    """
+    # 处理 NaN 值
+    if pd.isna(review):
+        return ""
+
+    # 将非字符串类型转换为字符串
+    if not isinstance(review, str):
+        review = str(review)
+    review = TAG_RE.sub('', review)
+    review = URL_RE.sub('', review)
+    review = EMOJI_RE.sub('', review)
+    review = PUNCT_RE.sub('', review)
+    review = DIGITS_RE.sub('', review)
+    review = REPEAT_CHARS_RE.sub(r'\1', review)
+    review = ENGLISH_RE.sub('', review)  # 去除英文
+    review = SPACE_RE.sub(' ', review).strip()
+    return review
+
+def tokenize(review, stopwords):
+    """
+    对单个文本进行分词，去除停用词和空白字符，返回以空格分隔的字符串。
+    """
+    words = jieba.cut(review, cut_all=False)  # 使用精确模式进行分词
+    # 返回一个空格分隔的字符串
+    return ' '.join([word for word in words if word not in stopwords and word.strip()])
+
+def process_texts(review, stopwords):
+    """
+    对所有文本进行清洗和分词，并返回处理后的词列表。
+    """
+    logging.info("开始清洗文本...")
+    cleaned_texts = [clean_text(text) for text in tqdm(review, desc="清洗文本")]
+
+    logging.info("开始分词处理...")
+    tokenized_texts = [tokenize(text, stopwords) for text in tqdm(cleaned_texts, desc="分词处理")]
+
+    return tokenized_texts
 
 def pre(word2id, model, seq_length, path):
     """
@@ -282,9 +343,23 @@ def analyze():
         logger.info("收到新的分析请求")
         logger.info(f"设备: {device}")
 
-        # 清空之前的预测文件
+        # 按回车分割句子
+        original_sentences = [s.strip() for s in text.split('\n') if s.strip()]
+
+        # 处理每个句子
+        processed_sentences = []
+        for sentence in original_sentences:
+            # 清洗文本
+            cleaned_text = clean_text(sentence)
+            # 分词处理
+            tokenized_text = tokenize(cleaned_text, stopwords)
+            if tokenized_text.strip():  # 只添加非空句子
+                processed_sentences.append(tokenized_text)
+
+        # 将处理后的句子写入预测文件
         with open(Config.pre_path, 'w', encoding='utf-8') as file:
-            file.write(text + '\n')
+            for sentence in processed_sentences:
+                file.write(sentence + '\n')
 
         # 初始化数据（使用缓存）
         word2id, test_dataloader, val_dataloader, train_array, train_label = initialize_data()
@@ -303,6 +378,12 @@ def analyze():
         logger.info("开始进行情感分析...")
         # 获取预测结果
         result = pre(word2id, model, Config.max_sen_len, Config.pre_path)
+
+        # 更新结果中的文本为原始句子
+        for i, sentence_result in enumerate(result['sentences']):
+            if i < len(original_sentences):  # 确保索引有效
+                sentence_result['text'] = original_sentences[i]
+
         logger.info("分析完成")
         logger.info("=" * 80)
 
