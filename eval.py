@@ -50,6 +50,7 @@ torch.serialization.add_safe_globals([nn.Embedding, LSTM_attention])
 from sklearn.metrics import f1_score, recall_score, confusion_matrix
 import torch
 import torch.nn as nn
+import pandas as pd
 
 
 class CacheManager:
@@ -139,6 +140,18 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         recall = recall_score(all_labels, all_preds, average="micro")  # 召回率
         confusion_mat = confusion_matrix(all_labels, all_preds)  # 混淆矩阵
 
+        # 保存评估指标到CSV文件
+        metrics_df = pd.DataFrame({
+            'timestamp': [pd.Timestamp.now()],
+            'type': ['validation'],
+            'accuracy': [accuracy],
+            'f1': [100 * f1],
+            'recall': [100 * recall]
+        })
+        
+        # 如果文件存在则追加，不存在则创建新文件
+        metrics_df.to_csv('metrics_log.csv', mode='a', header=not os.path.exists('metrics_log.csv'), index=False)
+
         # 打印结果
         logging.info(f"\n验证集准确率: {accuracy:.3f}%, 总损失: {total_loss:.3f}, F1分数: {100 * f1:.3f}%, "
                      f"召回率: {100 * recall:.3f}%, 混淆矩阵:\n{confusion_mat}")
@@ -193,6 +206,18 @@ def test_accuracy(model, test_dataloader, device):
         f1 = f1_score(all_labels, all_preds, average="weighted")  # F1-score
         recall = recall_score(all_labels, all_preds, average="micro")  # 召回率
         confusion_mat = confusion_matrix(all_labels, all_preds)  # 混淆矩阵
+
+        # 保存评估指标到CSV文件
+        metrics_df = pd.DataFrame({
+            'timestamp': [pd.Timestamp.now()],
+            'type': ['test'],
+            'accuracy': [accuracy],
+            'f1': [100 * f1],
+            'recall': [100 * recall]
+        })
+        
+        # 如果文件存在则追加，不存在则创建新文件
+        metrics_df.to_csv('metrics_log.csv', mode='a', header=not os.path.exists('metrics_log.csv'), index=False)
 
         # 使用 logging 记录结果
         logging.info(f"\n测试集准确率: {accuracy:.3f}%, F1分数: {100 * f1:.3f}%, "

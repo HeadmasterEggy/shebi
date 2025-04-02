@@ -43,15 +43,21 @@ torch.serialization.add_safe_globals([
 ])
 
 # ===================== 正则表达式预编译 =====================
+# 移除HTML标签
 TAG_RE = re.compile(r'<[^>]+>')
-URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9\$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF]|[\u2600-\u26FF]|[\u2700-\u27BF]')
-PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff，。！？、]')
+# 匹配URL
+URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+# 匹配表情符号 (包括Unicode范围)
+EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]')
+# 匹配标点符号 (包括中文标点)
+PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff]')
+# 匹配数字
 DIGITS_RE = re.compile(r'\d+')
-REPEAT_CHARS_RE = re.compile(r'([\u4e00-\u9fff])\1{2,}')
+# 匹配空白字符（包括空格、制表符、换行等）
 SPACE_RE = re.compile(r'\s+')
-# 新增：用于去除英文字符
+# 移除英文字符
 ENGLISH_RE = re.compile(r'[a-zA-Z]+')
+
 # 创建全局缓存管理器实例
 cache_manager = CacheManager(cache_dir="./cache")
 # 读取停用词
@@ -85,7 +91,6 @@ def clean_text(review):
     review = EMOJI_RE.sub('', review)
     review = PUNCT_RE.sub('', review)
     review = DIGITS_RE.sub('', review)
-    review = REPEAT_CHARS_RE.sub(r'\1', review)
     review = ENGLISH_RE.sub('', review)  # 去除英文
     review = SPACE_RE.sub(' ', review).strip()
     return review
@@ -187,10 +192,14 @@ def pre(word2id, model, seq_length, path):
                 })
 
     # 计算模型评估指标
+    # 读取评估指标日志
+    metrics_df = pd.read_csv('metrics_log.csv')
+    # 获取最新的测试评估指标
+    latest_metrics = metrics_df[metrics_df['type'] == 'test'].iloc[-1]
     model_metrics = {
-        "accuracy": 0.85,  # 这里应该使用实际的评估指标
-        "f1_score": 0.83,
-        "recall": 0.82
+        "accuracy": latest_metrics['accuracy'] / 100,  # 转换为小数
+        "f1_score": latest_metrics['f1'] / 100,
+        "recall": latest_metrics['recall'] / 100
     }
 
     # 将词频统计转换为列表格式
