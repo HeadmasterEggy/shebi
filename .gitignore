@@ -1,2 +1,3 @@
 .ipynb_checkpoints/
 static/.ipynb_checkpoints
+__pycache__/
