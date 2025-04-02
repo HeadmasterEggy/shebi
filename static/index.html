@@ -312,10 +312,95 @@
             margin-bottom: 10px;
         }
         .sentiment-card {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             animation: slideIn 0.5s ease-out forwards;
             opacity: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            background-color: white;
+        }
+
+        .sentiment-label {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 8px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .sentiment-label.positive {
+            background-color: #28a745;
+        }
+
+        .sentiment-label.negative {
+            background-color: #dc3545;
+        }
+
+        .sentiment-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .sentiment-content {
+            padding: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .sentiment-footer {
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+        }
+
+        .sentiment-card.collapsed .sentiment-content {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+
+        .sentiment-card.collapsed .sentiment-footer {
+            border-top: none;
+        }
+
+        .sentiment-header .toggle-icon {
+            transition: transform 0.3s ease;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+
+        .sentiment-card.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .progress {
+            height: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: right;
+            padding-right: 5px;
+            font-size: 0.7rem;
+            line-height: 12px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
         }
         @keyframes slideIn {
             from {
@@ -328,12 +413,100 @@
             }
         }
         .pagination {
-            margin-top: 20px;
+            margin-top: 15px;
             justify-content: center;
         }
         .page-info {
             text-align: center;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .per-page-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .page-numbers {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .page-number {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .page-number:hover {
+            background-color: #e9ecef;
+        }
+
+        .page-number.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .filter-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 10px;
             margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .filter-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            min-width: 80px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-button {
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            background-color: #e9ecef;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-button:hover {
+            background-color: #dee2e6;
+        }
+
+        .filter-button.active {
+            background-color: #007bff;
+            color: white;
         }
 
         /* 添加页面加载动画 */
@@ -449,10 +622,45 @@
                 <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
             </div>
             <div id="listView">
-                <h4 class="mb-3">句子分析结果</h4>
+                <h4 class="mb-3">句子分析结果 <span class="badge bg-secondary" id="sentenceCount"></span></h4>
+
+                <div class="filter-controls">
+                    <div class="filter-row">
+                        <span class="filter-label">情感筛选：</span>
+                        <div class="filter-buttons">
+                            <button class="filter-button active" data-sentiment="all">全部</button>
+                            <button class="filter-button" data-sentiment="positive">积极</button>
+                            <button class="filter-button" data-sentiment="negative">消极</button>
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <span class="filter-label">显示模式：</span>
+                        <div class="filter-buttons">
+                            <button class="filter-button active" data-display="normal">正常</button>
+                            <button class="filter-button" data-display="compact">紧凑</button>
+                            <button class="filter-button" data-display="expanded">展开</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="sentenceList"></div>
+
                 <div id="pagination" class="mt-3">
-                    <div class="page-info" id="pageInfo"></div>
+                    <div class="pagination-controls">
+                        <div class="per-page-control">
+                            <span>每页显示：</span>
+                            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto">
+                                <option value="5">5条</option>
+                                <option value="10" selected>10条</option>
+                                <option value="20">20条</option>
+                                <option value="50">50条</option>
+                            </select>
+                        </div>
+                        <div class="page-info" id="pageInfo"></div>
+                    </div>
+
+                    <div class="page-numbers" id="pageNumbers"></div>
+
                     <nav>
                         <ul class="pagination">
                             <li class="page-item">
@@ -509,6 +717,9 @@
     let currentPage = 1;
     let sentencesPerPage = 10;
     let allSentences = [];
+    let filteredSentences = [];
+    let sentimentFilter = 'all';
+    let displayMode = 'normal';
 
     async function analyzeText() {
         const text = document.getElementById('textInput').value.trim();
@@ -548,8 +759,26 @@
     }
 
     function displayResults(data) {
+        // 验证数据结构
+        if (!data || !data.sentences || !Array.isArray(data.sentences)) {
+            showError('返回的数据格式不正确');
+            return;
+        }
+
         allSentences = data.sentences;
+        filteredSentences = [...allSentences]; // 初始化筛选后的句子为所有句子
         currentPage = 1;
+        sentimentFilter = 'all'; // 重置筛选条件
+        displayMode = 'normal'; // 重置显示模式
+
+        // 重置筛选按钮状态
+        document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sentiment === 'all');
+        });
+
+        document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.display === 'normal');
+        });
 
         // 显示结果区域并添加动画
         const resultCards = document.querySelectorAll('.result-card');
@@ -564,25 +793,38 @@
         updateDisplay();
 
         // 显示整体结果
-        const overall = data.overall;
-        document.getElementById('overallSentiment').textContent = overall.sentiment;
-        document.getElementById('overallPositive').style.width = `${overall.probabilities.positive}%`;
-        document.getElementById('overallNegative').style.width = `${overall.probabilities.negative}%`;
-        document.getElementById('overallPositiveProb').textContent = overall.probabilities.positive.toFixed(2);
-        document.getElementById('overallNegativeProb').textContent = overall.probabilities.negative.toFixed(2);
-        document.getElementById('overallResult').style.display = 'block';
+        if (data.overall && data.overall.probabilities) {
+            const overall = data.overall;
+            document.getElementById('overallSentiment').textContent = overall.sentiment || 'N/A';
+            document.getElementById('overallPositive').style.width = `${overall.probabilities.positive || 0}%`;
+            document.getElementById('overallNegative').style.width = `${overall.probabilities.negative || 0}%`;
+            document.getElementById('overallPositiveProb').textContent = (overall.probabilities.positive || 0).toFixed(2);
+            document.getElementById('overallNegativeProb').textContent = (overall.probabilities.negative || 0).toFixed(2);
+            document.getElementById('overallResult').style.display = 'block';
+        } else {
+            showError('整体分析结果数据不完整');
+        }
 
         // 显示模型评估指标
-        document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
-        document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
-        document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
-        document.getElementById('modelMetrics').style.display = 'block';
+        if (data.modelMetrics) {
+            document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
+            document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
+            document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
+            document.getElementById('modelMetrics').style.display = 'block';
+        }
 
         // 显示词频统计
-        document.getElementById('wordFreq').style.display = 'block';
+        if (data.wordFreq && Array.isArray(data.wordFreq)) {
+            document.getElementById('wordFreq').style.display = 'block';
+        }
 
         // 初始化图表
-        initCharts(data);
+        try {
+            initCharts(data);
+        } catch (error) {
+            console.error('初始化图表失败:', error);
+            showError('图表初始化失败: ' + error.message);
+        }
     }
 
     function showError(message) {
@@ -605,10 +847,14 @@
             chartView.style.display = 'block';
             // 当切换到图表视图时，重新调整图表大小
             setTimeout(() => {
-                const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
-                const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
-                if (pieChart) pieChart.resize();
-                if (barChart) barChart.resize();
+                try {
+                    const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
+                    const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
+                    if (pieChart) pieChart.resize();
+                    if (barChart) barChart.resize();
+                } catch (error) {
+                    console.error('调整图表大小失败:', error);
+                }
             }, 0);
         }
 
@@ -633,10 +879,14 @@
             chartsView.style.display = 'block';
             // 当切换到图表视图时，重新调整图表大小
             setTimeout(() => {
-                const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
-                const wordCloud = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
-                if (wordFreqBar) wordFreqBar.resize();
-                if (wordCloud) wordCloud.resize();
+                try {
+                    const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
+                    const wordCloud = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
+                    if (wordFreqBar) wordFreqBar.resize();
+                    if (wordCloud) wordCloud.resize();
+                } catch (error) {
+                    console.error('调整词频图表大小失败:', error);
+                }
             }, 0);
         }
 
@@ -652,7 +902,7 @@
         // 渲染词频标签
         const wordFreqTags = document.getElementById('wordFreqTags');
         let tagsHtml = '';
-        
+
         // 确保词频数据存在
         if (data.wordFreq && data.wordFreq.length > 0) {
             data.wordFreq.forEach((item, index) => {
@@ -662,7 +912,7 @@
         } else {
             wordFreqTags.innerHTML = '<p class="text-muted">没有词频数据</p>';
         }
-        
+
         // 确保在 DOM 更新后再初始化图表
         setTimeout(() => {
             // 初始化整体情感分布饼图
@@ -961,46 +1211,78 @@
     }
 
     function updateDisplay() {
+        // 应用情感筛选
+        filteredSentences = allSentences.filter(sentence => {
+            if (sentimentFilter === 'all') return true;
+            return (sentimentFilter === 'positive' && sentence.sentiment === '积极') ||
+                   (sentimentFilter === 'negative' && sentence.sentiment === '消极');
+        });
+
+        // 更新句子计数
+        document.getElementById('sentenceCount').textContent = `(${filteredSentences.length}条)`;
+
+        // 如果当前页超出了筛选后的最大页数，重置为第一页
+        const maxPage = Math.ceil(filteredSentences.length / sentencesPerPage);
+        if (currentPage > maxPage && maxPage > 0) {
+            currentPage = 1;
+        }
+
         let startIndex = (currentPage - 1) * sentencesPerPage;
-        let endIndex = Math.min(startIndex + sentencesPerPage, allSentences.length);
-        let currentSentences = allSentences.slice(startIndex, endIndex);
+        let endIndex = Math.min(startIndex + sentencesPerPage, filteredSentences.length);
+        let currentSentences = filteredSentences.slice(startIndex, endIndex);
 
         let sentenceResultsDiv = document.getElementById('sentenceList');
         let sentencesHtml = '';
 
+        // 根据显示模式设置卡片样式
+        const cardClass = displayMode === 'compact' ? 'sentiment-card collapsed' :
+                         (displayMode === 'expanded' ? 'sentiment-card expanded' : 'sentiment-card');
+
         currentSentences.forEach((sentence, index) => {
+            const sentimentClass = sentence.sentiment === '积极' ? 'positive' : 'negative';
+            const sentimentColor = sentence.sentiment === '积极' ? 'success' : 'danger';
+            const sentimentIcon = sentence.sentiment === '积极' ? '👍' : '👎';
+
             sentencesHtml += `
-                <div class="sentiment-card">
-                    <div class="alert ${sentence.sentiment === '积极' ? 'alert-success' : 'alert-danger'}">
-                        <strong>句子 ${startIndex + index + 1}:</strong> ${sentence.text}
-                        <br>
-                        <small>情感倾向: ${sentence.sentiment} (置信度: ${sentence.confidence.toFixed(2)}%)</small>
-                    </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" 
-                            style="width: ${sentence.probabilities.positive.toFixed(2)}%">
-                            积极 ${sentence.probabilities.positive.toFixed(2)}%
+                <div class="${cardClass}" data-index="${startIndex + index}">
+                    <div class="sentiment-header" onclick="toggleCard(${startIndex + index})">
+                        <span><strong>句子 ${startIndex + index + 1}</strong> ${sentimentIcon}</span>
+                        <div>
+                            <span class="sentiment-label ${sentimentClass}">${sentence.sentiment} ${sentence.confidence.toFixed(2)}%</span>
+                            <span class="toggle-icon">▼</span>
                         </div>
                     </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-danger" role="progressbar" 
-                            style="width: ${sentence.probabilities.negative.toFixed(2)}%">
-                            消极 ${sentence.probabilities.negative.toFixed(2)}%
+                    <div class="sentiment-content">${sentence.text}</div>
+                    <div class="sentiment-footer">
+                        <div class="progress">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                style="width: ${sentence.probabilities.positive.toFixed(2)}%">
+                                ${sentence.probabilities.positive.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-danger" role="progressbar"
+                                style="width: ${sentence.probabilities.negative.toFixed(2)}%">
+                                ${sentence.probabilities.negative.toFixed(2)}%
+                            </div>
                         </div>
                     </div>
                 </div>`;
         });
 
-        sentenceResultsDiv.innerHTML = sentencesHtml;
+        sentenceResultsDiv.innerHTML = sentencesHtml || '<div class="alert alert-info">没有符合条件的句子</div>';
 
         // 更新分页信息
-        document.getElementById('pageInfo').innerHTML = 
-            `第 ${currentPage} 页 / 共 ${Math.ceil(allSentences.length / sentencesPerPage)} 页`;
+        document.getElementById('pageInfo').innerHTML =
+            `第 ${currentPage} 页 / 共 ${Math.max(1, maxPage)} 页，共 ${filteredSentences.length} 条`;
 
         // 更新分页按钮状态
         document.querySelector('.pagination li:first-child').classList.toggle('disabled', currentPage === 1);
-        document.querySelector('.pagination li:last-child').classList.toggle('disabled', 
-            currentPage === Math.ceil(allSentences.length / sentencesPerPage));
+        document.querySelector('.pagination li:last-child').classList.toggle('disabled',
+            currentPage === maxPage || maxPage === 0);
+
+        // 更新页码按钮
+        updatePageNumbers(maxPage);
 
         // 为词频标签添加动画延迟
         document.querySelectorAll('.word-freq-item').forEach((item, index) => {
@@ -1015,17 +1297,113 @@
 
     function changePage(delta) {
         let newPage = currentPage + delta;
-        let maxPage = Math.ceil(allSentences.length / sentencesPerPage);
-        
+        let maxPage = Math.ceil(filteredSentences.length / sentencesPerPage);
+
         if (newPage >= 1 && newPage <= maxPage) {
             currentPage = newPage;
             updateDisplay();
+            // 滚动到句子列表顶部
+            document.getElementById('sentenceList').scrollIntoView({behavior: 'smooth'});
         }
     }
 
-    // 添加页面加载动画
+    function goToPage(page) {
+        let maxPage = Math.ceil(filteredSentences.length / sentencesPerPage);
+        if (page >= 1 && page <= maxPage) {
+            currentPage = page;
+            updateDisplay();
+            // 滚动到句子列表顶部
+            document.getElementById('sentenceList').scrollIntoView({behavior: 'smooth'});
+        }
+    }
+
+    function updatePageNumbers(maxPage) {
+        const pageNumbersContainer = document.getElementById('pageNumbers');
+        let html = '';
+
+        // 确定要显示的页码范围
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(maxPage, startPage + 4);
+
+        // 调整起始页，确保始终显示5个页码（如果有足够的页数）
+        if (endPage - startPage < 4 && startPage > 1) {
+            startPage = Math.max(1, endPage - 4);
+        }
+
+        // 添加第一页和省略号
+        if (startPage > 1) {
+            html += `<div class="page-number" onclick="goToPage(1)">1</div>`;
+            if (startPage > 2) {
+                html += `<div class="page-number">...</div>`;
+            }
+        }
+
+        // 添加中间页码
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<div class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</div>`;
+        }
+
+        // 添加最后页和省略号
+        if (endPage < maxPage) {
+            if (endPage < maxPage - 1) {
+                html += `<div class="page-number">...</div>`;
+            }
+            html += `<div class="page-number" onclick="goToPage(${maxPage})">${maxPage}</div>`;
+        }
+
+        pageNumbersContainer.innerHTML = html;
+    }
+
+    function toggleCard(index) {
+        const card = document.querySelector(`.sentiment-card[data-index="${index}"]`);
+        if (card) {
+            card.classList.toggle('collapsed');
+        }
+    }
+
+    function setDisplayMode(mode) {
+        displayMode = mode;
+        updateDisplay();
+    }
+
+    function setSentimentFilter(filter) {
+        sentimentFilter = filter;
+        currentPage = 1; // 重置为第一页
+        updateDisplay();
+    }
+
+    // 添加事件监听器
     document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.add('fade-in');
+
+        // 每页显示数量选择器
+        document.getElementById('perPageSelect').addEventListener('change', function() {
+            sentencesPerPage = parseInt(this.value);
+            currentPage = 1; // 重置为第一页
+            updateDisplay();
+        });
+
+        // 情感筛选按钮
+        document.querySelectorAll('.filter-button[data-sentiment]').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                setSentimentFilter(this.dataset.sentiment);
+            });
+        });
+
+        // 显示模式按钮
+        document.querySelectorAll('.filter-button[data-display]').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                setDisplayMode(this.dataset.display);
+            });
+        });
     });
 </script>
 </body>
