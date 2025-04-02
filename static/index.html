@@ -62,6 +62,14 @@
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .result-card.show {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .sentence-card {
@@ -93,7 +101,7 @@
         }
 
         .progress-bar {
-            transition: width 0.6s ease;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .word-freq-item {
@@ -103,8 +111,10 @@
             background-color: #e9ecef;
             border-radius: 20px;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: default;
+            animation: tagPop 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+            animation-delay: calc(var(--delay) * 0.1s);
         }
 
         .word-freq-item:hover {
@@ -132,11 +142,40 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             z-index: 1000;
+            animation: fadeInBlur 0.3s ease-out;
+        }
+
+        @keyframes fadeInBlur {
+            from {
+                opacity: 0;
+                backdrop-filter: blur(0);
+            }
+            to {
+                opacity: 1;
+                backdrop-filter: blur(5px);
+            }
+        }
+
+        .spinner-border {
+            animation: spin 1s linear infinite, pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
         }
 
         .error-message {
@@ -153,13 +192,36 @@
             background: linear-gradient(45deg, #007bff, #0056b3);
             border: none;
             padding: 10px 25px;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-analyze:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease-out, height 0.6s ease-out;
+        }
+
+        .btn-analyze:hover:before {
+            width: 300px;
+            height: 300px;
         }
 
         .btn-analyze:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            background: linear-gradient(45deg, #0056b3, #004085);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-analyze:active {
+            transform: translateY(1px);
         }
 
         .charts-container {
@@ -177,6 +239,20 @@
             border-radius: 10px;
             padding: 30px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideUp 0.5s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .chart {
@@ -203,17 +279,107 @@
             background-color: #e9ecef;
             color: #495057;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-button:before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(0, 123, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease-out, height 0.4s ease-out;
+        }
+
+        .tab-button:hover:before {
+            width: 200px;
+            height: 200px;
         }
 
         .tab-button.active {
-            background-color: #007bff;
+            background: linear-gradient(45deg, #007bff, #0056b3);
             color: white;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
         }
 
-        .tab-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .progress {
+            margin-bottom: 10px;
+        }
+        .sentiment-card {
+            margin-bottom: 15px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .pagination {
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .page-info {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* 添加页面加载动画 */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 美化词频标签动画 */
+        .word-freq-item {
+            animation: tagPop 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+            animation-delay: calc(var(--delay) * 0.1s);
+            transition: all 0.3s ease;
+        }
+
+        @keyframes tagPop {
+            0% {
+                opacity: 0;
+                transform: scale(0.8) translateY(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        /* 词频标签颜色渐变 */
+        .word-freq-item {
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .word-freq-item:hover {
+            background: linear-gradient(135deg, #dee2e6, #ced4da);
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
     </style>
 </head>
@@ -285,6 +451,19 @@
             <div id="listView">
                 <h4 class="mb-3">句子分析结果</h4>
                 <div id="sentenceList"></div>
+                <div id="pagination" class="mt-3">
+                    <div class="page-info" id="pageInfo"></div>
+                    <nav>
+                        <ul class="pagination">
+                            <li class="page-item">
+                                <a class="page-link" href="#" onclick="changePage(-1)">上一页</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="#" onclick="changePage(1)">下一页</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
             <div id="chartView" style="display: none;">
                 <div class="charts-container">
@@ -327,6 +506,10 @@
 </div>
 
 <script>
+    let currentPage = 1;
+    let sentencesPerPage = 10;
+    let allSentences = [];
+
     async function analyzeText() {
         const text = document.getElementById('textInput').value.trim();
         if (!text) {
@@ -365,6 +548,21 @@
     }
 
     function displayResults(data) {
+        allSentences = data.sentences;
+        currentPage = 1;
+
+        // 显示结果区域并添加动画
+        const resultCards = document.querySelectorAll('.result-card');
+        resultCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.display = 'block';
+                card.classList.add('show');
+            }, index * 100);
+        });
+
+        // 更新句子列表和分页
+        updateDisplay();
+
         // 显示整体结果
         const overall = data.overall;
         document.getElementById('overallSentiment').textContent = overall.sentiment;
@@ -374,47 +572,14 @@
         document.getElementById('overallNegativeProb').textContent = overall.probabilities.negative.toFixed(2);
         document.getElementById('overallResult').style.display = 'block';
 
-        // 显示每个句子的结果
-        const sentenceList = document.getElementById('sentenceList');
-        sentenceList.innerHTML = '';
-        data.sentences.forEach((sentence, index) => {
-            const sentenceDiv = document.createElement('div');
-            sentenceDiv.className = `sentence-card ${sentence.sentiment === '积极' ? 'positive' : 'negative'}`;
-            sentenceDiv.innerHTML = `
-                    <h5>句子 ${index + 1}</h5>
-                    <p class="mb-2">${sentence.text}</p>
-                    <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar"
-                             style="width: ${sentence.probabilities.positive}%"
-                             aria-valuenow="${sentence.probabilities.positive}"
-                             aria-valuemin="0" aria-valuemax="100"></div>
-                        <div class="progress-bar bg-danger" role="progressbar"
-                             style="width: ${sentence.probabilities.negative}%"
-                             aria-valuenow="${sentence.probabilities.negative}"
-                             aria-valuemin="0" aria-valuemax="100"></div>
-                    </div>
-                    <div class="text-muted small">
-                        情感倾向：<span class="badge ${sentence.sentiment === '积极' ? 'bg-success' : 'bg-danger'}">${sentence.sentiment}</span> |
-                        积极：${sentence.probabilities.positive.toFixed(2)}% |
-                        消极：${sentence.probabilities.negative.toFixed(2)}%
-                    </div>
-                `;
-            sentenceList.appendChild(sentenceDiv);
-        });
-        document.getElementById('sentenceResults').style.display = 'block';
-
-        // 显示词频统计
-        const wordFreqTags = document.getElementById('wordFreqTags');
-        wordFreqTags.innerHTML = data.wordFreq.map(item =>
-            `<span class="word-freq-item">${item.word} <span class="badge bg-secondary">${item.count}</span></span>`
-        ).join('');
-        document.getElementById('wordFreq').style.display = 'block';
-
         // 显示模型评估指标
         document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
         document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
         document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
         document.getElementById('modelMetrics').style.display = 'block';
+
+        // 显示词频统计
+        document.getElementById('wordFreq').style.display = 'block';
 
         // 初始化图表
         initCharts(data);
@@ -484,6 +649,20 @@
     }
 
     function initCharts(data) {
+        // 渲染词频标签
+        const wordFreqTags = document.getElementById('wordFreqTags');
+        let tagsHtml = '';
+        
+        // 确保词频数据存在
+        if (data.wordFreq && data.wordFreq.length > 0) {
+            data.wordFreq.forEach((item, index) => {
+                tagsHtml += `<span class="word-freq-item" style="--delay: ${index}">${item.word} (${item.count})</span>`;
+            });
+            wordFreqTags.innerHTML = tagsHtml;
+        } else {
+            wordFreqTags.innerHTML = '<p class="text-muted">没有词频数据</p>';
+        }
+        
         // 确保在 DOM 更新后再初始化图表
         setTimeout(() => {
             // 初始化整体情感分布饼图
@@ -660,6 +839,9 @@
                     trigger: 'axis',
                     axisPointer: {
                         type: 'shadow'
+                    },
+                    formatter: function(params) {
+                        return params[0].name + ': ' + params[0].value;
                     }
                 },
                 grid: {
@@ -746,6 +928,22 @@
             };
             wordCloud.setOption(wordCloudOption);
 
+            // 添加图表动画
+            const chartOptions = {
+                animation: {
+                    duration: 1000,
+                    easing: 'cubicInOut'
+                }
+            };
+
+            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud].forEach(chart => {
+                const option = chart.getOption();
+                chart.setOption({
+                    ...option,
+                    ...chartOptions
+                });
+            });
+
             // 监听窗口大小变化，调整图表大小
             window.addEventListener('resize', function () {
                 overallPieChart.resize();
@@ -761,6 +959,74 @@
             });
         }, 0);
     }
+
+    function updateDisplay() {
+        let startIndex = (currentPage - 1) * sentencesPerPage;
+        let endIndex = Math.min(startIndex + sentencesPerPage, allSentences.length);
+        let currentSentences = allSentences.slice(startIndex, endIndex);
+
+        let sentenceResultsDiv = document.getElementById('sentenceList');
+        let sentencesHtml = '';
+
+        currentSentences.forEach((sentence, index) => {
+            sentencesHtml += `
+                <div class="sentiment-card">
+                    <div class="alert ${sentence.sentiment === '积极' ? 'alert-success' : 'alert-danger'}">
+                        <strong>句子 ${startIndex + index + 1}:</strong> ${sentence.text}
+                        <br>
+                        <small>情感倾向: ${sentence.sentiment} (置信度: ${sentence.confidence.toFixed(2)}%)</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                            style="width: ${sentence.probabilities.positive.toFixed(2)}%">
+                            积极 ${sentence.probabilities.positive.toFixed(2)}%
+                        </div>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-danger" role="progressbar" 
+                            style="width: ${sentence.probabilities.negative.toFixed(2)}%">
+                            消极 ${sentence.probabilities.negative.toFixed(2)}%
+                        </div>
+                    </div>
+                </div>`;
+        });
+
+        sentenceResultsDiv.innerHTML = sentencesHtml;
+
+        // 更新分页信息
+        document.getElementById('pageInfo').innerHTML = 
+            `第 ${currentPage} 页 / 共 ${Math.ceil(allSentences.length / sentencesPerPage)} 页`;
+
+        // 更新分页按钮状态
+        document.querySelector('.pagination li:first-child').classList.toggle('disabled', currentPage === 1);
+        document.querySelector('.pagination li:last-child').classList.toggle('disabled', 
+            currentPage === Math.ceil(allSentences.length / sentencesPerPage));
+
+        // 为词频标签添加动画延迟
+        document.querySelectorAll('.word-freq-item').forEach((item, index) => {
+            item.style.setProperty('--delay', index);
+        });
+
+        // 为图表添加动画
+        document.querySelectorAll('.chart-wrapper').forEach((wrapper, index) => {
+            wrapper.style.animationDelay = `${index * 0.2}s`;
+        });
+    }
+
+    function changePage(delta) {
+        let newPage = currentPage + delta;
+        let maxPage = Math.ceil(allSentences.length / sentencesPerPage);
+        
+        if (newPage >= 1 && newPage <= maxPage) {
+            currentPage = newPage;
+            updateDisplay();
+        }
+    }
+
+    // 添加页面加载动画
+    document.addEventListener('DOMContentLoaded', function() {
+        document.body.classList.add('fade-in');
+    });
 </script>
 </body>
 </html>
