@@ -17,8 +17,41 @@
 
     <div class="left-panel">
         <div class="input-section">
-            <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
-            <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
+            <ul class="nav nav-tabs mb-3" id="inputTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#textInput-tab" type="button" role="tab" aria-controls="textInput-tab" aria-selected="true">文本输入</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#fileInput-tab" type="button" role="tab" aria-controls="fileInput-tab" aria-selected="false">文件上传</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="inputTabsContent">
+                <div class="tab-pane fade show active" id="textInput-tab" role="tabpanel" aria-labelledby="text-tab">
+                    <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
+                    <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
+                </div>
+                <div class="tab-pane fade" id="fileInput-tab" role="tabpanel" aria-labelledby="file-tab">
+                    <label for="fileInput" class="form-label fw-bold">上传文本文件（每行一个句子）：</label>
+                    <div class="input-group mb-3">
+                        <input type="file" class="form-control" id="fileInput" accept=".txt">
+                        <button class="btn btn-outline-secondary" type="button" id="fileViewBtn" disabled>预览内容</button>
+                    </div>
+                    <div class="file-info small text-muted mb-3" id="fileInfo"></div>
+                    <div class="file-preview mb-3 d-none" id="filePreview">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>文件预览</span>
+                                <button type="button" class="btn-close" aria-label="Close" id="closePreview"></button>
+                            </div>
+                            <div class="card-body">
+                                <pre id="fileContent" class="file-content"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="text-center">
                 <button class="btn btn-primary btn-analyze" onclick="analyzeText()">开始分析</button>
             </div>
@@ -101,8 +134,8 @@
                         <div class="per-page-control">
                             <span>每页显示：</span>
                             <select id="perPageSelect" class="form-select form-select-sm" style="width: auto">
-                                <option value="5">5条</option>
-                                <option value="10" selected>10条</option>
+                                <option value="5" selected>5条</option>
+                                <option value="10">10条</option>
                                 <option value="20">20条</option>
                                 <option value="50">50条</option>
                             </select>
@@ -166,10 +199,12 @@
 </div>
 
 <!-- JavaScript files -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/shared.js"></script>
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/pagination.js"></script>
+<script src="/static/js/fileupload.js"></script>
 <script src="/static/js/main.js"></script>
 </body>
 </html>

@@ -6,9 +6,11 @@
  * 分析文本函数
  */
 async function analyzeText() {
-    const text = document.getElementById('textInput').value.trim();
+    // 获取输入文本（从文本框或文件）
+    const text = window.fileUploadModule.getInputText();
+    
     if (!text) {
-        showError('请输入要分析的文本');
+        showError('请输入要分析的文本或上传文件');
         return;
     }
 
@@ -19,13 +21,29 @@ async function analyzeText() {
     document.getElementById('wordFreq').style.display = 'none';
     document.getElementById('modelMetrics').style.display = 'none';
 
+    // 检查是否为文件上传模式
+    const isFileUpload = document.getElementById('file-tab').classList.contains('active');
+    let payload = { text };
+    
+    // 如果是文件上传，添加文件名和处理模式标记
+    if (isFileUpload) {
+        payload.fileName = window.fileUploadModule.getCurrentFileName();
+        payload.mode = 'file';
+        
+        // 预处理: 检查是否需要将文件内容按行分割为句子
+        const lines = window.fileUploadModule.parseSentencesFromFile(text);
+        if (lines.length > 1) {
+            payload.sentences = lines;
+        }
+    }
+
     try {
         const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({text}),
+            body: JSON.stringify(payload),
         });
 
         const data = await response.json();
@@ -115,4 +133,5 @@ function displayResults(data) {
 document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.add('fade-in');
     setupUIEventListeners();
+    initFileUpload(); // 初始化文件上传功能
 });
