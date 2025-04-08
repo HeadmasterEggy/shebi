@@ -40,6 +40,8 @@
             gap: 20px;
             padding-right: 10px;
             border-right: 2px solid #f0f0f0;
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
         }
 
         .right-panel {
@@ -237,11 +239,16 @@
             margin-bottom: 20px;
             background-color: white;
             border-radius: 10px;
-            padding: 30px;
+            padding: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             animation: slideUp 0.5s ease-out forwards;
             opacity: 0;
+        }
+
+        #wordCloudChart {
+            width: 100%;
+            height: 100%;
         }
 
         @keyframes slideUp {
@@ -311,6 +318,7 @@
         .progress {
             margin-bottom: 10px;
         }
+
         .sentiment-card {
             margin-bottom: 10px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -324,20 +332,37 @@
 
         .sentiment-label {
             display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
             font-weight: bold;
             margin-left: 8px;
             color: white;
             font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: labelPop 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
         }
 
         .sentiment-label.positive {
-            background-color: #28a745;
+            background: linear-gradient(135deg, #34d058, #28a745);
+            border: 1px solid rgba(40, 167, 69, 0.3);
         }
 
         .sentiment-label.negative {
-            background-color: #dc3545;
+            background: linear-gradient(135deg, #e05252, #dc3545);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+        
+        @keyframes labelPop {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         .sentiment-header {
@@ -402,6 +427,7 @@
             font-weight: bold;
             text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
         }
+
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -412,10 +438,12 @@
                 transform: translateX(0);
             }
         }
+
         .pagination {
             margin-top: 15px;
             justify-content: center;
         }
+
         .page-info {
             text-align: center;
             margin-bottom: 8px;
@@ -494,22 +522,28 @@
             padding: 4px 10px;
             border-radius: 15px;
             font-size: 0.85rem;
-            background-color: #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             border: none;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            position: relative;
+            overflow: hidden;
         }
 
         .filter-button:hover {
-            background-color: #dee2e6;
+            background: linear-gradient(135deg, #e9ecef, #dee2e6);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.12);
         }
 
         .filter-button.active {
-            background-color: #007bff;
+            background: linear-gradient(45deg, #007bff, #0069d9);
             color: white;
+            box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
         }
 
-        /* 添加页面加载动画 */
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -525,7 +559,6 @@
             }
         }
 
-        /* 美化词频标签动画 */
         .word-freq-item {
             animation: tagPop 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
             animation-delay: calc(var(--delay) * 0.1s);
@@ -543,16 +576,19 @@
             }
         }
 
-        /* 词频标签颜色渐变 */
         .word-freq-item {
-            background: linear-gradient(135deg, #e9ecef, #dee2e6);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0, 123, 255, 0.1);
+            color: #495057;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 25px;
         }
 
         .word-freq-item:hover {
-            background: linear-gradient(135deg, #dee2e6, #ced4da);
             transform: scale(1.05) translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            filter: brightness(1.1);
         }
     </style>
 </head>
@@ -562,9 +598,7 @@
         <h1>情感分析系统</h1>
     </div>
 
-    <!-- 左侧面板 -->
     <div class="left-panel">
-        <!-- 输入区域 -->
         <div class="input-section">
             <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
             <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
@@ -574,7 +608,6 @@
             <div id="errorMessage" class="error-message mt-3"></div>
         </div>
 
-        <!-- 整体分析结果 -->
         <div id="overallResult" class="result-card" style="display: none;">
             <h4 class="mb-3">整体分析结果</h4>
             <div class="overall-sentiment">
@@ -593,7 +626,6 @@
             </div>
         </div>
 
-        <!-- 模型评估指标 -->
         <div id="modelMetrics" class="result-card" style="display: none;">
             <h4 class="mb-3">模型评估指标</h4>
             <div class="metrics-grid">
@@ -610,19 +642,21 @@
                     <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
                 </div>
             </div>
+            <div class="chart-wrapper mt-4">
+                <h5 class="text-center mb-3">混淆矩阵</h5>
+                <div id="confusionMatrixChart" class="chart"></div>
+            </div>
         </div>
     </div>
 
-    <!-- 右侧面板 -->
     <div class="right-panel">
-        <!-- 句子分析结果 -->
         <div id="sentenceResults" class="result-card" style="display: none;">
             <div class="tab-buttons">
                 <button class="tab-button active" onclick="switchTab('list')">列表视图</button>
                 <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
             </div>
             <div id="listView">
-                <h4 class="mb-3">句子分析结果 <span class="badge bg-secondary" id="sentenceCount"></span></h4>
+                <h4 class="mb-3">句子分析结果：<span class="badge bg-secondary" id="sentenceCount"></span></h4>
 
                 <div class="filter-controls">
                     <div class="filter-row">
@@ -630,7 +664,7 @@
                         <div class="filter-buttons">
                             <button class="filter-button active" data-sentiment="all">全部</button>
                             <button class="filter-button" data-sentiment="positive">积极</button>
-                            <button class="filter-button" data-sentiment="negative">消极</button>
+                            <button class="filter-button" data-sentiment="negative">消极</button>   
                         </div>
                     </div>
                     <div class="filter-row">
@@ -681,11 +715,13 @@
                     <div class="chart-wrapper">
                         <div id="sentimentBarChart" class="chart"></div>
                     </div>
+                    <div class="chart-wrapper">
+                        <div id="sentimentScatterChart" class="chart"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 词频统计 -->
         <div id="wordFreq" class="result-card" style="display: none;">
             <h4 class="mb-3">词频统计</h4>
             <div class="tab-buttons">
@@ -705,7 +741,6 @@
     </div>
 </div>
 
-<!-- 加载动画 -->
 <div id="loading" class="loading">
     <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">分析中...</span>
@@ -728,7 +763,6 @@
             return;
         }
 
-        // 显示加载动画，隐藏其他结果
         document.getElementById('loading').style.display = 'flex';
         document.getElementById('errorMessage').style.display = 'none';
         document.getElementById('overallResult').style.display = 'none';
@@ -759,19 +793,17 @@
     }
 
     function displayResults(data) {
-        // 验证数据结构
         if (!data || !data.sentences || !Array.isArray(data.sentences)) {
             showError('返回的数据格式不正确');
             return;
         }
 
         allSentences = data.sentences;
-        filteredSentences = [...allSentences]; // 初始化筛选后的句子为所有句子
+        filteredSentences = [...allSentences];
         currentPage = 1;
-        sentimentFilter = 'all'; // 重置筛选条件
-        displayMode = 'normal'; // 重置显示模式
+        sentimentFilter = 'all';
+        displayMode = 'normal';
 
-        // 重置筛选按钮状态
         document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.sentiment === 'all');
         });
@@ -780,7 +812,6 @@
             btn.classList.toggle('active', btn.dataset.display === 'normal');
         });
 
-        // 显示结果区域并添加动画
         const resultCards = document.querySelectorAll('.result-card');
         resultCards.forEach((card, index) => {
             setTimeout(() => {
@@ -789,10 +820,8 @@
             }, index * 100);
         });
 
-        // 更新句子列表和分页
         updateDisplay();
 
-        // 显示整体结果
         if (data.overall && data.overall.probabilities) {
             const overall = data.overall;
             document.getElementById('overallSentiment').textContent = overall.sentiment || 'N/A';
@@ -805,20 +834,87 @@
             showError('整体分析结果数据不完整');
         }
 
-        // 显示模型评估指标
         if (data.modelMetrics) {
             document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
             document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
             document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
             document.getElementById('modelMetrics').style.display = 'block';
+            
+            const confusionMatrixChart = echarts.init(document.getElementById('confusionMatrixChart'));
+            const confusionData = [
+                [Math.round(data.sentences.filter(s => s.sentiment === '消极').length * data.modelMetrics.accuracy), 
+                 Math.round(data.sentences.filter(s => s.sentiment === '消极').length * (1 - data.modelMetrics.accuracy))],
+                [Math.round(data.sentences.filter(s => s.sentiment === '积极').length * (1 - data.modelMetrics.accuracy)), 
+                 Math.round(data.sentences.filter(s => s.sentiment === '积极').length * data.modelMetrics.accuracy)]
+            ];
+            
+            const confusionOption = {
+                tooltip: {
+                    position: 'top',
+                    formatter: function(params) {
+                        const labels = ['真实消极', '真实积极'];
+                        const predictions = ['预测消极', '预测积极'];
+                        return `${labels[params.data[0]]}<br>${predictions[params.data[1]]}<br>数量: ${params.data[2]}`;
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '7%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['预测消极', '预测积极'],
+                    splitArea: {
+                        show: true
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: ['真实消极', '真实积极'],
+                    splitArea: {
+                        show: true
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...confusionData.flat()) || 10,
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '0%',
+                    inRange: {
+                        color: ['#f2f2f2', '#5470c6', '#91cc75']
+                    }
+                },
+                series: [{
+                    name: '混淆矩阵',
+                    type: 'heatmap',
+                    data: [
+                        [0, 0, confusionData[0][0]],
+                        [0, 1, confusionData[0][1]],
+                        [1, 0, confusionData[1][0]],
+                        [1, 1, confusionData[1][1]]
+                    ],
+                    label: {
+                        show: true
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            confusionMatrixChart.setOption(confusionOption);
         }
 
-        // 显示词频统计
         if (data.wordFreq && Array.isArray(data.wordFreq)) {
             document.getElementById('wordFreq').style.display = 'block';
         }
 
-        // 初始化图表
         try {
             initCharts(data);
         } catch (error) {
@@ -845,13 +941,14 @@
         } else {
             listView.style.display = 'none';
             chartView.style.display = 'block';
-            // 当切换到图表视图时，重新调整图表大小
             setTimeout(() => {
                 try {
                     const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
                     const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
+                    const scatterChart = echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'));
                     if (pieChart) pieChart.resize();
                     if (barChart) barChart.resize();
+                    if (scatterChart) scatterChart.resize();
                 } catch (error) {
                     console.error('调整图表大小失败:', error);
                 }
@@ -877,7 +974,6 @@
         } else {
             tagsView.style.display = 'none';
             chartsView.style.display = 'block';
-            // 当切换到图表视图时，重新调整图表大小
             setTimeout(() => {
                 try {
                     const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
@@ -899,23 +995,29 @@
     }
 
     function initCharts(data) {
-        // 渲染词频标签
         const wordFreqTags = document.getElementById('wordFreqTags');
         let tagsHtml = '';
 
-        // 确保词频数据存在
         if (data.wordFreq && data.wordFreq.length > 0) {
+            const maxCount = Math.max(...data.wordFreq.map(item => item.count));
+            const minCount = Math.min(...data.wordFreq.map(item => item.count));
+            
             data.wordFreq.forEach((item, index) => {
-                tagsHtml += `<span class="word-freq-item" style="--delay: ${index}">${item.word} (${item.count})</span>`;
+                const colorIntensity = Math.max(0, Math.min(1, (item.count - minCount) / (maxCount - minCount || 1)));
+                const r = Math.round(220 - colorIntensity * 150);
+                const g = Math.round(240 - colorIntensity * 150);
+                const b = Math.round(255 - colorIntensity * 150);
+                const textColor = colorIntensity > 0.6 ? '#ffffff' : '#333333';
+                const borderColor = `rgba(${r-30}, ${g-30}, ${b-30}, 0.3)`;
+                
+                tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: linear-gradient(135deg, rgb(${r}, ${g}, ${b}), rgb(${r+10}, ${g+10}, ${b+10})); color: ${textColor}; border-color: ${borderColor};">${item.word} (${item.count})</span>`;
             });
             wordFreqTags.innerHTML = tagsHtml;
         } else {
             wordFreqTags.innerHTML = '<p class="text-muted">没有词频数据</p>';
         }
 
-        // 确保在 DOM 更新后再初始化图表
         setTimeout(() => {
-            // 初始化整体情感分布饼图
             const overallPieChart = echarts.init(document.getElementById('overallPieChart'));
             const overallPieOption = {
                 title: {
@@ -962,7 +1064,6 @@
             };
             overallPieChart.setOption(overallPieOption);
 
-            // 初始化情感分布饼图
             const pieChart = echarts.init(document.getElementById('sentimentPieChart'));
             const pieOption = {
                 title: {
@@ -1012,7 +1113,6 @@
             };
             pieChart.setOption(pieOption);
 
-            // 初始化句子情感条形图
             const barChart = echarts.init(document.getElementById('sentimentBarChart'));
             const sentenceData = data.sentences.map((s, index) => ({
                 positive: Number(s.probabilities.positive.toFixed(2)),
@@ -1076,9 +1176,100 @@
             };
             barChart.setOption(barOption);
 
-            // 初始化词频柱状图
+            const scatterChart = echarts.init(document.getElementById('sentimentScatterChart'));
+            const scatterData = data.sentences.map((s, index) => ([
+                Number(s.probabilities.positive.toFixed(2)),
+                Number(s.confidence.toFixed(2)),
+                index + 1,
+                s.sentiment === '积极' ? 0 : 1
+            ]));
+
+            const scatterOption = {
+                title: {
+                    text: '情感分析散点图',
+                    left: 'center',
+                    top: 20
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        const sentimentType = params.data[3] === 0 ? '积极' : '消极';
+                        return `句子${params.data[2]}<br/>` +
+                               `积极概率: ${params.data[0]}%<br/>` +
+                               `置信度: ${params.data[1]}%<br/>` +
+                               `情感类型: ${sentimentType}`;
+                    }
+                },
+                legend: {
+                    data: ['积极', '消极'],
+                    top: 50
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true,
+                    top: 100
+                },
+                xAxis: {
+                    type: 'value',
+                    name: '积极情绪概率',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    min: 0,
+                    max: 100,
+                    axisLabel: {
+                        formatter: '{value}%'
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '置信度',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    min: 0,
+                    max: 100,
+                    axisLabel: {
+                        formatter: '{value}%'
+                    }
+                },
+                series: [
+                    {
+                        name: '积极',
+                        type: 'scatter',
+                        symbolSize: 12,
+                        data: scatterData.filter(item => item[3] === 0),
+                        itemStyle: {
+                            color: '#28a745'
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    },
+                    {
+                        name: '消极',
+                        type: 'scatter',
+                        symbolSize: 12,
+                        data: scatterData.filter(item => item[3] === 1),
+                        itemStyle: {
+                            color: '#dc3545'
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                shadowBlur: 10,
+                                shadowColor: 'rgba(0, 0, 0, 0.5)'
+                            }
+                        }
+                    }
+                ]
+            };
+            scatterChart.setOption(scatterOption);
+
             const wordFreqBar = echarts.init(document.getElementById('wordFreqBarChart'));
-            const wordFreqData = data.wordFreq.slice(0, 10);
+            const wordFreqData = data.wordFreq.slice(0, 20);
             const wordFreqBarOption = {
                 title: {
                     text: '高频词汇统计',
@@ -1125,7 +1316,6 @@
             };
             wordFreqBar.setOption(wordFreqBarOption);
 
-            // 初始化词云图
             const wordCloud = echarts.init(document.getElementById('wordCloudChart'));
             const wordCloudOption = {
                 title: {
@@ -1142,15 +1332,16 @@
                 series: [{
                     type: 'wordCloud',
                     shape: 'circle',
+                    size: ['100%', '100%'],
                     left: 'center',
                     top: 'center',
-                    width: '95%',
-                    height: '95%',
+                    width: '100%',
+                    height: '100%',
                     right: null,
                     bottom: null,
-                    sizeRange: [15, 70],
+                    sizeRange: [15, 80],
                     rotationRange: [-45, 45],
-                    rotationStep: 45,
+                    rotationStep: 30,
                     gridSize: 8,
                     drawOutOfBound: false,
                     textStyle: {
@@ -1178,7 +1369,6 @@
             };
             wordCloud.setOption(wordCloudOption);
 
-            // 添加图表动画
             const chartOptions = {
                 animation: {
                     duration: 1000,
@@ -1186,7 +1376,7 @@
                 }
             };
 
-            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud].forEach(chart => {
+            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud, scatterChart].forEach(chart => {
                 const option = chart.getOption();
                 chart.setOption({
                     ...option,
@@ -1194,34 +1384,31 @@
                 });
             });
 
-            // 监听窗口大小变化，调整图表大小
             window.addEventListener('resize', function () {
                 overallPieChart.resize();
                 pieChart.resize();
                 barChart.resize();
                 wordFreqBar.resize();
                 wordCloud.resize();
+                confusionMatrixChart.resize();
+                scatterChart.resize();
             });
 
-            // 手动触发一次 resize 事件
-            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud].forEach(chart => {
+            [overallPieChart, pieChart, barChart, wordFreqBar, wordCloud, confusionMatrixChart, scatterChart].forEach(chart => {
                 chart.resize();
             });
         }, 0);
     }
 
     function updateDisplay() {
-        // 应用情感筛选
         filteredSentences = allSentences.filter(sentence => {
             if (sentimentFilter === 'all') return true;
             return (sentimentFilter === 'positive' && sentence.sentiment === '积极') ||
                    (sentimentFilter === 'negative' && sentence.sentiment === '消极');
         });
 
-        // 更新句子计数
         document.getElementById('sentenceCount').textContent = `(${filteredSentences.length}条)`;
 
-        // 如果当前页超出了筛选后的最大页数，重置为第一页
         const maxPage = Math.ceil(filteredSentences.length / sentencesPerPage);
         if (currentPage > maxPage && maxPage > 0) {
             currentPage = 1;
@@ -1234,13 +1421,11 @@
         let sentenceResultsDiv = document.getElementById('sentenceList');
         let sentencesHtml = '';
 
-        // 根据显示模式设置卡片样式
         const cardClass = displayMode === 'compact' ? 'sentiment-card collapsed' :
                          (displayMode === 'expanded' ? 'sentiment-card expanded' : 'sentiment-card');
 
         currentSentences.forEach((sentence, index) => {
             const sentimentClass = sentence.sentiment === '积极' ? 'positive' : 'negative';
-            const sentimentColor = sentence.sentiment === '积极' ? 'success' : 'danger';
             const sentimentIcon = sentence.sentiment === '积极' ? '👍' : '👎';
 
             sentencesHtml += `
@@ -1248,7 +1433,7 @@
                     <div class="sentiment-header" onclick="toggleCard(${startIndex + index})">
                         <span><strong>句子 ${startIndex + index + 1}</strong> ${sentimentIcon}</span>
                         <div>
-                            <span class="sentiment-label ${sentimentClass}">${sentence.sentiment} ${sentence.confidence.toFixed(2)}%</span>
+                            <span class="sentiment-label ${sentimentClass}">${sentence.sentiment}</span>
                             <span class="toggle-icon">▼</span>
                         </div>
                     </div>
@@ -1257,39 +1442,33 @@
                         <div class="progress">
                             <div class="progress-bar bg-success" role="progressbar"
                                 style="width: ${sentence.probabilities.positive.toFixed(2)}%">
-                                ${sentence.probabilities.positive.toFixed(2)}%
+                                正面 ${sentence.probabilities.positive.toFixed(2)}%
                             </div>
-                        </div>
-                        <div class="progress">
                             <div class="progress-bar bg-danger" role="progressbar"
                                 style="width: ${sentence.probabilities.negative.toFixed(2)}%">
-                                ${sentence.probabilities.negative.toFixed(2)}%
+                                负面 ${sentence.probabilities.negative.toFixed(2)}%
                             </div>
                         </div>
+                        <div>置信度: ${sentence.confidence.toFixed(2)}%</div>
                     </div>
                 </div>`;
         });
 
         sentenceResultsDiv.innerHTML = sentencesHtml || '<div class="alert alert-info">没有符合条件的句子</div>';
 
-        // 更新分页信息
         document.getElementById('pageInfo').innerHTML =
             `第 ${currentPage} 页 / 共 ${Math.max(1, maxPage)} 页，共 ${filteredSentences.length} 条`;
 
-        // 更新分页按钮状态
         document.querySelector('.pagination li:first-child').classList.toggle('disabled', currentPage === 1);
         document.querySelector('.pagination li:last-child').classList.toggle('disabled',
             currentPage === maxPage || maxPage === 0);
 
-        // 更新页码按钮
         updatePageNumbers(maxPage);
 
-        // 为词频标签添加动画延迟
         document.querySelectorAll('.word-freq-item').forEach((item, index) => {
             item.style.setProperty('--delay', index);
         });
 
-        // 为图表添加动画
         document.querySelectorAll('.chart-wrapper').forEach((wrapper, index) => {
             wrapper.style.animationDelay = `${index * 0.2}s`;
         });
@@ -1302,7 +1481,6 @@
         if (newPage >= 1 && newPage <= maxPage) {
             currentPage = newPage;
             updateDisplay();
-            // 滚动到句子列表顶部
             document.getElementById('sentenceList').scrollIntoView({behavior: 'smooth'});
         }
     }
@@ -1312,7 +1490,6 @@
         if (page >= 1 && page <= maxPage) {
             currentPage = page;
             updateDisplay();
-            // 滚动到句子列表顶部
             document.getElementById('sentenceList').scrollIntoView({behavior: 'smooth'});
         }
     }
@@ -1321,16 +1498,13 @@
         const pageNumbersContainer = document.getElementById('pageNumbers');
         let html = '';
 
-        // 确定要显示的页码范围
         let startPage = Math.max(1, currentPage - 2);
         let endPage = Math.min(maxPage, startPage + 4);
 
-        // 调整起始页，确保始终显示5个页码（如果有足够的页数）
         if (endPage - startPage < 4 && startPage > 1) {
             startPage = Math.max(1, endPage - 4);
         }
 
-        // 添加第一页和省略号
         if (startPage > 1) {
             html += `<div class="page-number" onclick="goToPage(1)">1</div>`;
             if (startPage > 2) {
@@ -1338,12 +1512,10 @@
             }
         }
 
-        // 添加中间页码
         for (let i = startPage; i <= endPage; i++) {
             html += `<div class="page-number ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</div>`;
         }
 
-        // 添加最后页和省略号
         if (endPage < maxPage) {
             if (endPage < maxPage - 1) {
                 html += `<div class="page-number">...</div>`;
@@ -1368,22 +1540,19 @@
 
     function setSentimentFilter(filter) {
         sentimentFilter = filter;
-        currentPage = 1; // 重置为第一页
+        currentPage = 1;
         updateDisplay();
     }
 
-    // 添加事件监听器
     document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.add('fade-in');
 
-        // 每页显示数量选择器
         document.getElementById('perPageSelect').addEventListener('change', function() {
             sentencesPerPage = parseInt(this.value);
-            currentPage = 1; // 重置为第一页
+            currentPage = 1;
             updateDisplay();
         });
 
-        // 情感筛选按钮
         document.querySelectorAll('.filter-button[data-sentiment]').forEach(button => {
             button.addEventListener('click', function() {
                 document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
@@ -1394,7 +1563,6 @@
             });
         });
 
-        // 显示模式按钮
         document.querySelectorAll('.filter-button[data-display]').forEach(button => {
             button.addEventListener('click', function() {
                 document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
