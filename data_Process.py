@@ -69,6 +69,11 @@ def data_preview(file_path):
         # 打印数据集的描述信息
         logging.info(f"{'*' * 20} 原始数据集描述 ({file_path.split('/')[-1]}) {'*' * 20}")
         logging.info(f"数据长度: {len(data)}")
+        logging.info(f"数据集形状: {df.shape}")
+        logging.info(f"数据集列名: {df.columns}")
+        logging.info(f"数据集数据类型:\n{df.dtypes}")
+        logging.info(f"数据集空值信息:\n{df.isnull().sum()}")
+        logging.info(f"数据集描述信息:\n{df.describe()}")
         logging.info(f"数据预览:\n{df.head()}")
         logging.info(f"标签计数:\n{df['label'].value_counts()}")
 
