@@ -13,7 +13,7 @@ from tqdm import tqdm
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from eval import CacheManager  # 导入 CacheManager
-from model import LSTM_attention
+from bilstm_model import LSTM_attention
 
 # 从eval模块导入预测函数
 
@@ -195,7 +195,7 @@ def pre(word2id, model, seq_length, path):
     # 读取评估指标日志
     metrics_df = pd.read_csv('metrics_log.csv')
     # 获取最新的测试评估指标
-    latest_metrics = metrics_df[metrics_df['type'] == 'test'].iloc[-1]
+    latest_metrics = metrics_df[metrics_df['type'] == 'validation'].iloc[-1]
     model_metrics = {
         "accuracy": latest_metrics['accuracy'] / 100,  # 转换为小数
         "f1_score": latest_metrics['f1'] / 100,
@@ -321,14 +321,7 @@ def initialize_model(w2vec):
 
     logging.info("初始化模型...")
     # 加载最佳模型
-    if os.path.exists(Config.best_model_path):
-        model = torch.load(Config.best_model_path, weights_only=False)
-    else:
-        state_dict = torch.load(Config.model_state_dict_path, weights_only=False)
-        if isinstance(state_dict, dict):
-            model.load_state_dict(state_dict)
-        else:
-            model = state_dict
+    model = torch.load(Config.best_model_path, weights_only=False)
 
     # 保存模型状态到缓存
     cache_manager.save(model.state_dict(), "model_state", model_cache_params)

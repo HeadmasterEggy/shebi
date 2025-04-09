@@ -19,7 +19,10 @@ import os
 import pickle
 from io import open
 from pathlib import Path
-
+from cnn_model import TextCNN
+import numpy as np
+import pandas as pd
+import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,7 +37,7 @@ from data_Process import (
     text_to_array_nolabel,
     Data_set,
 )
-from model import LSTM_attention
+from bilstm_model import LSTM_attention
 
 # 配置日志
 logging.basicConfig(
@@ -149,8 +152,8 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
             'recall': [100 * recall]
         })
         
-        # 如果文件存在则追加，不存在则创建新文件
-        metrics_df.to_csv('metrics_log.csv', mode='a', header=not os.path.exists('metrics_log.csv'), index=False)
+        # 如果文件存在则清空内容后写入，不存在则创建新文件
+        metrics_df.to_csv('metrics_log.csv', mode='w', header=True, index=False)
 
         # 打印结果
         logging.info(f"\n验证集准确率: {accuracy:.3f}%, 总损失: {total_loss:.3f}, F1分数: {100 * f1:.3f}%, "
@@ -206,19 +209,7 @@ def test_accuracy(model, test_dataloader, device):
         f1 = f1_score(all_labels, all_preds, average="weighted")  # F1-score
         recall = recall_score(all_labels, all_preds, average="micro")  # 召回率
         confusion_mat = confusion_matrix(all_labels, all_preds)  # 混淆矩阵
-
-        # 保存评估指标到CSV文件
-        metrics_df = pd.DataFrame({
-            'timestamp': [pd.Timestamp.now()],
-            'type': ['test'],
-            'accuracy': [accuracy],
-            'f1': [100 * f1],
-            'recall': [100 * recall]
-        })
         
-        # 如果文件存在则追加，不存在则创建新文件
-        metrics_df.to_csv('metrics_log.csv', mode='a', header=not os.path.exists('metrics_log.csv'), index=False)
-
         # 使用 logging 记录结果
         logging.info(f"\n测试集准确率: {accuracy:.3f}%, F1分数: {100 * f1:.3f}%, "
                      f"召回率: {100 * recall:.3f}%, 混淆矩阵:\n{confusion_mat}")
@@ -300,6 +291,7 @@ def initialize_data(cache_manager=None, force_reload=False):
 
     # 定义缓存参数
     cache_params = {
+        "model_name": Config.model_name,  # 添加模型名称到缓存参数
         "word2id_path": Config.word2id_path,
         "train_path": Config.train_path,
         "val_path": Config.val_path,
@@ -308,7 +300,7 @@ def initialize_data(cache_manager=None, force_reload=False):
     }
 
     if not force_reload and cache_manager.exists("processed_data", cache_params):
-        logging.info("从缓存加载预处理数据...")
+        logging.info(f"从缓存加载预处理数据 (模型: {Config.model_name})...")
         return cache_manager.load("processed_data", cache_params)
 
     logging.info("初始化数据...")
@@ -354,13 +346,14 @@ def initialize_model(w2vec, device, cache_manager=None):
 
     # 检查是否有缓存的模型状态
     model_cache_params = {
+        "model_name": Config.model_name,  # 添加模型名称到缓存参数
         "vocab_size": Config.vocab_size,
         "embedding_dim": Config.embedding_dim,
         "hidden_dim": Config.hidden_dim,
         "num_layers": Config.num_layers
     }
 
-    model = LSTM_attention(
+    lstm_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -371,29 +364,35 @@ def initialize_model(w2vec, device, cache_manager=None):
         Config.n_class,
         Config.bidirectional,
     )
-
+    cnn_model = TextCNN(Config)
+    model = lstm_model if Config.model_name == "LSTM" else cnn_model
+    
+    logging.info(f"使用 {Config.model_name} 模型")
+    
+    # 选择适合的模型路径
+    best_model_path = Config.lstm_best_model_path if Config.model_name == "LSTM" else Config.cnn_best_model_path
+    
     # 尝试加载缓存的模型状态
-    cached_state = cache_manager.load("model_state", model_cache_params)
+    cache_key = f"{Config.model_name.lower()}_model_state"
+    cached_state = cache_manager.load(cache_key, model_cache_params)
+    
     if cached_state is not None:
-        logging.info("从缓存加载模型状态...")
+        logging.info(f"从缓存加载 {Config.model_name} 模型状态...")
         model.load_state_dict(cached_state)
     else:
-        # 加载最佳模型或初始模型
-        if os.path.exists(Config.best_model_path):
-            loaded_model = torch.load(Config.best_model_path, weights_only=False)
+        # 加载最佳模型
+        if os.path.exists(best_model_path):
+            logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
+            loaded_model = torch.load(best_model_path, weights_only=False)
             if isinstance(loaded_model, dict):
                 model.load_state_dict(loaded_model)
             else:
                 model.load_state_dict(loaded_model.state_dict())
         else:
-            loaded_model = torch.load(Config.model_state_dict_path, weights_only=False)
-            if isinstance(loaded_model, dict):
-                model.load_state_dict(loaded_model)
-            else:
-                model.load_state_dict(loaded_model.state_dict())
+            logging.warning(f"找不到 {Config.model_name} 最佳模型，请确保模型文件存在")
 
         # 保存模型状态到缓存
-        cache_manager.save(model.state_dict(), "model_state", model_cache_params)
+        cache_manager.save(model.state_dict(), cache_key, model_cache_params)
 
     model.to(device)
     model.eval()
@@ -404,8 +403,13 @@ def main():
     parser = argparse.ArgumentParser(description="模型评估与预测脚本")
     parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
     parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
+    parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], default='cnn', 
+                        help='选择模型类型: LSTM 或 CNN')
     args = parser.parse_args()
-
+    
+    # 设置选择的模型名称
+    Config.model_name = args.model
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 
