@@ -9,6 +9,7 @@
 from __future__ import unicode_literals, print_function, division
 
 import os
+import argparse  # Add argparse import
 
 import pandas as pd
 import torch
@@ -28,10 +29,10 @@ from data_Process import (
     Data_set,
 )
 from eval import val_accuracy
-from model import LSTM_attention
+from bilstm_model import LSTM_attention
+from cnn_model import TextCNN
 
-
-def train(train_dataloader, model, device, epoches, lr):
+def train(train_dataloader, model, device, epoches, lr, patience):
     """训练模型函数
 
     参数：
@@ -40,6 +41,7 @@ def train(train_dataloader, model, device, epoches, lr):
         device: 训练设备（如GPU或CPU）
         epoches: 训练轮数
         lr: 学习率
+        patience: 早停耐心值，默认为5，当验证集准确率连续patience轮未提升时提前终止训练
 
     返回：
         无
@@ -58,7 +60,9 @@ def train(train_dataloader, model, device, epoches, lr):
     criterion = nn.CrossEntropyLoss()
     # 学习率调整：每10轮降低学习率，衰减系数为0.2
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.2)
-    best_acc = 0.85
+    best_acc = 0
+    counter = 0  # 初始化早停计数器
+    
     for epoch in range(epoches):
         train_loss = 0.0
         correct = 0
@@ -121,15 +125,34 @@ def train(train_dataloader, model, device, epoches, lr):
 
         if acc > best_acc:
             best_acc = acc
-            if not os.path.exists(Config.model_dir):
-                os.mkdir(Config.model_dir)
-            torch.save(model, Config.best_model_path)
+            counter = 0  # 重置早停计数器
+
+            torch.save(model, model_path)
+            print(f'新的最佳模型已保存，准确率为: {best_acc:.4f}%')
+        else:
+            counter += 1  # 增加早停计数器
+            print(f'早停计数器: {counter}/{patience}')
+            
+        # 执行学习率调度
+        scheduler.step()
+            
+        # 检查早停条件
+        if counter >= patience:
+            print(f'早停机制触发，在第{epoch+1}轮训练后停止')
+            break
+            
         # 最后保存所有训练日志
         history_df = pd.DataFrame(history)
         history_df.to_csv("train_log.csv", index=False)
 
 
 if __name__ == "__main__":
+    # 添加命令行参数解析
+    parser = argparse.ArgumentParser(description='Text Classification Model Training')
+    parser.add_argument('--model', type=str, default='cnn', choices=['lstm', 'cnn'],
+                      help='选择使用的模型类型: lstm 或 cnn (默认: cnn)')
+    args = parser.parse_args()
+    
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -167,7 +190,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
 
     # 构建模型（使用带注意力机制的 LSTM）
-    model = LSTM_attention(
+    lstm_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -179,10 +202,24 @@ if __name__ == "__main__":
         Config.bidirectional,
     )
 
-    # 训练模型
-    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr)
+    cnn_model = TextCNN(Config)
 
-    # 保存模型（若模型存储目录不存在则创建目录）
-    if not os.path.exists(Config.model_dir):
-        os.mkdir(Config.model_dir)
-    torch.save(model, Config.model_state_dict_path)
+    # 根据命令行参数选择模型
+    if args.model == 'lstm':
+        model = lstm_model
+        print('使用 LSTM 模型训练')
+    else:
+        model = cnn_model
+        print('使用 CNN 模型训练')
+    
+    # 保存模型（根据模型名字保存，并添加缓存）
+    model_filename = f"{args.model}_model_best.pkl"
+    model_path = os.path.join(Config.model_dir, model_filename)
+
+    # 训练模型
+    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr, patience=3)
+    
+    # 保存模型（使用torch默认缓存机制）
+    torch.save(model, model_path)
+    
+    print(f"模型已保存为: {model_path}")
