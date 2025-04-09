@@ -18,34 +18,62 @@ class Config(object):
         self.vocab_path = dataset + '/vocab.pkl'                                # 词表
         self.save_path = dataset + '/saved_dict/' + self.model_name + '.ckpt'        # 模型训练结果
         self.log_path = dataset + '/log/' + self.model_name
+        
+        # 确保必要的目录存在
+        os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
+        os.makedirs(self.log_path, exist_ok=True)
+
+        # 打印路径信息
+        print(f"训练集路径: {self.train_path}, 存在: {os.path.exists(self.train_path)}")
+        print(f"验证集路径: {self.dev_path}, 存在: {os.path.exists(self.dev_path)}")
+        print(f"测试集路径: {self.test_path}, 存在: {os.path.exists(self.test_path)}")
+        print(f"词表路径: {self.vocab_path}, 存在: {os.path.exists(self.vocab_path)}")
+        print(f"embedding路径: {embedding}, 存在: {os.path.exists(embedding)}")
 
         # Handle different embedding file formats
         if embedding != 'random':
             if embedding.endswith('.bin'):
                 # Load Word2Vec binary format
+                print(f"正在加载Word2Vec二进制文件: {embedding}")
                 word_vectors = KeyedVectors.load_word2vec_format(embedding, binary=True)
+                print(f"Word2Vec加载成功，词向量维度: {word_vectors.vector_size}, 词汇量: {len(word_vectors.key_to_index)}")
                 # Create embedding matrix from word vectors
                 self.embedding_pretrained = torch.FloatTensor(word_vectors.vectors)
+                print(f"embedding_pretrained shape: {self.embedding_pretrained.shape}")
+                # 动态设置词向量维度
+                self.embed_dim = word_vectors.vector_size
             else:
                 # Load NumPy format
-                self.embedding_pretrained = torch.tensor(
-                    np.load(embedding, allow_pickle=True)["embeddings"].astype('float32'))
+                print(f"尝试加载NumPy格式词向量: {embedding}")
+                loaded_embeddings = np.load(embedding, allow_pickle=True)
+                self.embedding_pretrained = torch.tensor(loaded_embeddings["embeddings"].astype('float32'))
+                print(f"NumPy格式词向量加载成功，shape: {self.embedding_pretrained.shape}")
+                # 动态设置词向量维度
+                self.embed_dim = self.embedding_pretrained.shape[1]
         else:
+            print("使用随机初始化的词向量")
             self.embedding_pretrained = None
+            self.embed_dim = 300  # 默认维度
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备
+        print(f"使用设备: {self.device}")
 
         self.dropout = 0.5                                              # 随机失活
         self.require_improvement = 2000                                 # 若超过1000batch效果还没提升，则提前结束训练
         self.num_classes = 2                        # 类别数
+        self.class_list = ['负面', '正面']           # 类别名称，用于生成分类报告
         self.n_vocab = 0                                                # 词表大小，在运行时赋值
         self.num_epochs = 20                                            # epoch数
         self.batch_size = 128                                           # mini-batch大小
         self.pad_size = 32                                              # 每句话处理成的长度(短填长切)
         self.learning_rate = 5e-4                                       # 学习率
         self.embed = self.embedding_pretrained.size(1)\
-            if self.embedding_pretrained is not None else 300           # 字向量维度
-        self.dim_model = 300
+            if self.embedding_pretrained is not None else self.embed_dim
+        
+        # 根据词向量维度设置模型维度
+        self.dim_model = self.embed  # 使模型维度与词向量维度一致
+        print(f"设置模型维度为: {self.dim_model}")
+        
         self.hidden = 1024
         self.last_hidden = 512
         self.num_head = 5

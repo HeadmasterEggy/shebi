@@ -44,24 +44,45 @@ def build_dataset(config, ues_word):
         contents = []
         with open(path, 'r', encoding='UTF-8') as f:
             for line in tqdm(f):
-                lin = line.strip()
-                if not lin:
+                line = line.strip()
+                if not line:
                     continue
-                content, label = lin.split('\t')
-                words_line = []
-                token = tokenizer(content)
+                    
+                # 修改分隔符从'\t'到' '(空格)
+                try:
+                    # 尝试按空格分隔，但只分隔第一个空格
+                    parts = line.split(' ', 1)
+                    if len(parts) == 2:
+                        label, content = parts
+                        label = int(label)  # 转换标签为整数
+                    else:
+                        # 如果只有内容没有标签，设置默认标签为0
+                        content = parts[0]
+                        label = 0
+                        print(f"警告: 行没有标签，设置默认标签为0: {line}")
+                        
+                except Exception as e:
+                    print(f"处理行时出错: {line}")
+                    print(f"错误: {e}")
+                    continue
+                    
+                # 处理内容
+                words = content.split(' ')
+                # 将词转换为词汇表中的ID
+                token = []
+                for word in words:
+                    token.append(vocab.get(word, vocab.get(UNK)))
+                
                 seq_len = len(token)
                 if pad_size:
                     if len(token) < pad_size:
-                        token.extend([PAD] * (pad_size - len(token)))
+                        token.extend([vocab.get(PAD)] * (pad_size - len(token)))
                     else:
                         token = token[:pad_size]
                         seq_len = pad_size
-                # word to id
-                for word in token:
-                    words_line.append(vocab.get(word, vocab.get(UNK)))
-                contents.append((words_line, int(label), seq_len))
-        return contents  # [([...], 0), ([...], 1), ...]
+                contents.append((token, int(label), seq_len))
+        return contents
+
     train = load_dataset(config.train_path, config.pad_size)
     dev = load_dataset(config.dev_path, config.pad_size)
     test = load_dataset(config.test_path, config.pad_size)

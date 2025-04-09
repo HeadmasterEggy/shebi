@@ -2,6 +2,7 @@
 import time
 import torch
 import numpy as np
+import os
 from utils import build_dataset, build_iterator, get_time_dif
 from train_eval import train, init_network
 from importlib import import_module
@@ -15,15 +16,34 @@ args = parser.parse_args()
 
 
 if __name__ == '__main__':
-    dataset = '../data'  # 数据集
+    # 获取当前文件的绝对路径
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # 获取项目根目录
+    project_root = os.path.dirname(current_dir)
+    
+    # 设置路径
+    dataset = os.path.join(project_root, 'data')  # 数据集
+    embedding_path = os.path.join(project_root, 'word2vec', 'wiki_word2vec_50.bin')  # 预训练词向量
+    
+    # 打印调试信息
+    print(f"当前目录: {current_dir}")
+    print(f"项目根目录: {project_root}")
+    print(f"数据集路径: {dataset}")
+    print(f"词向量路径: {embedding_path}")
+    print(f"数据集路径存在: {os.path.exists(dataset)}")
+    print(f"词向量路径存在: {os.path.exists(embedding_path)}")
 
-    embedding = '../word2vec/wiki_word2vec_50.bin'  # 预训练词向量
+    model_name = args.model
 
-    model_name = args.model  # 'TextRCNN'  # TextCNN, TextRNN, FastText, TextRCNN, TextRNN_Att, DPCNN, Transformer
-
-
-    x = import_module('models.' + model_name)
-    config = x.Config(dataset, embedding)
+    # 导入模型模块
+    try:
+        x = import_module('models.' + model_name)
+        config = x.Config(dataset, embedding_path)
+    except Exception as e:
+        print(f"导入模型时出错: {e}")
+        import sys
+        sys.exit(1)
+        
     np.random.seed(1)
     torch.manual_seed(1)
     torch.cuda.manual_seed_all(1)
@@ -43,5 +63,5 @@ if __name__ == '__main__':
     model = x.Model(config).to(config.device)
     if model_name != 'Transformer':
         init_network(model)
-    print(model.parameters)
+    print(model)  # 打印模型结构，而不是model.parameters
     train(config, model, train_iter, dev_iter, test_iter)
