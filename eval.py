@@ -167,13 +167,16 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['validation'],
+            'model': [Config.model_name.lower()],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
         })
         
-        # 如果文件存在则清空内容后写入，不存在则创建新文件
-        metrics_df.to_csv('metrics_log.csv', mode='w', header=True, index=False)
+        # 检查文件是否存在，决定是否写入表头
+        file_exists = os.path.isfile('metrics_log.csv')
+        # 使用追加模式，保留之前的结果
+        metrics_df.to_csv('metrics_log.csv', mode='a', header=not file_exists, index=False)
 
         # 打印结果
         logging.info(f"\n验证集准确率: {accuracy:.3f}%, 总损失: {total_loss:.3f}, F1分数: {100 * f1:.3f}%, "
@@ -203,7 +206,7 @@ def test_accuracy(model, test_dataloader, device):
     all_labels = []  # 保存所有标签
     all_preds = []  # 保存所有预测结果
 
-    # 禁用梯度计算，减少内存消耗
+    # 禁用梯度计算
     with torch.no_grad():
         # 遍历测试集数据
         for inputs, targets in test_dataloader:
@@ -229,7 +232,23 @@ def test_accuracy(model, test_dataloader, device):
         f1 = f1_score(all_labels, all_preds, average="weighted")  # F1-score
         recall = recall_score(all_labels, all_preds, average="micro")  # 召回率
         confusion_mat = confusion_matrix(all_labels, all_preds)  # 混淆矩阵
+
+        # 保存评估指标到CSV文件
+        metrics_df = pd.DataFrame({
+            'timestamp': [pd.Timestamp.now()],
+            'type': ['test'],
+            'model': [Config.model_name.lower()],
+            'accuracy': [accuracy],
+            'f1': [100 * f1],
+            'recall': [100 * recall]
+        })
         
+        # 检查文件是否存在，决定是否写入表头
+        file_exists = os.path.isfile('metrics_log.csv')
+        # 使用追加模式，保留之前的结果
+        metrics_df.to_csv('metrics_log.csv', mode='a', header=not file_exists, index=False)
+
+
         # 使用 logging 记录结果
         logging.info(f"\n测试集准确率: {accuracy:.3f}%, F1分数: {100 * f1:.3f}%, "
                      f"召回率: {100 * recall:.3f}%, 混淆矩阵:\n{confusion_mat}")
@@ -421,7 +440,7 @@ def main():
     parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
     parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
     parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], default='cnn', 
-                        help='选择模型类型: LSTM 或 CNN')
+                        help='选择模型类型: lstm 或 cnn')
     args = parser.parse_args()
     
     # 设置选择的模型名称

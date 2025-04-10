@@ -143,7 +143,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
             
         # 最后保存所有训练日志
         history_df = pd.DataFrame(history)
-        history_df.to_csv("train_log.csv", index=False)
+        history_df.to_csv(f"train_log_{args.model.lower()}.csv", index=False)
 
 
 if __name__ == "__main__":
