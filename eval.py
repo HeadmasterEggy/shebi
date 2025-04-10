@@ -81,16 +81,17 @@ class CacheManager:
             
             # 使用稳定参数创建唯一的缓存标识
             params_str = json.dumps(stable_params, sort_keys=True)
-            logger.debug(f"Cache params for {cache_name}: {stable_params}")
+            logging.info(f"缓存参数 ({cache_name}): {stable_params}")
             cache_id = hashlib.md5(params_str.encode()).hexdigest()
             cache_path = self.cache_dir / f"{cache_name}_{cache_id}.pkl"
-            logger.debug(f"Cache path: {cache_path}")
+            logging.info(f"缓存路径: {cache_path}")
             return cache_path
         return self.cache_dir / f"{cache_name}.pkl"
 
     def save(self, data, cache_name, params=None):
         """保存数据到缓存"""
         cache_path = self._get_cache_path(cache_name, params)
+        logging.info(f"保存缓存到: {cache_path}")
         with open(cache_path, 'wb') as f:
             pickle.dump(data, f)
 
@@ -98,8 +99,11 @@ class CacheManager:
         """从缓存加载数据"""
         cache_path = self._get_cache_path(cache_name, params)
         if cache_path.exists():
+            logging.info(f"从缓存加载: {cache_path}")
             with open(cache_path, 'rb') as f:
-                return pickle.load(f)
+                data = pickle.load(f)
+                return data
+        logging.info(f"缓存不存在: {cache_path}")
         return None
 
     def exists(self, cache_name, params=None):
@@ -390,6 +394,7 @@ def initialize_model(w2vec, device, cache_manager=None):
     
     # 尝试加载缓存的模型状态
     cache_key = f"{Config.model_name.lower()}_model_state"
+    logging.info(f"尝试加载模型缓存 {cache_key}，参数: {model_cache_params}")
     cached_state = cache_manager.load(cache_key, model_cache_params)
     
     if cached_state is not None:
@@ -439,7 +444,8 @@ def main():
     # 生成或加载 word2vec
     w2vec_cache_params = {
         "pre_word2vec_path": Config.pre_word2vec_path,
-        "word2id_size": len(word2id)  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+        "word2id_size": len(word2id),  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+        "model_name": Config.model_name  # 添加模型名称，确保不同模型使用相同的word2vec缓存
     }
     logging.info(f"尝试加载word2vec缓存，参数: {w2vec_cache_params}")
     w2vec = cache_manager.load("w2vec", w2vec_cache_params)
@@ -451,6 +457,7 @@ def main():
         cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
     else:
         logging.info("成功从缓存加载word2vec")
+        logging.info(f"word2vec形状: {w2vec.shape}")
 
     # 初始化模型
     model = initialize_model(w2vec, device, cache_manager)

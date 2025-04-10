@@ -365,7 +365,8 @@ def analyze():
         # 生成或加载 word2vec（使用缓存）
         w2vec_cache_params = {
             "pre_word2vec_path": Config.pre_word2vec_path,
-            "word2id_size": len(word2id)  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+            "word2id_size": len(word2id),  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+            "model_name": model_type.upper() if model_type else Config.model_name  # 添加模型名称，确保不同模型使用相同的word2vec缓存
         }
         logger.info(f"尝试加载word2vec缓存，参数: {w2vec_cache_params}")
         w2vec = cache_manager.load("w2vec", w2vec_cache_params)
