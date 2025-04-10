@@ -80,6 +80,41 @@ function updateModelDescription() {
 }
 
 /**
+ * 加载动画控制器
+ */
+let loadingDotsInterval;
+
+/**
+ * 显示加载动画
+ */
+function showLoadingAnimation() {
+    const loadingDots = document.getElementById('loadingDots');
+    let dotsCount = 0;
+    
+    // 清除之前的间隔器（如果存在）
+    if (loadingDotsInterval) clearInterval(loadingDotsInterval);
+    
+    // 启动新的动画间隔器
+    loadingDotsInterval = setInterval(() => {
+        dotsCount = (dotsCount % 3) + 1;
+        loadingDots.textContent = '.'.repeat(dotsCount);
+    }, 500);
+    
+    document.getElementById('loading').style.display = 'flex';
+}
+
+/**
+ * 停止加载动画
+ */
+function stopLoadingAnimation() {
+    if (loadingDotsInterval) {
+        clearInterval(loadingDotsInterval);
+        loadingDotsInterval = null;
+    }
+    document.getElementById('loading').style.display = 'none';
+}
+
+/**
  * 分析文本函数
  */
 async function analyzeText() {
@@ -91,7 +126,7 @@ async function analyzeText() {
         return;
     }
 
-    document.getElementById('loading').style.display = 'flex';
+    showLoadingAnimation();
     document.getElementById('errorMessage').style.display = 'none';
     document.getElementById('overallResult').style.display = 'none';
     document.getElementById('sentenceResults').style.display = 'none';
@@ -145,7 +180,7 @@ async function analyzeText() {
     } catch (error) {
         showError('请求失败：' + error.message);
     } finally {
-        document.getElementById('loading').style.display = 'none';
+        stopLoadingAnimation();
     }
 }
 

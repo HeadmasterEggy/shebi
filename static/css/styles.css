@@ -141,6 +141,14 @@ body {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     z-index: 1000;
     animation: fadeInBlur 0.3s ease-out;
+    text-align: center;
+}
+
+#loadingDots {
+    display: inline-block;
+    min-width: 24px;
+    text-align: left;
+    font-weight: bold;
 }
 
 @keyframes fadeInBlur {
@@ -155,7 +163,7 @@ body {
 }
 
 .spinner-border {
-    animation: spin 1s linear infinite, pulse 1s ease-in-out infinite;
+    animation: spin 1s linear infinite, pulse 1s ease-in-out infinite, colorChange 3s infinite alternate;
 }
 
 @keyframes pulse {
@@ -168,6 +176,12 @@ body {
     100% {
         transform: scale(1);
     }
+}
+
+@keyframes colorChange {
+    0% { border-color: #007bff transparent #007bff transparent; }
+    50% { border-color: #0056b3 transparent #0056b3 transparent; }
+    100% { border-color: #004085 transparent #004085 transparent; }
 }
 
 .error-message {
