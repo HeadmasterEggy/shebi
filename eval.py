@@ -66,10 +66,26 @@ class CacheManager:
     def _get_cache_path(self, cache_name, params=None):
         """获取缓存文件路径"""
         if params:
-            # 使用参数创建唯一的缓存标识
-            params_str = json.dumps(params, sort_keys=True)
+            # 创建一个新的字典，只包含基本类型的参数，避免不稳定的引用类型
+            stable_params = {}
+            for key, value in params.items():
+                # 只保留基本类型的参数（字符串、数字、布尔值等）
+                if isinstance(value, (str, int, float, bool)) or value is None:
+                    stable_params[key] = value
+                else:
+                    # 对于复杂类型，使用其类型名称和长度（如果可用）作为标识
+                    try:
+                        stable_params[key] = f"{type(value).__name__}_{len(value)}"
+                    except:
+                        stable_params[key] = f"{type(value).__name__}"
+            
+            # 使用稳定参数创建唯一的缓存标识
+            params_str = json.dumps(stable_params, sort_keys=True)
+            logger.debug(f"Cache params for {cache_name}: {stable_params}")
             cache_id = hashlib.md5(params_str.encode()).hexdigest()
-            return self.cache_dir / f"{cache_name}_{cache_id}.pkl"
+            cache_path = self.cache_dir / f"{cache_name}_{cache_id}.pkl"
+            logger.debug(f"Cache path: {cache_path}")
+            return cache_path
         return self.cache_dir / f"{cache_name}.pkl"
 
     def save(self, data, cache_name, params=None):
@@ -421,12 +437,20 @@ def main():
     train_label = processed_data["train_label"]
 
     # 生成或加载 word2vec
-    w2vec_cache_params = {"pre_word2vec_path": Config.pre_word2vec_path}
+    w2vec_cache_params = {
+        "pre_word2vec_path": Config.pre_word2vec_path,
+        "word2id_size": len(word2id)  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+    }
+    logging.info(f"尝试加载word2vec缓存，参数: {w2vec_cache_params}")
     w2vec = cache_manager.load("w2vec", w2vec_cache_params)
     if w2vec is None:
+        logging.info("未找到word2vec缓存，正在生成...")
         w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
         w2vec = torch.from_numpy(w2vec).float()
+        logging.info("保存word2vec到缓存")
         cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
+    else:
+        logging.info("成功从缓存加载word2vec")
 
     # 初始化模型
     model = initialize_model(w2vec, device, cache_manager)

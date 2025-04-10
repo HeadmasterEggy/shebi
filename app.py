@@ -177,9 +177,10 @@ def initialize_data():
     }
 
     # 尝试从缓存加载数据
+    logger.info(f"尝试加载数据缓存，参数: {cache_params}")
     cached_data = cache_manager.load("processed_data", cache_params)
     if cached_data is not None:
-        logging.info("从缓存加载预处理数据...")
+        logger.info("成功从缓存加载预处理数据")
         return (cached_data["word2id"], cached_data["test_dataloader"],
                 cached_data["val_dataloader"], cached_data["train_array"],
                 cached_data["train_label"])
@@ -259,9 +260,10 @@ def initialize_model(w2vec, model_type=None):
 
     # 尝试加载缓存的模型状态
     cache_key = f"{model_name.lower()}_model_state"
+    logger.info(f"尝试加载模型缓存 {cache_key}，参数: {model_cache_params}")
     cached_state = cache_manager.load(cache_key, model_cache_params)
     if cached_state is not None:
-        logging.info(f"从缓存加载 {model_name} 模型状态...")
+        logger.info(f"成功从缓存加载 {model_name} 模型状态")
         model.load_state_dict(cached_state)
         return model
 
@@ -280,6 +282,7 @@ def initialize_model(w2vec, model_type=None):
 
 # 创建全局缓存管理器实例
 cache_manager = CacheManager(cache_dir="./cache")
+logger.info("缓存管理器初始化完成，缓存目录: ./cache")
 # 读取停用词
 stopwords = []
 with open("data/stopword.txt", "r", encoding="utf-8") as f:
@@ -300,12 +303,12 @@ def get_models():
     models = [
         {
             "id": "lstm",
-            "name": "LSTM模型",
+            "name": "Bi-LSTM模型",
             "description": "基于LSTM的情感分析模型，适合处理长文本和序列依赖性强的文本"
         },
         {
             "id": "cnn",
-            "name": "CNN模型",
+            "name": "TextCNN模型",
             "description": "基于CNN的情感分析模型，适合处理短文本和特征提取"
         }
     ]
@@ -360,12 +363,20 @@ def analyze():
         word2id, test_dataloader, val_dataloader, train_array, train_label = initialize_data()
 
         # 生成或加载 word2vec（使用缓存）
-        w2vec_cache_params = {"pre_word2vec_path": Config.pre_word2vec_path}
+        w2vec_cache_params = {
+            "pre_word2vec_path": Config.pre_word2vec_path,
+            "word2id_size": len(word2id)  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
+        }
+        logger.info(f"尝试加载word2vec缓存，参数: {w2vec_cache_params}")
         w2vec = cache_manager.load("w2vec", w2vec_cache_params)
         if w2vec is None:
+            logger.info("未找到word2vec缓存，正在生成...")
             w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
             w2vec = torch.from_numpy(w2vec).float()
+            logger.info("保存word2vec到缓存")
             cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
+        else:
+            logger.info("成功从缓存加载word2vec")
 
         # 初始化模型（使用缓存），传入模型类型
         model = initialize_model(w2vec, model_type)
