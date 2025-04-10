@@ -78,7 +78,7 @@ class CacheManager:
                         stable_params[key] = f"{type(value).__name__}_{len(value)}"
                     except:
                         stable_params[key] = f"{type(value).__name__}"
-            
+
             # 使用稳定参数创建唯一的缓存标识
             params_str = json.dumps(stable_params, sort_keys=True)
             logging.info(f"缓存参数 ({cache_name}): {stable_params}")
@@ -172,7 +172,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
             'f1': [100 * f1],
             'recall': [100 * recall]
         })
-        
+
         # 检查文件是否存在，决定是否写入表头
         file_exists = os.path.isfile('metrics_log.csv')
         # 使用追加模式，保留之前的结果
@@ -242,7 +242,7 @@ def test_accuracy(model, test_dataloader, device):
             'f1': [100 * f1],
             'recall': [100 * recall]
         })
-        
+
         # 检查文件是否存在，决定是否写入表头
         file_exists = os.path.isfile('metrics_log.csv')
         # 使用追加模式，保留之前的结果
@@ -357,10 +357,10 @@ def initialize_data(cache_manager=None, force_reload=False):
 
     # 创建 DataLoader
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     processed_data = {
         "word2id": word2id,
@@ -403,19 +403,30 @@ def initialize_model(w2vec, device, cache_manager=None):
         Config.n_class,
         Config.bidirectional,
     )
-    cnn_model = TextCNN(Config)
+    cnn_model = TextCNN(
+        Config.dropout,
+        Config.require_improvement,
+        Config.vocab_size,
+        Config.cnn_batch_size,
+        Config.pad_size,
+        Config.filter_sizes,
+        Config.num_filters,
+        w2vec,  # 修正：传入预训练词向量w2vec而不是embedding_dim
+        Config.embedding_dim,
+        Config.n_class,
+    )
     model = lstm_model if Config.model_name == "LSTM" else cnn_model
-    
+
     logging.info(f"使用 {Config.model_name} 模型")
-    
+
     # 选择适合的模型路径
     best_model_path = Config.lstm_best_model_path if Config.model_name == "LSTM" else Config.cnn_best_model_path
-    
+
     # 尝试加载缓存的模型状态
     cache_key = f"{Config.model_name.lower()}_model_state"
     logging.info(f"尝试加载模型缓存 {cache_key}，参数: {model_cache_params}")
     cached_state = cache_manager.load(cache_key, model_cache_params)
-    
+
     if cached_state is not None:
         logging.info(f"从缓存加载 {Config.model_name} 模型状态...")
         model.load_state_dict(cached_state)
@@ -439,13 +450,13 @@ def main():
     parser = argparse.ArgumentParser(description="模型评估与预测脚本")
     parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
     parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
-    parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], default='cnn', 
+    parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], default='cnn',
                         help='选择模型类型: lstm 或 cnn')
     args = parser.parse_args()
-    
+
     # 设置选择的模型名称
     Config.model_name = args.model
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 

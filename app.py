@@ -41,7 +41,8 @@ torch.serialization.add_safe_globals([
     nn.Dropout,
     nn.Sequential,
     nn.Module,
-    LSTM_attention
+    LSTM_attention,
+    TextCNN
 ])
 
 def pre(word2id, model, seq_length, path):
@@ -200,10 +201,10 @@ def initialize_data():
 
     # 创建 DataLoader
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     # 保存到缓存
     processed_data = {
@@ -221,14 +222,14 @@ def initialize_data():
 def initialize_model(w2vec, model_type=None):
     """
     初始化模型并加载最优模型或初始模型。
-    
+
     参数:
         w2vec: 词向量
         model_type: 模型类型，可以是'lstm'或'cnn'，默认为None，使用Config.model_name
     """
     # 如果未指定模型类型，则使用配置中的默认值
     model_name = model_type.upper() if model_type else Config.model_name
-    
+
     # 检查是否有缓存的模型状态
     model_cache_params = {
         "model_name": model_name,
@@ -250,12 +251,23 @@ def initialize_model(w2vec, model_type=None):
         Config.bidirectional,
     )
 
-    cnn_model = TextCNN(Config)
+    cnn_model = TextCNN(
+        Config.dropout,
+        Config.require_improvement,
+        Config.vocab_size,
+        Config.cnn_batch_size,
+        Config.pad_size,
+        Config.filter_sizes,
+        Config.num_filters,
+        w2vec,  # 修正：传入预训练词向量w2vec而不是embedding_dim
+        Config.embedding_dim,
+        Config.n_class,
+    )
     model = lstm_model if model_name == "lstm" else cnn_model
-    
+
     # 选择适合的模型路径
     best_model_path = Config.lstm_best_model_path if model_name == "lstm" else Config.cnn_best_model_path
-    
+
     logger.info(f"使用 {model_name} 模型")
 
     # 尝试加载缓存的模型状态
@@ -312,10 +324,10 @@ def get_models():
             "description": "基于CNN的情感分析模型，适合处理短文本和特征提取"
         }
     ]
-    
+
     # 检查当前默认模型
     default_model = Config.model_name.lower()
-    
+
     return jsonify({
         "models": models,
         "default": default_model
