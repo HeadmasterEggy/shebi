@@ -4,7 +4,7 @@
 
 // 全局变量
 let currentPage = 1;
-let sentencesPerPage = 10;
+let sentencesPerPage = 5;
 let allSentences = [];
 let filteredSentences = [];
 let sentimentFilter = 'all';

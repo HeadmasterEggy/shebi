@@ -1,8 +1,4 @@
 /**
- * 分页相关功能
- */
-
-/**
  * 更新显示内容
  */
 function updateDisplay() {
