@@ -381,16 +381,12 @@ def initialize_model(w2vec, device, cache_manager=None):
         model.load_state_dict(cached_state)
     else:
         # 加载最佳模型
-        if os.path.exists(best_model_path):
-            logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
-            loaded_model = torch.load(best_model_path, weights_only=False)
-            if isinstance(loaded_model, dict):
-                model.load_state_dict(loaded_model)
-            else:
-                model.load_state_dict(loaded_model.state_dict())
+        logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
+        loaded_model = torch.load(best_model_path, weights_only=False)
+        if isinstance(loaded_model, dict):
+            model.load_state_dict(loaded_model)
         else:
-            logging.warning(f"找不到 {Config.model_name} 最佳模型，请确保模型文件存在")
-
+            model.load_state_dict(loaded_model.state_dict())
         # 保存模型状态到缓存
         cache_manager.save(model.state_dict(), cache_key, model_cache_params)
 

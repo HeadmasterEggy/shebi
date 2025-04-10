@@ -3,6 +3,83 @@
  */
 
 /**
+ * 获取可用的模型列表
+ */
+async function fetchModels() {
+    try {
+        const response = await fetch('/api/models');
+        const data = await response.json();
+        
+        if (response.ok && data.models) {
+            const modelSelect = document.getElementById('modelSelect');
+            const fileModelSelect = document.getElementById('fileModelSelect');
+            modelSelect.innerHTML = ''; // 清空现有选项
+            fileModelSelect.innerHTML = ''; // 清空文件上传区域的模型选项
+            
+            // 添加模型选项到文本输入区域
+            data.models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                option.dataset.description = model.description;
+                modelSelect.appendChild(option);
+                
+                // 同样添加到文件上传区域
+                const fileOption = option.cloneNode(true);
+                fileModelSelect.appendChild(fileOption);
+            });
+            
+            // 设置默认选中的模型
+            if (data.default) {
+                modelSelect.value = data.default;
+                fileModelSelect.value = data.default;
+            }
+            
+            // 显示模型描述
+            updateModelDescription();
+        } else {
+            console.error('获取模型列表失败:', data.error || '未知错误');
+            const modelSelect = document.getElementById('modelSelect');
+            const fileModelSelect = document.getElementById('fileModelSelect');
+            modelSelect.innerHTML = '<option value="">加载失败</option>';
+            fileModelSelect.innerHTML = '<option value="">加载失败</option>';
+        }
+    } catch (error) {
+        console.error('获取模型列表出错:', error);
+        const modelSelect = document.getElementById('modelSelect');
+        const fileModelSelect = document.getElementById('fileModelSelect');
+        modelSelect.innerHTML = '<option value="">加载失败</option>';
+        fileModelSelect.innerHTML = '<option value="">加载失败</option>';
+    }
+}
+
+/**
+ * 更新模型描述信息
+ */
+function updateModelDescription() {
+    const modelSelect = document.getElementById('modelSelect');
+    const descriptionElement = document.getElementById('modelDescription');
+    
+    if (modelSelect.selectedOptions.length > 0) {
+        const selectedOption = modelSelect.selectedOptions[0];
+        descriptionElement.textContent = selectedOption.dataset.description || '';
+    } else {
+        descriptionElement.textContent = '';
+    }
+    
+    // 更新文件上传区域的模型描述
+    const fileModelSelect = document.getElementById('fileModelSelect');
+    const fileDescriptionElement = document.getElementById('fileModelDescription');
+    
+    if (fileModelSelect.selectedOptions.length > 0) {
+        const selectedOption = fileModelSelect.selectedOptions[0];
+        fileDescriptionElement.textContent = selectedOption.dataset.description || '';
+    } else {
+        fileDescriptionElement.textContent = '';
+    }
+}
+
+/**
  * 分析文本函数
  */
 async function analyzeText() {
@@ -24,6 +101,19 @@ async function analyzeText() {
     // 检查是否为文件上传模式
     const isFileUpload = document.getElementById('file-tab').classList.contains('active');
     let payload = { text };
+    
+    // 获取选择的模型类型
+    if (isFileUpload) {
+        const fileModelSelect = document.getElementById('fileModelSelect');
+        if (fileModelSelect.value) {
+            payload.model_type = fileModelSelect.value;
+        }
+    } else {
+        const modelSelect = document.getElementById('modelSelect');
+        if (modelSelect.value) {
+            payload.model_type = modelSelect.value;
+        }
+    }
     
     // 如果是文件上传，添加文件名和处理模式标记
     if (isFileUpload) {
@@ -134,4 +224,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.add('fade-in');
     setupUIEventListeners();
     initFileUpload(); // 初始化文件上传功能
+    fetchModels(); // 获取可用的模型列表
+    
+    // 添加模型选择框的事件监听
+    document.getElementById('modelSelect').addEventListener('change', updateModelDescription);
+    document.getElementById('fileModelSelect').addEventListener('change', updateModelDescription);
 });

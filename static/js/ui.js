@@ -133,4 +133,10 @@ function setupUIEventListeners() {
             setDisplayMode(this.dataset.display);
         });
     });
+    
+    // 添加模型选择下拉框的事件监听器
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', updateModelDescription);
+    }
 }

@@ -30,6 +30,13 @@
                 <div class="tab-pane fade show active" id="textInput-tab" role="tabpanel" aria-labelledby="text-tab">
                     <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
                     <textarea class="form-control mb-3" id="textInput" rows="4" placeholder="在此输入文本..."></textarea>
+                    <div class="model-selection mb-3">
+                        <label for="modelSelect" class="form-label fw-bold">选择分析模型：</label>
+                        <select class="form-select" id="modelSelect">
+                            <option value="">加载中...</option>
+                        </select>
+                        <div class="form-text" id="modelDescription"></div>
+                    </div>
                 </div>
                 <div class="tab-pane fade" id="fileInput-tab" role="tabpanel" aria-labelledby="file-tab">
                     <label for="fileInput" class="form-label fw-bold">上传文本文件（每行一个句子）：</label>
@@ -48,6 +55,13 @@
                                 <pre id="fileContent" class="file-content"></pre>
                             </div>
                         </div>
+                    </div>
+                    <div class="model-selection mb-3">
+                        <label for="fileModelSelect" class="form-label fw-bold">选择分析模型：</label>
+                        <select class="form-select" id="fileModelSelect">
+                            <option value="">加载中...</option>
+                        </select>
+                        <div class="form-text" id="fileModelDescription"></div>
                     </div>
                 </div>
             </div>

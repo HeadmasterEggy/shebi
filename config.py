@@ -3,6 +3,7 @@
 
 
 class Config:
+    model_name = "LSTM"  # 默认使用的模型名称，可选值：LSTM 或 CNN
     update_w2v = True  # 是否在训练中更新w2v
     vocab_size = 54848  # 词汇量，与word2id中的词汇量一致
     n_class = 2  # 分类数：分别为pos和neg

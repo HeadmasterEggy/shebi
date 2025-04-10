@@ -10,11 +10,13 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+from cnn_model import TextCNN
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from eval import CacheManager  # 导入 CacheManager
 from bilstm_model import LSTM_attention
-
+from data_Process import tokenize, clean_text, process_texts
 # 从eval模块导入预测函数
 
 # 配置日志
@@ -41,79 +43,6 @@ torch.serialization.add_safe_globals([
     nn.Module,
     LSTM_attention
 ])
-
-# ===================== 正则表达式预编译 =====================
-# 移除HTML标签
-TAG_RE = re.compile(r'<[^>]+>')
-# 匹配URL
-URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-# 匹配表情符号 (包括Unicode范围)
-EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]')
-# 匹配标点符号 (包括中文标点)
-PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff]')
-# 匹配数字
-DIGITS_RE = re.compile(r'\d+')
-# 匹配空白字符（包括空格、制表符、换行等）
-SPACE_RE = re.compile(r'\s+')
-# 移除英文字符
-ENGLISH_RE = re.compile(r'[a-zA-Z]+')
-
-# 创建全局缓存管理器实例
-cache_manager = CacheManager(cache_dir="./cache")
-# 读取停用词
-stopwords = []
-with open("data/stopword.txt", "r", encoding="utf-8") as f:
-    for line in f.readlines():
-        stopwords.append(line.strip())
-
-@app.route('/')
-def index():
-    return send_from_directory('static', 'index.html')
-
-
-
-def clean_text(review):
-    """
-    对文本进行清洗：
-      - 去除标签、链接、表情、标点、数字及重复字符
-      - 去除英文字符
-      - 去除多余空格
-    """
-    # 处理 NaN 值
-    if pd.isna(review):
-        return ""
-
-    # 将非字符串类型转换为字符串
-    if not isinstance(review, str):
-        review = str(review)
-    review = TAG_RE.sub('', review)
-    review = URL_RE.sub('', review)
-    review = EMOJI_RE.sub('', review)
-    review = PUNCT_RE.sub('', review)
-    review = DIGITS_RE.sub('', review)
-    review = ENGLISH_RE.sub('', review)  # 去除英文
-    review = SPACE_RE.sub(' ', review).strip()
-    return review
-
-def tokenize(review, stopwords):
-    """
-    对单个文本进行分词，去除停用词和空白字符，返回以空格分隔的字符串。
-    """
-    words = jieba.cut(review, cut_all=False)  # 使用精确模式进行分词
-    # 返回一个空格分隔的字符串
-    return ' '.join([word for word in words if word not in stopwords and word.strip()])
-
-def process_texts(review, stopwords):
-    """
-    对所有文本进行清洗和分词，并返回处理后的词列表。
-    """
-    logging.info("开始清洗文本...")
-    cleaned_texts = [clean_text(text) for text in tqdm(review, desc="清洗文本")]
-
-    logging.info("开始分词处理...")
-    tokenized_texts = [tokenize(text, stopwords) for text in tqdm(cleaned_texts, desc="分词处理")]
-
-    return tokenized_texts
 
 def pre(word2id, model, seq_length, path):
     """
@@ -288,19 +217,27 @@ def initialize_data():
     return word2id, test_dataloader, val_dataloader, train_array, train_label
 
 
-def initialize_model(w2vec):
+def initialize_model(w2vec, model_type=None):
     """
     初始化模型并加载最优模型或初始模型。
+    
+    参数:
+        w2vec: 词向量
+        model_type: 模型类型，可以是'lstm'或'cnn'，默认为None，使用Config.model_name
     """
+    # 如果未指定模型类型，则使用配置中的默认值
+    model_name = model_type.upper() if model_type else Config.model_name
+    
     # 检查是否有缓存的模型状态
     model_cache_params = {
+        "model_name": model_name,
         "vocab_size": Config.vocab_size,
         "embedding_dim": Config.embedding_dim,
         "hidden_dim": Config.hidden_dim,
         "num_layers": Config.num_layers
     }
 
-    model = LSTM_attention(
+    lstm_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -312,23 +249,74 @@ def initialize_model(w2vec):
         Config.bidirectional,
     )
 
+    cnn_model = TextCNN(Config)
+    model = lstm_model if model_name == "lstm" else cnn_model
+    
+    # 选择适合的模型路径
+    best_model_path = Config.lstm_best_model_path if model_name == "lstm" else Config.cnn_best_model_path
+    
+    logger.info(f"使用 {model_name} 模型")
+
     # 尝试加载缓存的模型状态
-    cached_state = cache_manager.load("model_state", model_cache_params)
+    cache_key = f"{model_name.lower()}_model_state"
+    cached_state = cache_manager.load(cache_key, model_cache_params)
     if cached_state is not None:
-        logging.info("从缓存加载模型状态...")
+        logging.info(f"从缓存加载 {model_name} 模型状态...")
         model.load_state_dict(cached_state)
         return model
 
-    logging.info("初始化模型...")
+    logging.info(f"初始化 {model_name} 模型...")
     # 加载最佳模型
-    model = torch.load(Config.best_model_path, weights_only=False)
+    if os.path.exists(best_model_path):
+        model = torch.load(best_model_path, weights_only=False)
+    else:
+        logging.warning(f"找不到 {model_name} 最佳模型，请确保模型文件存在")
 
     # 保存模型状态到缓存
-    cache_manager.save(model.state_dict(), "model_state", model_cache_params)
+    cache_manager.save(model.state_dict(), cache_key, model_cache_params)
 
     model.eval()  # 设置为评估模式
     return model
 
+# 创建全局缓存管理器实例
+cache_manager = CacheManager(cache_dir="./cache")
+# 读取停用词
+stopwords = []
+with open("data/stopword.txt", "r", encoding="utf-8") as f:
+    for line in f.readlines():
+        stopwords.append(line.strip())
+
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
+
+
+# 添加新的API端点，获取可用的模型列表
+@app.route('/api/models', methods=['GET'])
+def get_models():
+    """
+    获取可用的模型列表
+    """
+    models = [
+        {
+            "id": "lstm",
+            "name": "LSTM模型",
+            "description": "基于LSTM的情感分析模型，适合处理长文本和序列依赖性强的文本"
+        },
+        {
+            "id": "cnn",
+            "name": "CNN模型",
+            "description": "基于CNN的情感分析模型，适合处理短文本和特征提取"
+        }
+    ]
+    
+    # 检查当前默认模型
+    default_model = Config.model_name.lower()
+    
+    return jsonify({
+        "models": models,
+        "default": default_model
+    })
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
@@ -337,13 +325,18 @@ def analyze():
     try:
         data = request.get_json()
         text = data.get('text', '')
-
+        model_type = data.get('model_type', '').lower()  # 获取模型类型参数
         if not text:
             return jsonify({'error': '请输入要分析的文本'}), 400
+
+        # 验证模型类型
+        if model_type and model_type not in ['lstm', 'cnn']:
+            return jsonify({'error': '不支持的模型类型，请选择 lstm 或 cnn'}), 400
 
         logger.info("=" * 80)
         logger.info("收到新的分析请求")
         logger.info(f"设备: {device}")
+        logger.info(f"模型类型: {model_type if model_type else '默认'}")
 
         # 按回车分割句子
         original_sentences = [s.strip() for s in text.split('\n') if s.strip()]
@@ -374,8 +367,8 @@ def analyze():
             w2vec = torch.from_numpy(w2vec).float()
             cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
 
-        # 初始化模型（使用缓存）
-        model = initialize_model(w2vec)
+        # 初始化模型（使用缓存），传入模型类型
+        model = initialize_model(w2vec, model_type)
 
         logger.info("开始进行情感分析...")
         # 获取预测结果
@@ -385,6 +378,12 @@ def analyze():
         for i, sentence_result in enumerate(result['sentences']):
             if i < len(original_sentences):  # 确保索引有效
                 sentence_result['text'] = original_sentences[i]
+
+        # 添加使用的模型信息到结果中
+        used_model = model_type.upper() if model_type else Config.model_name
+        result['modelInfo'] = {
+            'type': used_model
+        }
 
         logger.info("分析完成")
         logger.info("=" * 80)
