@@ -3,19 +3,29 @@ import pandas as pd
 import argparse
 from scipy.ndimage import gaussian_filter1d
 
+# 设置全局字体为宋体
+def set_plot_style():
+    """设置matplotlib的全局样式，包括中文字体支持"""
+    plt.style.use("seaborn-v0_8-muted")
+    
+    # 设置中文字体，支持不同平台
+    plt.rcParams['font.family'] = ['Songti SC']  # macOS
+    plt.rcParams['axes.unicode_minus'] = False  # 确保负号正确显示
+    plt.rcParams['font.size'] = 12  # 设置默认字体大小
+
 
 def plot_training_log(model_name=None, save_path=None, compare=False):
     """
     绘制训练日志曲线，支持单模型或模型比较
     
     参数：
-        model_name: 模型名称 ('lstm' 或 'cnn')，如果为None且compare=False，则使用默认日志名
+        model_name: 模型名称 ('bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn')，如果为None且compare=False，则使用默认日志名
         save_path: 保存图片的路径，如果为None则自动生成
-        compare: 是否比较两个模型 (lstm vs cnn)
+        compare: 是否比较多个模型
     """
     if compare:
-        # 比较模式：加载两个模型的数据
-        models = ['lstm', 'cnn']
+        # 比较模式：加载多个模型的数据
+        models = ['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn']
         dfs = {}
         
         for model in models:
@@ -29,8 +39,13 @@ def plot_training_log(model_name=None, save_path=None, compare=False):
                 dfs[model] = df
             except Exception as e:
                 print(f"⚠️ 无法加载 {model} 模型日志: {e}")
-                return
+                # 不返回，继续处理其他模型
+                continue
         
+        if not dfs:
+            print("❌ 没有找到任何可用的模型日志")
+            return
+            
         if not save_path:
             save_path = "training_metrics_comparison.png"
         
@@ -60,6 +75,9 @@ def plot_training_log(model_name=None, save_path=None, compare=False):
 
 def plot_single_model(df, save_path, model_name=None):
     """为单个模型绘制训练指标图"""
+    # 设置字体
+    set_plot_style()
+    
     epochs = df["epoch"]
     smooth_sigma = 1.5
 
@@ -77,7 +95,6 @@ def plot_single_model(df, save_path, model_name=None):
     val_recall_s = smooth_or_raw("val_recall")
 
     plt.figure(figsize=(16, 10))
-    plt.style.use("seaborn-v0_8-muted")
     
     model_title = f" ({model_name.upper()})" if model_name else ""
 
@@ -104,7 +121,7 @@ def plot_single_model(df, save_path, model_name=None):
         # Highlight max train accuracy
         max_train_idx = df["train_acc"].idxmax()
         max_train_epoch = df.loc[max_train_idx, "epoch"]
-        max_train_acc = df.loc[max_train_idx, "train_acc"]
+        max_train_acc = df.loc(max_train_idx, "train_acc")
         plt.scatter(max_train_epoch, max_train_acc, color="#3498DB", s=100, edgecolor='black', zorder=5)
         plt.annotate(f"Max: {max_train_acc:.2f}%", 
                     (max_train_epoch, max_train_acc),
@@ -113,7 +130,7 @@ def plot_single_model(df, save_path, model_name=None):
                     ha='center',
                     fontweight='bold',
                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
-        
+
     if val_acc_s is not None:
         plt.plot(epochs, val_acc_s, label="Val Acc", color="#34495E", linestyle="--", linewidth=2)
         plt.scatter(epochs, df["val_acc"], color="#34495E", s=20, alpha=0.3)
@@ -172,27 +189,35 @@ def plot_single_model(df, save_path, model_name=None):
 
 
 def plot_comparison(dfs, save_path):
-    """比较两个模型的训练指标"""
+    """比较多个模型的训练指标"""
+    # 设置字体
+    set_plot_style()
+    
     plt.figure(figsize=(16, 10))
-    plt.style.use("seaborn-v0_8-muted")
     
     # 定义每个模型的颜色
     colors = {
-        'lstm': {'train': '#3498DB', 'val': '#2874A6'},  # 蓝色系
-        'cnn': {'train': '#E74C3C', 'val': '#922B21'}    # 红色系
+        'bi_lstm_attention': {'train': '#3498DB', 'val': '#2874A6'},  # 蓝色系
+        'bi_lstm': {'train': '#9B59B6', 'val': '#8E44AD'},           # 紫色系
+        'lstm_attention': {'train': '#2ECC71', 'val': '#27AE60'},     # 绿色系
+        'lstm': {'train': '#F1C40F', 'val': '#D35400'},              # 黄色系
+        'cnn': {'train': '#E74C3C', 'val': '#922B21'}                # 红色系
     }
     
     # 指标名称和它们的位置
     metrics = {
-        'Loss': {'pos': 1, 'col': 'train_loss', 'val_col': 'val_loss', 'ylabel': 'Loss'},
-        'Accuracy': {'pos': 2, 'col': 'train_acc', 'val_col': 'val_acc', 'ylabel': 'Accuracy (%)'},
-        'F1': {'pos': 3, 'col': 'f1', 'val_col': 'val_f1', 'ylabel': 'F1 (%)'},
-        'Recall': {'pos': 4, 'col': 'recall', 'val_col': 'val_recall', 'ylabel': 'Recall (%)'}
+        'Loss': {'pos': 1, 'col': 'train_loss', 'val_col': 'val_loss', 'ylabel': 'Loss', 'magnify': False},
+        'Accuracy': {'pos': 2, 'col': 'train_acc', 'val_col': 'val_acc', 'ylabel': 'Accuracy (%)', 'magnify': True},
+        'F1': {'pos': 3, 'col': 'f1', 'val_col': 'val_f1', 'ylabel': 'F1 (%)', 'magnify': True},
+        'Recall': {'pos': 4, 'col': 'recall', 'val_col': 'val_recall', 'ylabel': 'Recall (%)', 'magnify': True}
     }
     
     # 为每个指标创建子图
     for metric_name, metric_info in metrics.items():
         plt.subplot(2, 2, metric_info['pos'])
+        
+        # 用于收集数据范围的列表
+        all_values = []
         
         # 绘制每个模型的指标
         for model_name, df in dfs.items():
@@ -200,8 +225,8 @@ def plot_comparison(dfs, save_path):
             train_col = metric_info['col']
             val_col = metric_info['val_col']
             
-            # 检查列是否存在
-            if train_col in df.columns:
+            # 检查列是否存在，并确保模型颜色配置存在
+            if train_col in df.columns and model_name in colors:
                 # 平滑处理
                 train_data = gaussian_filter1d(df[train_col], sigma=1.5)
                 plt.plot(epochs, train_data, 
@@ -210,6 +235,9 @@ def plot_comparison(dfs, save_path):
                          linewidth=2)
                 plt.scatter(epochs, df[train_col], 
                            color=colors[model_name]['train'], s=20, alpha=0.3)
+                
+                # 收集数据范围
+                all_values.extend(df[train_col].tolist())
                 
                 # For accuracy metric, highlight the maximum point
                 if metric_name == 'Accuracy':
@@ -226,7 +254,7 @@ def plot_comparison(dfs, save_path):
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
             
             # 检查验证列是否存在
-            if val_col in df.columns:
+            if val_col in df.columns and model_name in colors:
                 val_data = gaussian_filter1d(df[val_col], sigma=1.5)
                 plt.plot(epochs, val_data, 
                          label=f"{model_name.upper()} Val", 
@@ -234,6 +262,9 @@ def plot_comparison(dfs, save_path):
                          linewidth=2, linestyle='--')
                 plt.scatter(epochs, df[val_col], 
                            color=colors[model_name]['val'], s=20, alpha=0.3)
+                
+                # 收集数据范围
+                all_values.extend(df[val_col].tolist())
                 
                 # For accuracy metric, highlight the maximum point
                 if metric_name == 'Accuracy':
@@ -249,6 +280,44 @@ def plot_comparison(dfs, save_path):
                                 fontweight='bold',
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
         
+        # 调整Y轴范围以放大差异 (仅对指定的指标)
+        if metric_info['magnify'] and all_values:
+            # 如果是百分比指标 (Accuracy, F1, Recall)
+            if "%" in metric_info['ylabel']:
+                # 找出数据的最小和最大值
+                min_val = max(min(all_values) - 2, 0)  # 下限不低于0
+                max_val = min(max(all_values) + 2, 100)  # 上限不超过100
+                
+                # 使用四分位范围放大差异 (去掉离群值)
+                values = sorted(all_values)
+                q1 = values[int(len(values) * 0.25)]
+                q3 = values[int(len(values) * 0.75)]
+                
+                # 根据数据分布设置适当的放大范围，至少保留5个百分点的间隔
+                y_min = max(min_val, q1 - (q3 - q1) * 0.5)
+                y_max = min(max_val, q3 + (q3 - q1) * 0.5)
+                
+                # 确保范围至少有5个百分点，否则手动扩大
+                if y_max - y_min < 5:
+                    mid = (y_min + y_max) / 2
+                    y_min = max(0, mid - 2.5)
+                    y_max = min(100, mid + 2.5)
+                
+                plt.ylim(y_min, y_max)
+                
+                # 添加注释说明Y轴范围已被缩放
+                plt.annotate(f"* Y轴已缩放至 [{y_min:.1f}%, {y_max:.1f}%] 以突显差异", 
+                            xy=(0.5, 0.01),
+                            xycoords='axes fraction',
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            style='italic',
+                            color='gray')
+            else:
+                # 对于Loss，可能不需要特殊处理，或者使用不同的逻辑
+                pass
+        
         plt.title(f"{metric_name} Comparison")
         plt.xlabel("Epoch")
         plt.ylabel(metric_info['ylabel'])
@@ -263,9 +332,11 @@ def plot_comparison(dfs, save_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='绘制训练日志')
-    parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], help='指定模型类型')
+    parser.add_argument('--model', type=str, 
+                        choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
+                        help='指定模型类型')
     parser.add_argument('--output', type=str, help='输出图像路径')
-    parser.add_argument('--compare', action='store_true', help='比较LSTM和CNN模型')
+    parser.add_argument('--compare', action='store_true', help='比较多个模型')
     args = parser.parse_args()
     
     plot_training_log(model_name=args.model, save_path=args.output, compare=args.compare)
