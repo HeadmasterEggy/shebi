@@ -33,6 +33,8 @@ from data_Process import (
     Data_set,
 )
 from lstm_model import LSTM_attention, LSTMModel
+# 导入模型工具模块
+from utils import initialize_model
 
 # 配置日志
 logging.basicConfig(
@@ -247,38 +249,12 @@ def pre(word2id, model, seq_length, path, device=None):
     return predictions
 
 
-def initialize_model():
-    """
-    初始化模型并加载最优模型。
-    """
-    logging.info(f"使用 {model_name} 模型")
-
-    best_model_path = getattr(Config, f"{model_name.lower()}_best_model_path")
-    logging.info(f"模型文件路径: {best_model_path}")
-
-    logging.info(f"从 {best_model_path} 加载 {model_name} 模型...")
-    try:
-        loaded_model = torch.load(best_model_path, map_location=device, weights_only=False)
-        if isinstance(loaded_model, dict):
-            model.load_state_dict(loaded_model)
-        else:
-            model.load_state_dict(loaded_model.state_dict())
-        logging.info("模型加载成功")
-    except Exception as e:
-        logging.error(f"加载模型失败: {e}")
-        logging.warning(f"使用未初始化的 {model_name} 模型")
-
-    model.to(device)
-    model.eval()
-    return model
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="模型评估与预测脚本")
     parser.add_argument('--model', type=str, default='cnn',
                         choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
                         help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
     args = parser.parse_args()
-    
     
     model_name = args.model.lower()  # 统一转为小写处理
     logging.info(f"模型名称: {model_name}")
@@ -306,102 +282,15 @@ if __name__ == "__main__":
     val_loader = Data_set(val_array, val_label)
     val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
-
     # 生成 word2vec
     logging.info("生成word2vec...")
     w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
     w2vec = torch.from_numpy(w2vec).float()
 
-    # 构建模型（使用带注意力机制的 LSTM）
-    bilstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化双向LSTM模型
-    bilstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化LSTM_attention模型
-    lstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 初始化LSTM模型
-    lstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 正确初始化CNN模型
-    cnn_model = TextCNN(
-        Config.dropout,
-        Config.require_improvement,
-        Config.vocab_size,
-        Config.cnn_batch_size,
-        Config.pad_size,
-        Config.filter_sizes,
-        Config.num_filters,
-        w2vec,  
-        Config.embedding_dim,
-        Config.n_class,
-    )
-
-    # 根据命令行参数选择模型
-    model_name = model_name.lower()  
-    if model_name == 'bilstm_attention':
-        model = bilstm_attention_model
-        print('使用 Bi-LSTM 注意力模型训练')
-    elif model_name == 'bilstm':
-        model = bilstm_model
-        print('使用 Bi-LSTM 模型训练')
-    elif model_name == 'lstm_attention':
-        model = lstm_attention_model
-        print('使用 LSTM 注意力模型训练')
-    elif model_name == 'lstm':
-        model = lstm_model
-        print('使用 LSTM 模型训练')
-    elif model_name == 'cnn':
-        model = cnn_model
-        print('使用 CNN 模型训练')
-    else:
-        logging.error(f"不支持的模型类型: {model_name}")
-        raise ValueError(f"不支持的模型类型: {model_name}")
-    
-    # 初始化模型
-    model = initialize_model()
+    # 使用导入的初始化模型函数，传入设备
+    model = initialize_model(model_name, w2vec, device)
     logging.info("模型初始化完成")
+    
     # 测试阶段
     logging.info("开始测试模型...")
     test_accuracy(model, test_dataloader, device)

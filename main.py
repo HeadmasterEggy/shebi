@@ -8,7 +8,7 @@
 """
 from __future__ import unicode_literals, print_function, division
 
-import argparse  # Add argparse import
+import argparse
 import os
 
 import pandas as pd
@@ -19,7 +19,6 @@ from sklearn.metrics import f1_score, recall_score
 from torch import optim
 from torch.utils.data import DataLoader
 
-from cnn_model import TextCNN
 from config import Config
 from data_Process import (
     data_preview,
@@ -30,7 +29,8 @@ from data_Process import (
     Data_set,
 )
 from eval import val_accuracy
-from lstm_model import LSTM_attention, LSTMModel
+# 导入模型工具模块
+from utils import create_model
 
 
 def train(train_dataloader, model, device, epoches, lr, patience):
@@ -191,88 +191,9 @@ if __name__ == "__main__":
     test_loader = Data_set(test_array, test_label)
     test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
-    # 构建模型（使用带注意力机制的 LSTM）
-    bilstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化双向LSTM模型
-    bilstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化LSTM_attention模型
-    lstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 初始化LSTM模型
-    lstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 正确初始化CNN模型
-    cnn_model = TextCNN(
-        Config.dropout,
-        Config.require_improvement,
-        Config.vocab_size,
-        Config.cnn_batch_size,
-        Config.pad_size,
-        Config.filter_sizes,
-        Config.num_filters,
-        w2vec,  # 修正：传入预训练词向量w2vec而不是embedding_dim
-        Config.embedding_dim,
-        Config.n_class,
-    )
-
-    # 根据命令行参数选择模型
-    if args.model == 'bilstm_attention':
-        model = bilstm_attention_model
-        print('使用 Bi-LSTM 注意力模型训练')
-    elif args.model == 'bilstm':
-        model = bilstm_model
-        print('使用 Bi-LSTM 模型训练')
-    elif args.model == 'lstm_attention':
-        model = lstm_attention_model
-        print('使用 LSTM 注意力模型训练')
-    elif args.model == 'lstm':
-        model = lstm_model
-        print('使用 LSTM 模型训练')
-    elif args.model == 'cnn':
-        model = cnn_model
-        print('使用 CNN 模型训练')
+    # 使用导入的创建模型函数
+    model = create_model(args.model, w2vec)
+    print(f'使用 {args.model.upper()} 模型训练')
 
     # 保存模型（根据模型名字保存，并添加缓存）
     model_filename = f"{args.model}_model_best.pkl"

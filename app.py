@@ -13,8 +13,9 @@ from cnn_model import TextCNN
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from data_Process import tokenize, clean_text
-# Remove CacheManager import
 from lstm_model import LSTM_attention, LSTMModel
+# 导入模型工具模块
+from utils import initialize_model
 
 # 配置日志
 logging.basicConfig(
@@ -43,6 +44,8 @@ torch.serialization.add_safe_globals([
     TextCNN
 ])
 
+# 全局设备变量
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def pre(word2id, model, seq_length, path):
     """
@@ -190,122 +193,7 @@ def initialize_data():
     return word2id, test_dataloader, val_dataloader, train_array, train_label
 
 
-def initialize_model(w2vec, model_type=None):
-    """
-    初始化模型并加载最优模型。
-
-    参数:
-        w2vec: 词向量
-        model_type: 模型类型，可以是'bilstm_attention', 'bilstm', 'lstm_attention', 'lstm'或'cnn'，默认为None，使用Config.model_name
-    """
-    # 如果未指定模型类型，则使用配置中的默认值
-    model_type = model_type.lower() if model_type else Config.model_name.lower()
-    
-    # 构建模型（使用带注意力机制的 LSTM）
-    bilstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化双向LSTM模型
-    bilstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_1,
-    )
-
-    # 初始化LSTM_attention模型
-    lstm_attention_model = LSTM_attention(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 初始化LSTM模型
-    lstm_model = LSTMModel(
-        Config.vocab_size,
-        Config.embedding_dim,
-        w2vec,
-        Config.update_w2v,
-        Config.hidden_dim,
-        Config.num_layers,
-        Config.drop_keep_prob,
-        Config.n_class,
-        Config.bidirectional_2,
-    )
-
-    # 初始化CNN模型
-    cnn_model = TextCNN(
-        Config.dropout,
-        Config.require_improvement,
-        Config.vocab_size,
-        Config.cnn_batch_size,
-        Config.pad_size,
-        Config.filter_sizes,
-        Config.num_filters,
-        w2vec,
-        Config.embedding_dim,
-        Config.n_class,
-    )
-    
-    # 根据模型类型选择模型
-    if model_type == 'bilstm_attention':
-        model = bilstm_attention_model
-    elif model_type == 'bilstm':
-        model = bilstm_model
-    elif model_type == 'lstm_attention':
-        model = lstm_attention_model
-    elif model_type == 'lstm':
-        model = lstm_model
-    elif model_type == 'cnn':
-        model = cnn_model
-    else:
-        # 默认使用CNN模型
-        model = cnn_model
-        model_type = 'cnn'
-
-    logger.info(f"使用 {model_type.upper()} 模型")
-
-    # 使用与main.py相同的模型保存路径格式
-    model_filename = f"{model_type}_model_best.pkl"
-    best_model_path = os.path.join(Config.model_dir, model_filename)
-
-    logging.info(f"初始化 {model_type.upper()} 模型...")
-    # 加载最佳模型
-    if os.path.exists(best_model_path):
-        try:
-            # 添加map_location参数，确保模型可以加载到当前设备
-            model = torch.load(best_model_path, weights_only=False, map_location=device)
-            logger.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
-        except Exception as e:
-            logger.error(f"加载模型失败: {e}")
-    else:
-        logging.warning(f"找不到 {model_type.upper()} 最佳模型，请确保模型文件存在: {best_model_path}")
-
-    model.eval()  # 设置为评估模式
-    return model
-
-
-# 删除缓存管理器实例
+# 删除 create_model 和 initialize_model 函数，使用从 model_utils 导入的函数
 
 # 读取停用词
 stopwords = []
@@ -319,7 +207,6 @@ def index():
     return send_from_directory('static', 'index.html')
 
 
-# 添加新的API端点，获取可用的模型列表
 # 定义默认模型
 default_model = "cnn"
 
@@ -406,8 +293,8 @@ def analyze():
         w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
         w2vec = torch.from_numpy(w2vec).float()
 
-        # 初始化模型，传入模型类型
-        model = initialize_model(w2vec, model_type)
+        # 使用导入的初始化模型函数，传入当前设备
+        model = initialize_model(model_type, w2vec, device)
 
         logger.info("开始进行情感分析...")
         # 获取预测结果
@@ -437,5 +324,4 @@ def analyze():
 
 
 if __name__ == '__main__':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     app.run(debug=False, port=5003)
