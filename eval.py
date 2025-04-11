@@ -14,11 +14,15 @@ from __future__ import unicode_literals, print_function, division
 import argparse
 import logging
 import os
+
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import f1_score, recall_score, confusion_matrix
 from torch.utils.data import DataLoader
 
+from cnn_model import TextCNN
 from config import Config
 from data_Process import (
     build_word2id,
@@ -28,13 +32,7 @@ from data_Process import (
     text_to_array_nolabel,
     Data_set,
 )
-from cnn_model import TextCNN
 from lstm_model import LSTM_attention, LSTMModel
-
-import numpy as np
-import pandas as pd
-import tqdm
-from sklearn.metrics import f1_score, recall_score, confusion_matrix
 
 # 配置日志
 logging.basicConfig(
@@ -183,7 +181,6 @@ def test_accuracy(model, test_dataloader, device):
         # 使用追加模式，保留之前的结果
         metrics_df.to_csv('metrics_log.csv', mode='a', header=not file_exists, index=False)
 
-
         # 使用 logging 记录结果
         logging.info(f"\n测试集准确率: {accuracy:.3f}%, F1分数: {100 * f1:.3f}%, "
                      f"召回率: {100 * recall:.3f}%, 混淆矩阵:\n{confusion_mat}")
@@ -316,7 +313,7 @@ def initialize_model(w2vec, device, model_name):
         Config.n_class,
         Config.bidirectional_1,
     )
-    
+
     # 初始化LSTM_attention模型
     lstm_attention_model = LSTM_attention(
         Config.vocab_size,
@@ -329,7 +326,7 @@ def initialize_model(w2vec, device, model_name):
         Config.n_class,
         Config.bidirectional_2,
     )
-    
+
     # 初始化LSTM模型
     lstm_model = LSTMModel(
         Config.vocab_size,
@@ -364,7 +361,7 @@ def initialize_model(w2vec, device, model_name):
     elif model_name == 'bi_lstm':
         model = bi_lstm_model
         print('使用 Bi-LSTM 模型训练')
-    elif model_name == 'lstm_attention':    
+    elif model_name == 'lstm_attention':
         model = lstm_attention_model
         print('使用 LSTM 注意力模型训练')
     elif model_name == 'lstm':
@@ -375,7 +372,7 @@ def initialize_model(w2vec, device, model_name):
         print('使用 CNN 模型训练')
 
     logging.info(f"使用 {model_name} 模型")
-    
+
     best_model_path = getattr(Config, f"{model_name}_best_model_path")
     logging.info(f"模型文件路径: {best_model_path}")
 
@@ -396,9 +393,9 @@ def initialize_model(w2vec, device, model_name):
     return model
 
 
-def main():  
-    model_name = args.model.upper() 
-    logging.info(f"模型名称: {model_name}") 
+def main():
+    model_name = args.model.upper()
+    logging.info(f"模型名称: {model_name}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 
@@ -433,8 +430,8 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="模型评估与预测脚本")
-    parser.add_argument('--model', type=str, default='cnn', 
-                      choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
-                      help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
+    parser.add_argument('--model', type=str, default='cnn',
+                        choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
+                        help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
     args = parser.parse_args()
     main()

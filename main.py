@@ -8,8 +8,8 @@
 """
 from __future__ import unicode_literals, print_function, division
 
-import os
 import argparse  # Add argparse import
+import os
 
 import pandas as pd
 import torch
@@ -19,6 +19,7 @@ from sklearn.metrics import f1_score, recall_score
 from torch import optim
 from torch.utils.data import DataLoader
 
+from cnn_model import TextCNN
 from config import Config
 from data_Process import (
     data_preview,
@@ -30,7 +31,7 @@ from data_Process import (
 )
 from eval import val_accuracy
 from lstm_model import LSTM_attention, LSTMModel
-from cnn_model import TextCNN
+
 
 def train(train_dataloader, model, device, epoches, lr, patience):
     """训练模型函数
@@ -138,7 +139,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
 
         # 检查早停条件
         if counter >= patience:
-            print(f'早停机制触发，在第{epoch+1}轮训练后停止')
+            print(f'早停机制触发，在第{epoch + 1}轮训练后停止')
             break
 
         # 最后保存所有训练日志
@@ -149,9 +150,9 @@ def train(train_dataloader, model, device, epoches, lr, patience):
 if __name__ == "__main__":
     # 添加命令行参数解析
     parser = argparse.ArgumentParser(description='Text Classification Model Training')
-    parser.add_argument('--model', type=str, default='cnn', 
-                      choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
-                      help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
+    parser.add_argument('--model', type=str, default='cnn',
+                        choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
+                        help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
     args = parser.parse_args()
 
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
@@ -215,7 +216,7 @@ if __name__ == "__main__":
         Config.n_class,
         Config.bidirectional_1,
     )
-    
+
     # 初始化LSTM_attention模型
     lstm_attention_model = LSTM_attention(
         Config.vocab_size,
@@ -228,7 +229,7 @@ if __name__ == "__main__":
         Config.n_class,
         Config.bidirectional_2,
     )
-    
+
     # 初始化LSTM模型
     lstm_model = LSTMModel(
         Config.vocab_size,
@@ -263,7 +264,7 @@ if __name__ == "__main__":
     elif args.model == 'bi_lstm':
         model = bi_lstm_model
         print('使用 Bi-LSTM 模型训练')
-    elif args.model == 'lstm_attention':    
+    elif args.model == 'lstm_attention':
         model = lstm_attention_model
         print('使用 LSTM 注意力模型训练')
     elif args.model == 'lstm':

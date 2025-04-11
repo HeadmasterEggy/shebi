@@ -190,7 +190,7 @@ class LSTM_attention(nn.Module):
         else:
             self.weight_W = nn.Parameter(torch.Tensor(hidden_dim, hidden_dim))
             self.weight_proj = nn.Parameter(torch.Tensor(hidden_dim, 1))
-            
+
         # 注意力分数的权重向量, 用于将隐藏状态映射到注意力分数
 
         # 初始化分类器(两层全连接网络)

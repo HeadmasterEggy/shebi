@@ -5,7 +5,7 @@ function updateDisplay() {
     filteredSentences = allSentences.filter(sentence => {
         if (sentimentFilter === 'all') return true;
         return (sentimentFilter === 'positive' && sentence.sentiment === '积极') ||
-               (sentimentFilter === 'negative' && sentence.sentiment === '消极');
+            (sentimentFilter === 'negative' && sentence.sentiment === '消极');
     });
 
     document.getElementById('sentenceCount').textContent = `(${filteredSentences.length}条)`;
@@ -23,7 +23,7 @@ function updateDisplay() {
     let sentencesHtml = '';
 
     const cardClass = displayMode === 'compact' ? 'sentiment-card collapsed' :
-                     (displayMode === 'expanded' ? 'sentiment-card expanded' : 'sentiment-card');
+        (displayMode === 'expanded' ? 'sentiment-card expanded' : 'sentiment-card');
 
     currentSentences.forEach((sentence, index) => {
         const sentimentClass = sentence.sentiment === '积极' ? 'positive' : 'negative';

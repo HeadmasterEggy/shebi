@@ -1,22 +1,20 @@
 import logging
 import os
-import re
 
 import jieba
-import torch
 import pandas as pd
+import torch
 import torch.nn as nn
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from cnn_model import TextCNN
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
+from data_Process import tokenize, clean_text
 # Remove CacheManager import
 from lstm_model import LSTM_attention
-from data_Process import tokenize, clean_text, process_texts
 
 # 配置日志
 logging.basicConfig(
@@ -43,6 +41,7 @@ torch.serialization.add_safe_globals([
     LSTM_attention,
     TextCNN
 ])
+
 
 def pre(word2id, model, seq_length, path):
     """
@@ -242,6 +241,7 @@ def initialize_model(w2vec, model_type=None):
     model.eval()  # 设置为评估模式
     return model
 
+
 # 删除缓存管理器实例
 
 # 读取停用词
@@ -249,6 +249,7 @@ stopwords = []
 with open("data/stopword.txt", "r", encoding="utf-8") as f:
     for line in f.readlines():
         stopwords.append(line.strip())
+
 
 @app.route('/')
 def index():
@@ -281,6 +282,7 @@ def get_models():
         "models": models,
         "default": default_model
     })
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():

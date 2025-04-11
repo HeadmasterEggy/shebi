@@ -174,9 +174,15 @@ body {
 }
 
 @keyframes pulse {
-    0% { box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 0 15px rgba(0, 123, 255, 0.1); }
-    50% { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 123, 255, 0.15); }
-    100% { box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 0 15px rgba(0, 123, 255, 0.1); }
+    0% {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 0 15px rgba(0, 123, 255, 0.1);
+    }
+    50% {
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 123, 255, 0.15);
+    }
+    100% {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 0 15px rgba(0, 123, 255, 0.1);
+    }
 }
 
 .spinner-border {
@@ -192,8 +198,12 @@ body {
 }
 
 @keyframes spinner-rotation {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .error-message {
@@ -354,8 +364,8 @@ body {
     margin-left: 8px;
     color: white;
     font-size: 0.9rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     animation: labelPop 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
@@ -542,7 +552,7 @@ body {
     border: none;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     position: relative;
     overflow: hidden;
 }
@@ -550,14 +560,14 @@ body {
 .filter-button:hover {
     background: linear-gradient(135deg, #e9ecef, #dee2e6);
     transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
 }
 
 .filter-button.active {
     background: linear-gradient(45deg, #007bff, #0069d9);
     color: white;
     box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .fade-in {
@@ -593,7 +603,7 @@ body {
 }
 
 .word-freq-item {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(0, 123, 255, 0.1);
     color: #495057;
     font-weight: 500;
@@ -603,7 +613,7 @@ body {
 
 .word-freq-item:hover {
     transform: scale(1.05) translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     filter: brightness(1.1);
 }
 
