@@ -29,7 +29,7 @@ from data_Process import (
     Data_set,
 )
 from eval import val_accuracy
-from bilstm_model import LSTM_attention
+from lstm_model import LSTM_attention, LSTMModel
 from cnn_model import TextCNN
 
 def train(train_dataloader, model, device, epoches, lr, patience):
@@ -149,8 +149,9 @@ def train(train_dataloader, model, device, epoches, lr, patience):
 if __name__ == "__main__":
     # 添加命令行参数解析
     parser = argparse.ArgumentParser(description='Text Classification Model Training')
-    parser.add_argument('--model', type=str, default='cnn', choices=['lstm', 'cnn'],
-                      help='选择使用的模型类型: lstm 或 cnn (默认: cnn)')
+    parser.add_argument('--model', type=str, default='cnn', 
+                      choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
+                      help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
     args = parser.parse_args()
 
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
@@ -190,7 +191,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     # 构建模型（使用带注意力机制的 LSTM）
-    lstm_model = LSTM_attention(
+    bi_lstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -199,7 +200,46 @@ if __name__ == "__main__":
         Config.num_layers,
         Config.drop_keep_prob,
         Config.n_class,
-        Config.bidirectional,
+        Config.bidirectional_1,
+    )
+
+    # 初始化双向LSTM模型
+    bi_lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_1,
+    )
+    
+    # 初始化LSTM_attention模型
+    lstm_attention_model = LSTM_attention(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+    
+    # 初始化LSTM模型
+    lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
     )
 
     # 正确初始化CNN模型
@@ -217,10 +257,19 @@ if __name__ == "__main__":
     )
 
     # 根据命令行参数选择模型
-    if args.model == 'lstm':
-        model = lstm_model
+    if args.model == 'bi_lstm_attention':
+        model = bi_lstm_attention_model
+        print('使用 Bi-LSTM 注意力模型训练')
+    elif args.model == 'bi_lstm':
+        model = bi_lstm_model
         print('使用 Bi-LSTM 模型训练')
-    else:
+    elif args.model == 'lstm_attention':    
+        model = lstm_attention_model
+        print('使用 LSTM 注意力模型训练')
+    elif args.model == 'lstm':
+        model = lstm_model
+        print('使用 LSTM 模型训练')
+    elif args.model == 'cnn':
         model = cnn_model
         print('使用 CNN 模型训练')
 

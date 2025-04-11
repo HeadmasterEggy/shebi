@@ -15,7 +15,7 @@ from cnn_model import TextCNN
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from eval import CacheManager  # 导入 CacheManager
-from bilstm_model import LSTM_attention
+from lstm_model import LSTM_attention
 from data_Process import tokenize, clean_text, process_texts
 # 从eval模块导入预测函数
 
@@ -239,7 +239,7 @@ def initialize_model(w2vec, model_type=None):
         "num_layers": Config.num_layers
     }
 
-    lstm_model = LSTM_attention(
+    bilstm_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -263,7 +263,7 @@ def initialize_model(w2vec, model_type=None):
         Config.embedding_dim,
         Config.n_class,
     )
-    model = lstm_model if model_name == "lstm" else cnn_model
+    model = bilstm_model if model_name == "lstm" else cnn_model
 
     # 选择适合的模型路径
     best_model_path = Config.lstm_best_model_path if model_name == "lstm" else Config.cnn_best_model_path

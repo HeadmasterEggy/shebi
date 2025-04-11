@@ -37,7 +37,7 @@ from data_Process import (
     text_to_array_nolabel,
     Data_set,
 )
-from bilstm_model import LSTM_attention
+from lstm_model import LSTM_attention, LSTMModel
 
 # 配置日志
 logging.basicConfig(
@@ -392,7 +392,8 @@ def initialize_model(w2vec, device, cache_manager=None):
         "num_layers": Config.num_layers
     }
 
-    lstm_model = LSTM_attention(
+    # 构建模型（使用带注意力机制的 LSTM）
+    bi_lstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -401,8 +402,49 @@ def initialize_model(w2vec, device, cache_manager=None):
         Config.num_layers,
         Config.drop_keep_prob,
         Config.n_class,
-        Config.bidirectional,
+        Config.bidirectional_1,
     )
+
+    # 初始化双向LSTM模型
+    bi_lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_1,
+    )
+    
+    # 初始化LSTM_attention模型
+    lstm_attention_model = LSTM_attention(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+    
+    # 初始化LSTM模型
+    lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+
+    # 正确初始化CNN模型
     cnn_model = TextCNN(
         Config.dropout,
         Config.require_improvement,
@@ -415,12 +457,28 @@ def initialize_model(w2vec, device, cache_manager=None):
         Config.embedding_dim,
         Config.n_class,
     )
-    model = lstm_model if Config.model_name == "LSTM" else cnn_model
 
-    logging.info(f"使用 {Config.model_name} 模型")
+    # 根据命令行参数选择模型
+    if args.model == 'bi_lstm_attention':
+        model = bi_lstm_attention_model
+        print('使用 Bi-LSTM 注意力模型训练')
+    elif args.model == 'bi_lstm':
+        model = bi_lstm_model
+        print('使用 Bi-LSTM 模型训练')
+    elif args.model == 'lstm_attention':    
+        model = lstm_attention_model
+        print('使用 LSTM 注意力模型训练')
+    elif args.model == 'lstm':
+        model = lstm_model
+        print('使用 LSTM 模型训练')
+    elif args.model == 'cnn':
+        model = cnn_model
+        print('使用 CNN 模型训练')
 
-    # 选择适合的模型路径
-    best_model_path = Config.lstm_best_model_path if Config.model_name == "LSTM" else Config.cnn_best_model_path
+    logging.info(f"使用 {args.model} 模型")
+    
+    best_model_path = getattr(Config, f"{args.model}_best_model_path")
+    logging.info(f"模型文件路径: {best_model_path}")
 
     # 尝试加载缓存的模型状态
     cache_key = f"{Config.model_name.lower()}_model_state"
@@ -433,13 +491,17 @@ def initialize_model(w2vec, device, cache_manager=None):
     else:
         # 加载最佳模型
         logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
-        loaded_model = torch.load(best_model_path, weights_only=False)
-        if isinstance(loaded_model, dict):
-            model.load_state_dict(loaded_model)
-        else:
-            model.load_state_dict(loaded_model.state_dict())
-        # 保存模型状态到缓存
-        cache_manager.save(model.state_dict(), cache_key, model_cache_params)
+        try:
+            loaded_model = torch.load(best_model_path, weights_only=False)
+            if isinstance(loaded_model, dict):
+                model.load_state_dict(loaded_model)
+            else:
+                model.load_state_dict(loaded_model.state_dict())
+            # 保存模型状态到缓存
+            cache_manager.save(model.state_dict(), cache_key, model_cache_params)
+        except Exception as e:
+            logging.error(f"加载模型失败: {e}")
+            logging.warning(f"使用未初始化的 {Config.model_name} 模型")
 
     model.to(device)
     model.eval()
@@ -447,16 +509,6 @@ def initialize_model(w2vec, device, cache_manager=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="模型评估与预测脚本")
-    parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
-    parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
-    parser.add_argument('--model', type=str, choices=['lstm', 'cnn'], default='cnn',
-                        help='选择模型类型: lstm 或 cnn')
-    args = parser.parse_args()
-
-    # 设置选择的模型名称
-    Config.model_name = args.model
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 
@@ -506,4 +558,11 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="模型评估与预测脚本")
+    parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
+    parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
+    parser.add_argument('--model', type=str, default='cnn', 
+                      choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
+                      help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
+    args = parser.parse_args()
     main()
