@@ -14,7 +14,7 @@ from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
 from data_Process import tokenize, clean_text
 # Remove CacheManager import
-from lstm_model import LSTM_attention
+from lstm_model import LSTM_attention, LSTMModel
 
 # 配置日志
 logging.basicConfig(
@@ -39,6 +39,7 @@ torch.serialization.add_safe_globals([
     nn.Sequential,
     nn.Module,
     LSTM_attention,
+    LSTMModel,
     TextCNN
 ])
 
@@ -195,12 +196,13 @@ def initialize_model(w2vec, model_type=None):
 
     参数:
         w2vec: 词向量
-        model_type: 模型类型，可以是'lstm'或'cnn'，默认为None，使用Config.model_name
+        model_type: 模型类型，可以是'bilstm_attention', 'bilstm', 'lstm_attention', 'lstm'或'cnn'，默认为None，使用Config.model_name
     """
     # 如果未指定模型类型，则使用配置中的默认值
-    model_name = model_type.upper() if model_type else Config.model_name
-
-    bilstm_model = LSTM_attention(
+    model_type = model_type.lower() if model_type else Config.model_name.lower()
+    
+    # 构建模型（使用带注意力机制的 LSTM）
+    bilstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -209,9 +211,49 @@ def initialize_model(w2vec, model_type=None):
         Config.num_layers,
         Config.drop_keep_prob,
         Config.n_class,
-        Config.bidirectional,
+        Config.bidirectional_1,
     )
 
+    # 初始化双向LSTM模型
+    bilstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_1,
+    )
+
+    # 初始化LSTM_attention模型
+    lstm_attention_model = LSTM_attention(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+
+    # 初始化LSTM模型
+    lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+
+    # 初始化CNN模型
     cnn_model = TextCNN(
         Config.dropout,
         Config.require_improvement,
@@ -224,19 +266,40 @@ def initialize_model(w2vec, model_type=None):
         Config.embedding_dim,
         Config.n_class,
     )
-    model = bilstm_model if model_name == "LSTM" else cnn_model
+    
+    # 根据模型类型选择模型
+    if model_type == 'bilstm_attention':
+        model = bilstm_attention_model
+    elif model_type == 'bilstm':
+        model = bilstm_model
+    elif model_type == 'lstm_attention':
+        model = lstm_attention_model
+    elif model_type == 'lstm':
+        model = lstm_model
+    elif model_type == 'cnn':
+        model = cnn_model
+    else:
+        # 默认使用CNN模型
+        model = cnn_model
+        model_type = 'cnn'
 
-    # 选择适合的模型路径
-    best_model_path = Config.lstm_best_model_path if model_name == "LSTM" else Config.cnn_best_model_path
+    logger.info(f"使用 {model_type.upper()} 模型")
 
-    logger.info(f"使用 {model_name} 模型")
+    # 使用与main.py相同的模型保存路径格式
+    model_filename = f"{model_type}_model_best.pkl"
+    best_model_path = os.path.join(Config.model_dir, model_filename)
 
-    logging.info(f"初始化 {model_name} 模型...")
+    logging.info(f"初始化 {model_type.upper()} 模型...")
     # 加载最佳模型
     if os.path.exists(best_model_path):
-        model = torch.load(best_model_path, weights_only=False)
+        try:
+            # 添加map_location参数，确保模型可以加载到当前设备
+            model = torch.load(best_model_path, weights_only=False, map_location=device)
+            logger.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
+        except Exception as e:
+            logger.error(f"加载模型失败: {e}")
     else:
-        logging.warning(f"找不到 {model_name} 最佳模型，请确保模型文件存在")
+        logging.warning(f"找不到 {model_type.upper()} 最佳模型，请确保模型文件存在: {best_model_path}")
 
     model.eval()  # 设置为评估模式
     return model
@@ -257,6 +320,9 @@ def index():
 
 
 # 添加新的API端点，获取可用的模型列表
+# 定义默认模型
+default_model = "cnn"
+
 @app.route('/api/models', methods=['GET'])
 def get_models():
     """
@@ -264,9 +330,24 @@ def get_models():
     """
     models = [
         {
-            "id": "lstm",
+            "id": "bilstm_attention",
+            "name": "Bi-LSTM注意力模型",
+            "description": "基于双向LSTM和注意力机制的情感分析模型，适合处理长文本和复杂语义依赖的文本"
+        },
+        {
+            "id": "bilstm",
             "name": "Bi-LSTM模型",
-            "description": "基于LSTM的情感分析模型，适合处理长文本和序列依赖性强的文本"
+            "description": "基于双向LSTM的情感分析模型，适合处理长文本和序列依赖性强的文本"
+        },
+        {
+            "id": "lstm_attention",
+            "name": "LSTM注意力模型",
+            "description": "基于LSTM和注意力机制的情感分析模型，能够关注句子中的重要部分"
+        },
+        {
+            "id": "lstm",
+            "name": "LSTM模型",
+            "description": "基于LSTM的情感分析模型，适合处理有序序列数据"
         },
         {
             "id": "cnn",
@@ -274,9 +355,6 @@ def get_models():
             "description": "基于CNN的情感分析模型，适合处理短文本和特征提取"
         }
     ]
-
-    # 检查当前默认模型
-    default_model = Config.model_name.lower()
 
     return jsonify({
         "models": models,
@@ -286,8 +364,6 @@ def get_models():
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     try:
         data = request.get_json()
         text = data.get('text', '')
@@ -296,8 +372,8 @@ def analyze():
             return jsonify({'error': '请输入要分析的文本'}), 400
 
         # 验证模型类型
-        if model_type and model_type not in ['lstm', 'cnn']:
-            return jsonify({'error': '不支持的模型类型，请选择 lstm 或 cnn'}), 400
+        if model_type and model_type not in ['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn']:
+            return jsonify({'error': '不支持的模型类型，请选择有效的模型类型'}), 400
 
         logger.info("=" * 80)
         logger.info("收到新的分析请求")
@@ -361,4 +437,5 @@ def analyze():
 
 
 if __name__ == '__main__':
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     app.run(debug=False, port=5003)
