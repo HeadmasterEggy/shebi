@@ -12,17 +12,8 @@
 from __future__ import unicode_literals, print_function, division
 
 import argparse
-import hashlib
-import json
 import logging
 import os
-import pickle
-from io import open
-from pathlib import Path
-from cnn_model import TextCNN
-import numpy as np
-import pandas as pd
-import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -37,7 +28,13 @@ from data_Process import (
     text_to_array_nolabel,
     Data_set,
 )
+from cnn_model import TextCNN
 from lstm_model import LSTM_attention, LSTMModel
+
+import numpy as np
+import pandas as pd
+import tqdm
+from sklearn.metrics import f1_score, recall_score, confusion_matrix
 
 # 配置日志
 logging.basicConfig(
@@ -49,66 +46,6 @@ logger = logging.getLogger(__name__)
 
 # 添加安全全局类
 torch.serialization.add_safe_globals([nn.Embedding, LSTM_attention])
-
-from sklearn.metrics import f1_score, recall_score, confusion_matrix
-import torch
-import torch.nn as nn
-import pandas as pd
-
-
-class CacheManager:
-    """缓存管理器，用于管理所有缓存操作"""
-
-    def __init__(self, cache_dir="./cache"):
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
-
-    def _get_cache_path(self, cache_name, params=None):
-        """获取缓存文件路径"""
-        if params:
-            # 创建一个新的字典，只包含基本类型的参数，避免不稳定的引用类型
-            stable_params = {}
-            for key, value in params.items():
-                # 只保留基本类型的参数（字符串、数字、布尔值等）
-                if isinstance(value, (str, int, float, bool)) or value is None:
-                    stable_params[key] = value
-                else:
-                    # 对于复杂类型，使用其类型名称和长度（如果可用）作为标识
-                    try:
-                        stable_params[key] = f"{type(value).__name__}_{len(value)}"
-                    except:
-                        stable_params[key] = f"{type(value).__name__}"
-
-            # 使用稳定参数创建唯一的缓存标识
-            params_str = json.dumps(stable_params, sort_keys=True)
-            logging.info(f"缓存参数 ({cache_name}): {stable_params}")
-            cache_id = hashlib.md5(params_str.encode()).hexdigest()
-            cache_path = self.cache_dir / f"{cache_name}_{cache_id}.pkl"
-            logging.info(f"缓存路径: {cache_path}")
-            return cache_path
-        return self.cache_dir / f"{cache_name}.pkl"
-
-    def save(self, data, cache_name, params=None):
-        """保存数据到缓存"""
-        cache_path = self._get_cache_path(cache_name, params)
-        logging.info(f"保存缓存到: {cache_path}")
-        with open(cache_path, 'wb') as f:
-            pickle.dump(data, f)
-
-    def load(self, cache_name, params=None):
-        """从缓存加载数据"""
-        cache_path = self._get_cache_path(cache_name, params)
-        if cache_path.exists():
-            logging.info(f"从缓存加载: {cache_path}")
-            with open(cache_path, 'rb') as f:
-                data = pickle.load(f)
-                return data
-        logging.info(f"缓存不存在: {cache_path}")
-        return None
-
-    def exists(self, cache_name, params=None):
-        """检查缓存是否存在"""
-        return self._get_cache_path(cache_name, params).exists()
 
 
 def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss()):
@@ -317,31 +254,10 @@ def pre(word2id, model, seq_length, path, device=None):
     return predictions
 
 
-def initialize_data(cache_manager=None, force_reload=False):
+def initialize_data():
     """
-    初始化数据、字典和模型，支持缓存。
-
-    Args:
-        cache_manager: 缓存管理器实例
-        force_reload: 是否强制重新加载数据
+    初始化数据、字典和模型。
     """
-    if cache_manager is None:
-        cache_manager = CacheManager()
-
-    # 定义缓存参数
-    cache_params = {
-        "model_name": Config.model_name,  # 添加模型名称到缓存参数
-        "word2id_path": Config.word2id_path,
-        "train_path": Config.train_path,
-        "val_path": Config.val_path,
-        "test_path": Config.test_path,
-        "seq_length": Config.max_sen_len
-    }
-
-    if not force_reload and cache_manager.exists("processed_data", cache_params):
-        logging.info(f"从缓存加载预处理数据 (模型: {Config.model_name})...")
-        return cache_manager.load("processed_data", cache_params)
-
     logging.info("初始化数据...")
     word2id = build_word2id(Config.word2id_path)
     id2word = build_id2word(word2id)
@@ -370,28 +286,13 @@ def initialize_data(cache_manager=None, force_reload=False):
         "train_label": train_label
     }
 
-    # 保存到缓存
-    cache_manager.save(processed_data, "processed_data", cache_params)
-
     return processed_data
 
 
-def initialize_model(w2vec, device, cache_manager=None):
+def initialize_model(w2vec, device):
     """
-    初始化模型并加载最优模型或初始模型，支持缓存。
+    初始化模型并加载最优模型。
     """
-    if cache_manager is None:
-        cache_manager = CacheManager()
-
-    # 检查是否有缓存的模型状态
-    model_cache_params = {
-        "model_name": Config.model_name,  # 添加模型名称到缓存参数
-        "vocab_size": Config.vocab_size,
-        "embedding_dim": Config.embedding_dim,
-        "hidden_dim": Config.hidden_dim,
-        "num_layers": Config.num_layers
-    }
-
     # 构建模型（使用带注意力机制的 LSTM）
     bi_lstm_attention_model = LSTM_attention(
         Config.vocab_size,
@@ -480,28 +381,17 @@ def initialize_model(w2vec, device, cache_manager=None):
     best_model_path = getattr(Config, f"{args.model}_best_model_path")
     logging.info(f"模型文件路径: {best_model_path}")
 
-    # 尝试加载缓存的模型状态
-    cache_key = f"{Config.model_name.lower()}_model_state"
-    logging.info(f"尝试加载模型缓存 {cache_key}，参数: {model_cache_params}")
-    cached_state = cache_manager.load(cache_key, model_cache_params)
-
-    if cached_state is not None:
-        logging.info(f"从缓存加载 {Config.model_name} 模型状态...")
-        model.load_state_dict(cached_state)
-    else:
-        # 加载最佳模型
-        logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
-        try:
-            loaded_model = torch.load(best_model_path, weights_only=False)
-            if isinstance(loaded_model, dict):
-                model.load_state_dict(loaded_model)
-            else:
-                model.load_state_dict(loaded_model.state_dict())
-            # 保存模型状态到缓存
-            cache_manager.save(model.state_dict(), cache_key, model_cache_params)
-        except Exception as e:
-            logging.error(f"加载模型失败: {e}")
-            logging.warning(f"使用未初始化的 {Config.model_name} 模型")
+    # 加载最佳模型
+    logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
+    try:
+        loaded_model = torch.load(best_model_path, weights_only=False)
+        if isinstance(loaded_model, dict):
+            model.load_state_dict(loaded_model)
+        else:
+            model.load_state_dict(loaded_model.state_dict())
+    except Exception as e:
+        logging.error(f"加载模型失败: {e}")
+        logging.warning(f"使用未初始化的 {Config.model_name} 模型")
 
     model.to(device)
     model.eval()
@@ -509,40 +399,27 @@ def initialize_model(w2vec, device, cache_manager=None):
 
 
 def main():
+    # 设置全局 model_name
+    Config.model_name = args.model.upper()
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 
-    # 初始化缓存管理器
-    cache_manager = CacheManager(args.cache_dir)
-
     # 初始化数据
-    processed_data = initialize_data(cache_manager, force_reload=args.no_cache)
+    processed_data = initialize_data()
     word2id = processed_data["word2id"]
     test_dataloader = processed_data["test_dataloader"]
     val_dataloader = processed_data["val_dataloader"]
     train_array = processed_data["train_array"]
     train_label = processed_data["train_label"]
 
-    # 生成或加载 word2vec
-    w2vec_cache_params = {
-        "pre_word2vec_path": Config.pre_word2vec_path,
-        "word2id_size": len(word2id),  # 添加word2id的大小作为参数，确保word2id变化时缓存也会更新
-        "model_name": Config.model_name  # 添加模型名称，确保不同模型使用相同的word2vec缓存
-    }
-    logging.info(f"尝试加载word2vec缓存，参数: {w2vec_cache_params}")
-    w2vec = cache_manager.load("w2vec", w2vec_cache_params)
-    if w2vec is None:
-        logging.info("未找到word2vec缓存，正在生成...")
-        w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
-        w2vec = torch.from_numpy(w2vec).float()
-        logging.info("保存word2vec到缓存")
-        cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
-    else:
-        logging.info("成功从缓存加载word2vec")
-        logging.info(f"word2vec形状: {w2vec.shape}")
+    # 生成 word2vec
+    logging.info("生成word2vec...")
+    w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
+    w2vec = torch.from_numpy(w2vec).float()
 
     # 初始化模型
-    model = initialize_model(w2vec, device, cache_manager)
+    model = initialize_model(w2vec, device)
 
     # 测试阶段
     logging.info("开始测试模型...")
@@ -559,8 +436,6 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="模型评估与预测脚本")
-    parser.add_argument('--no-cache', action='store_true', help='禁用缓存，强制重新加载数据')
-    parser.add_argument('--cache-dir', type=str, default='./cache', help='缓存目录路径')
     parser.add_argument('--model', type=str, default='cnn', 
                       choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
                       help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
