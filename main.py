@@ -151,8 +151,8 @@ if __name__ == "__main__":
     # 添加命令行参数解析
     parser = argparse.ArgumentParser(description='Text Classification Model Training')
     parser.add_argument('--model', type=str, default='cnn',
-                        choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
-                        help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
+                        choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
+                        help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
     args = parser.parse_args()
 
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     # 构建模型（使用带注意力机制的 LSTM）
-    bi_lstm_attention_model = LSTM_attention(
+    bilstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     )
 
     # 初始化双向LSTM模型
-    bi_lstm_model = LSTMModel(
+    bilstm_model = LSTMModel(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -258,11 +258,11 @@ if __name__ == "__main__":
     )
 
     # 根据命令行参数选择模型
-    if args.model == 'bi_lstm_attention':
-        model = bi_lstm_attention_model
+    if args.model == 'bilstm_attention':
+        model = bilstm_attention_model
         print('使用 Bi-LSTM 注意力模型训练')
-    elif args.model == 'bi_lstm':
-        model = bi_lstm_model
+    elif args.model == 'bilstm':
+        model = bilstm_model
         print('使用 Bi-LSTM 模型训练')
     elif args.model == 'lstm_attention':
         model = lstm_attention_model

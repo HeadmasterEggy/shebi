@@ -43,7 +43,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 添加安全全局类
-torch.serialization.add_safe_globals([nn.Embedding, LSTM_attention])
+torch.serialization.add_safe_globals([nn.Embedding, LSTM_attention, LSTMModel, TextCNN])
 
 
 def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss()):
@@ -102,6 +102,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['validation'],
+            'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -171,6 +172,7 @@ def test_accuracy(model, test_dataloader, device):
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['test'],
+            'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -212,13 +214,9 @@ def pre(word2id, model, seq_length, path, device=None):
     model.eval()  # 确保模型处于评估模式
 
     # 读取文件中的文本
-    with open(path, "r", encoding="utf-8") as file:
+    with open(path, "r", encoding="utf-8") as file, open("data/stopword.txt", "r", encoding="utf-8") as f:
         texts = file.readlines()
-    # 读取停用词
-    # stopwords = []
-    # with open("data/stopword.txt", "r", encoding="utf-8") as f:
-    #      for line in f.readlines():
-    #          stopwords.append(line.strip())
+        stopwords = [line.strip() for line in f.readlines()]
 
     # texts = process_texts(texts, stopwords)
     predictions = []  # 用于存储预测的标签
@@ -249,10 +247,45 @@ def pre(word2id, model, seq_length, path, device=None):
     return predictions
 
 
-def initialize_data():
+def initialize_model():
     """
-    初始化数据、字典和模型。
+    初始化模型并加载最优模型。
     """
+    logging.info(f"使用 {model_name} 模型")
+
+    best_model_path = getattr(Config, f"{model_name.lower()}_best_model_path")
+    logging.info(f"模型文件路径: {best_model_path}")
+
+    logging.info(f"从 {best_model_path} 加载 {model_name} 模型...")
+    try:
+        loaded_model = torch.load(best_model_path, map_location=device, weights_only=False)
+        if isinstance(loaded_model, dict):
+            model.load_state_dict(loaded_model)
+        else:
+            model.load_state_dict(loaded_model.state_dict())
+        logging.info("模型加载成功")
+    except Exception as e:
+        logging.error(f"加载模型失败: {e}")
+        logging.warning(f"使用未初始化的 {model_name} 模型")
+
+    model.to(device)
+    model.eval()
+    return model
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="模型评估与预测脚本")
+    parser.add_argument('--model', type=str, default='cnn',
+                        choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
+                        help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
+    args = parser.parse_args()
+    
+    
+    model_name = args.model.lower()  # 统一转为小写处理
+    logging.info(f"模型名称: {model_name}")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logging.info(f"使用设备: {device}")
+
+    # 初始化数据
     logging.info("初始化数据...")
     word2id = build_word2id(Config.word2id_path)
     id2word = build_id2word(word2id)
@@ -273,23 +306,14 @@ def initialize_data():
     val_loader = Data_set(val_array, val_label)
     val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
-    processed_data = {
-        "word2id": word2id,
-        "test_dataloader": test_dataloader,
-        "val_dataloader": val_dataloader,
-        "train_array": train_array,
-        "train_label": train_label
-    }
 
-    return processed_data
+    # 生成 word2vec
+    logging.info("生成word2vec...")
+    w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
+    w2vec = torch.from_numpy(w2vec).float()
 
-
-def initialize_model(w2vec, device, model_name):
-    """
-    初始化模型并加载最优模型。
-    """
     # 构建模型（使用带注意力机制的 LSTM）
-    bi_lstm_attention_model = LSTM_attention(
+    bilstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -302,7 +326,7 @@ def initialize_model(w2vec, device, model_name):
     )
 
     # 初始化双向LSTM模型
-    bi_lstm_model = LSTMModel(
+    bilstm_model = LSTMModel(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -349,17 +373,18 @@ def initialize_model(w2vec, device, model_name):
         Config.pad_size,
         Config.filter_sizes,
         Config.num_filters,
-        w2vec,  # 修正：传入预训练词向量w2vec而不是embedding_dim
+        w2vec,  
         Config.embedding_dim,
         Config.n_class,
     )
 
     # 根据命令行参数选择模型
-    if model_name == 'bi_lstm_attention':
-        model = bi_lstm_attention_model
+    model_name = model_name.lower()  
+    if model_name == 'bilstm_attention':
+        model = bilstm_attention_model
         print('使用 Bi-LSTM 注意力模型训练')
-    elif model_name == 'bi_lstm':
-        model = bi_lstm_model
+    elif model_name == 'bilstm':
+        model = bilstm_model
         print('使用 Bi-LSTM 模型训练')
     elif model_name == 'lstm_attention':
         model = lstm_attention_model
@@ -370,50 +395,12 @@ def initialize_model(w2vec, device, model_name):
     elif model_name == 'cnn':
         model = cnn_model
         print('使用 CNN 模型训练')
-
-    logging.info(f"使用 {model_name} 模型")
-
-    best_model_path = getattr(Config, f"{model_name}_best_model_path")
-    logging.info(f"模型文件路径: {best_model_path}")
-
-    # 加载最佳模型
-    logging.info(f"从 {best_model_path} 加载 {model_name} 模型...")
-    try:
-        loaded_model = torch.load(best_model_path, weights_only=False)
-        if isinstance(loaded_model, dict):
-            model.load_state_dict(loaded_model)
-        else:
-            model.load_state_dict(loaded_model.state_dict())
-    except Exception as e:
-        logging.error(f"加载模型失败: {e}")
-        logging.warning(f"使用未初始化的 {model_name} 模型")
-
-    model.to(device)
-    model.eval()
-    return model
-
-
-def main():
-    model_name = args.model.upper()
-    logging.info(f"模型名称: {model_name}")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info(f"使用设备: {device}")
-
-    # 初始化数据
-    processed_data = initialize_data()
-    word2id = processed_data["word2id"]
-    test_dataloader = processed_data["test_dataloader"]
-    val_dataloader = processed_data["val_dataloader"]
-    train_array = processed_data["train_array"]
-    train_label = processed_data["train_label"]
-
-    # 生成 word2vec
-    logging.info("生成word2vec...")
-    w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
-    w2vec = torch.from_numpy(w2vec).float()
-
+    else:
+        logging.error(f"不支持的模型类型: {model_name}")
+        raise ValueError(f"不支持的模型类型: {model_name}")
+    
     # 初始化模型
-    model = initialize_model(w2vec, device, model_name)
+    model = initialize_model()
     logging.info("模型初始化完成")
     # 测试阶段
     logging.info("开始测试模型...")
@@ -426,12 +413,3 @@ def main():
     # 预测阶段
     logging.info("开始进行预测...")
     pre(word2id, model, Config.max_sen_len, Config.pre_path, device)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="模型评估与预测脚本")
-    parser.add_argument('--model', type=str, default='cnn',
-                        choices=['bi_lstm_attention', 'bi_lstm', 'lstm_attention', 'lstm', 'cnn'],
-                        help='选择使用的模型类型: bi_lstm_attention, bi_lstm, lstm_attention, lstm 或 cnn (默认: cnn)')
-    args = parser.parse_args()
-    main()
