@@ -104,7 +104,6 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['validation'],
-            'model': [Config.model_name.lower()],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -174,7 +173,6 @@ def test_accuracy(model, test_dataloader, device):
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['test'],
-            'model': [Config.model_name.lower()],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -289,7 +287,7 @@ def initialize_data():
     return processed_data
 
 
-def initialize_model(w2vec, device):
+def initialize_model(w2vec, device, model_name):
     """
     初始化模型并加载最优模型。
     """
@@ -360,29 +358,29 @@ def initialize_model(w2vec, device):
     )
 
     # 根据命令行参数选择模型
-    if args.model == 'bi_lstm_attention':
+    if model_name == 'bi_lstm_attention':
         model = bi_lstm_attention_model
         print('使用 Bi-LSTM 注意力模型训练')
-    elif args.model == 'bi_lstm':
+    elif model_name == 'bi_lstm':
         model = bi_lstm_model
         print('使用 Bi-LSTM 模型训练')
-    elif args.model == 'lstm_attention':    
+    elif model_name == 'lstm_attention':    
         model = lstm_attention_model
         print('使用 LSTM 注意力模型训练')
-    elif args.model == 'lstm':
+    elif model_name == 'lstm':
         model = lstm_model
         print('使用 LSTM 模型训练')
-    elif args.model == 'cnn':
+    elif model_name == 'cnn':
         model = cnn_model
         print('使用 CNN 模型训练')
 
-    logging.info(f"使用 {args.model} 模型")
+    logging.info(f"使用 {model_name} 模型")
     
-    best_model_path = getattr(Config, f"{args.model}_best_model_path")
+    best_model_path = getattr(Config, f"{model_name}_best_model_path")
     logging.info(f"模型文件路径: {best_model_path}")
 
     # 加载最佳模型
-    logging.info(f"从 {best_model_path} 加载 {Config.model_name} 模型...")
+    logging.info(f"从 {best_model_path} 加载 {model_name} 模型...")
     try:
         loaded_model = torch.load(best_model_path, weights_only=False)
         if isinstance(loaded_model, dict):
@@ -391,17 +389,16 @@ def initialize_model(w2vec, device):
             model.load_state_dict(loaded_model.state_dict())
     except Exception as e:
         logging.error(f"加载模型失败: {e}")
-        logging.warning(f"使用未初始化的 {Config.model_name} 模型")
+        logging.warning(f"使用未初始化的 {model_name} 模型")
 
     model.to(device)
     model.eval()
     return model
 
 
-def main():
-    # 设置全局 model_name
-    Config.model_name = args.model.upper()
-    
+def main():  
+    model_name = args.model.upper() 
+    logging.info(f"模型名称: {model_name}") 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(f"使用设备: {device}")
 
@@ -419,8 +416,8 @@ def main():
     w2vec = torch.from_numpy(w2vec).float()
 
     # 初始化模型
-    model = initialize_model(w2vec, device)
-
+    model = initialize_model(w2vec, device, model_name)
+    logging.info("模型初始化完成")
     # 测试阶段
     logging.info("开始测试模型...")
     test_accuracy(model, test_dataloader, device)
