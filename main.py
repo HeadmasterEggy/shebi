@@ -278,7 +278,7 @@ if __name__ == "__main__":
     model_path = os.path.join(Config.model_dir, model_filename)
 
     # 训练模型
-    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr, patience=3)
+    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr, patience=10)
 
     # 保存模型（使用torch默认缓存机制）
     torch.save(model, model_path)
