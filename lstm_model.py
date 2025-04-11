@@ -184,8 +184,14 @@ class LSTM_attention(nn.Module):
         # 注意: nn.Parameter将张量转换为模型参数, 使其可以在训练过程中更新
         # weight_W: 用于变换LSTM隐藏状态的权重矩阵
         # weight_proj: 用于将变换后的隐藏状态映射到注意力分数的权重向量
-        self.weight_W = nn.Parameter(torch.Tensor(2 * hidden_dim, 2 * hidden_dim))
-        self.weight_proj = nn.Parameter(torch.Tensor(2 * hidden_dim, 1))
+        if self.bidirectional:
+            self.weight_W = nn.Parameter(torch.Tensor(2 * hidden_dim, 2 * hidden_dim))
+            self.weight_proj = nn.Parameter(torch.Tensor(2 * hidden_dim, 1))
+        else:
+            self.weight_W = nn.Parameter(torch.Tensor(hidden_dim, hidden_dim))
+            self.weight_proj = nn.Parameter(torch.Tensor(hidden_dim, 1))
+
+        # 注意力分数的权重向量, 用于将隐藏状态映射到注意力分数
 
         # 初始化分类器(两层全连接网络)
         if self.bidirectional:

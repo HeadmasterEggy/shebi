@@ -1,21 +1,20 @@
 import logging
 import os
-import re
 
 import jieba
-import torch
 import pandas as pd
+import torch
 import torch.nn as nn
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+
+from cnn_model import TextCNN
 from config import Config
 from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
-from eval import CacheManager  # 导入 CacheManager
-from model import LSTM_attention
-
-# 从eval模块导入预测函数
+from data_Process import tokenize, clean_text
+# Remove CacheManager import
+from lstm_model import LSTM_attention, LSTMModel
 
 # 配置日志
 logging.basicConfig(
@@ -39,81 +38,11 @@ torch.serialization.add_safe_globals([
     nn.Dropout,
     nn.Sequential,
     nn.Module,
-    LSTM_attention
+    LSTM_attention,
+    LSTMModel,
+    TextCNN
 ])
 
-# ===================== 正则表达式预编译 =====================
-# 移除HTML标签
-TAG_RE = re.compile(r'<[^>]+>')
-# 匹配URL
-URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-# 匹配表情符号 (包括Unicode范围)
-EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]')
-# 匹配标点符号 (包括中文标点)
-PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff]')
-# 匹配数字
-DIGITS_RE = re.compile(r'\d+')
-# 匹配空白字符（包括空格、制表符、换行等）
-SPACE_RE = re.compile(r'\s+')
-# 移除英文字符
-ENGLISH_RE = re.compile(r'[a-zA-Z]+')
-
-# 创建全局缓存管理器实例
-cache_manager = CacheManager(cache_dir="./cache")
-# 读取停用词
-stopwords = []
-with open("data/stopword.txt", "r", encoding="utf-8") as f:
-    for line in f.readlines():
-        stopwords.append(line.strip())
-
-@app.route('/')
-def index():
-    return send_from_directory('static', 'index.html')
-
-
-
-def clean_text(review):
-    """
-    对文本进行清洗：
-      - 去除标签、链接、表情、标点、数字及重复字符
-      - 去除英文字符
-      - 去除多余空格
-    """
-    # 处理 NaN 值
-    if pd.isna(review):
-        return ""
-
-    # 将非字符串类型转换为字符串
-    if not isinstance(review, str):
-        review = str(review)
-    review = TAG_RE.sub('', review)
-    review = URL_RE.sub('', review)
-    review = EMOJI_RE.sub('', review)
-    review = PUNCT_RE.sub('', review)
-    review = DIGITS_RE.sub('', review)
-    review = ENGLISH_RE.sub('', review)  # 去除英文
-    review = SPACE_RE.sub(' ', review).strip()
-    return review
-
-def tokenize(review, stopwords):
-    """
-    对单个文本进行分词，去除停用词和空白字符，返回以空格分隔的字符串。
-    """
-    words = jieba.cut(review, cut_all=False)  # 使用精确模式进行分词
-    # 返回一个空格分隔的字符串
-    return ' '.join([word for word in words if word not in stopwords and word.strip()])
-
-def process_texts(review, stopwords):
-    """
-    对所有文本进行清洗和分词，并返回处理后的词列表。
-    """
-    logging.info("开始清洗文本...")
-    cleaned_texts = [clean_text(text) for text in tqdm(review, desc="清洗文本")]
-
-    logging.info("开始分词处理...")
-    tokenized_texts = [tokenize(text, stopwords) for text in tqdm(cleaned_texts, desc="分词处理")]
-
-    return tokenized_texts
 
 def pre(word2id, model, seq_length, path):
     """
@@ -195,7 +124,7 @@ def pre(word2id, model, seq_length, path):
     # 读取评估指标日志
     metrics_df = pd.read_csv('metrics_log.csv')
     # 获取最新的测试评估指标
-    latest_metrics = metrics_df[metrics_df['type'] == 'test'].iloc[-1]
+    latest_metrics = metrics_df[metrics_df['type'] == 'validation'].iloc[-1]
     model_metrics = {
         "accuracy": latest_metrics['accuracy'] / 100,  # 转换为小数
         "f1_score": latest_metrics['f1'] / 100,
@@ -238,23 +167,6 @@ def initialize_data():
     """
     初始化数据、字典和模型。
     """
-    # 定义缓存参数
-    cache_params = {
-        "word2id_path": Config.word2id_path,
-        "train_path": Config.train_path,
-        "val_path": Config.val_path,
-        "test_path": Config.test_path,
-        "seq_length": Config.max_sen_len
-    }
-
-    # 尝试从缓存加载数据
-    cached_data = cache_manager.load("processed_data", cache_params)
-    if cached_data is not None:
-        logging.info("从缓存加载预处理数据...")
-        return (cached_data["word2id"], cached_data["test_dataloader"],
-                cached_data["val_dataloader"], cached_data["train_array"],
-                cached_data["train_label"])
-
     logging.info("初始化数据...")
     word2id = build_word2id(Config.word2id_path)
     id2word = build_id2word(word2id)
@@ -270,37 +182,27 @@ def initialize_data():
 
     # 创建 DataLoader
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
-
-    # 保存到缓存
-    processed_data = {
-        "word2id": word2id,
-        "test_dataloader": test_dataloader,
-        "val_dataloader": val_dataloader,
-        "train_array": train_array,
-        "train_label": train_label
-    }
-    cache_manager.save(processed_data, "processed_data", cache_params)
+    val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
 
     return word2id, test_dataloader, val_dataloader, train_array, train_label
 
 
-def initialize_model(w2vec):
+def initialize_model(w2vec, model_type=None):
     """
-    初始化模型并加载最优模型或初始模型。
-    """
-    # 检查是否有缓存的模型状态
-    model_cache_params = {
-        "vocab_size": Config.vocab_size,
-        "embedding_dim": Config.embedding_dim,
-        "hidden_dim": Config.hidden_dim,
-        "num_layers": Config.num_layers
-    }
+    初始化模型并加载最优模型。
 
-    model = LSTM_attention(
+    参数:
+        w2vec: 词向量
+        model_type: 模型类型，可以是'bilstm_attention', 'bilstm', 'lstm_attention', 'lstm'或'cnn'，默认为None，使用Config.model_name
+    """
+    # 如果未指定模型类型，则使用配置中的默认值
+    model_type = model_type.lower() if model_type else Config.model_name.lower()
+    
+    # 构建模型（使用带注意力机制的 LSTM）
+    bilstm_attention_model = LSTM_attention(
         Config.vocab_size,
         Config.embedding_dim,
         w2vec,
@@ -309,48 +211,174 @@ def initialize_model(w2vec):
         Config.num_layers,
         Config.drop_keep_prob,
         Config.n_class,
-        Config.bidirectional,
+        Config.bidirectional_1,
     )
 
-    # 尝试加载缓存的模型状态
-    cached_state = cache_manager.load("model_state", model_cache_params)
-    if cached_state is not None:
-        logging.info("从缓存加载模型状态...")
-        model.load_state_dict(cached_state)
-        return model
+    # 初始化双向LSTM模型
+    bilstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_1,
+    )
 
-    logging.info("初始化模型...")
-    # 加载最佳模型
-    if os.path.exists(Config.best_model_path):
-        model = torch.load(Config.best_model_path, weights_only=False)
+    # 初始化LSTM_attention模型
+    lstm_attention_model = LSTM_attention(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+
+    # 初始化LSTM模型
+    lstm_model = LSTMModel(
+        Config.vocab_size,
+        Config.embedding_dim,
+        w2vec,
+        Config.update_w2v,
+        Config.hidden_dim,
+        Config.num_layers,
+        Config.drop_keep_prob,
+        Config.n_class,
+        Config.bidirectional_2,
+    )
+
+    # 初始化CNN模型
+    cnn_model = TextCNN(
+        Config.dropout,
+        Config.require_improvement,
+        Config.vocab_size,
+        Config.cnn_batch_size,
+        Config.pad_size,
+        Config.filter_sizes,
+        Config.num_filters,
+        w2vec,
+        Config.embedding_dim,
+        Config.n_class,
+    )
+    
+    # 根据模型类型选择模型
+    if model_type == 'bilstm_attention':
+        model = bilstm_attention_model
+    elif model_type == 'bilstm':
+        model = bilstm_model
+    elif model_type == 'lstm_attention':
+        model = lstm_attention_model
+    elif model_type == 'lstm':
+        model = lstm_model
+    elif model_type == 'cnn':
+        model = cnn_model
     else:
-        state_dict = torch.load(Config.model_state_dict_path, weights_only=False)
-        if isinstance(state_dict, dict):
-            model.load_state_dict(state_dict)
-        else:
-            model = state_dict
+        # 默认使用CNN模型
+        model = cnn_model
+        model_type = 'cnn'
 
-    # 保存模型状态到缓存
-    cache_manager.save(model.state_dict(), "model_state", model_cache_params)
+    logger.info(f"使用 {model_type.upper()} 模型")
+
+    # 使用与main.py相同的模型保存路径格式
+    model_filename = f"{model_type}_model_best.pkl"
+    best_model_path = os.path.join(Config.model_dir, model_filename)
+
+    logging.info(f"初始化 {model_type.upper()} 模型...")
+    # 加载最佳模型
+    if os.path.exists(best_model_path):
+        try:
+            # 添加map_location参数，确保模型可以加载到当前设备
+            model = torch.load(best_model_path, weights_only=False, map_location=device)
+            logger.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
+        except Exception as e:
+            logger.error(f"加载模型失败: {e}")
+    else:
+        logging.warning(f"找不到 {model_type.upper()} 最佳模型，请确保模型文件存在: {best_model_path}")
 
     model.eval()  # 设置为评估模式
     return model
 
 
+# 删除缓存管理器实例
+
+# 读取停用词
+stopwords = []
+with open("data/stopword.txt", "r", encoding="utf-8") as f:
+    for line in f.readlines():
+        stopwords.append(line.strip())
+
+
+@app.route('/')
+def index():
+    return send_from_directory('static', 'index.html')
+
+
+# 添加新的API端点，获取可用的模型列表
+# 定义默认模型
+default_model = "cnn"
+
+@app.route('/api/models', methods=['GET'])
+def get_models():
+    """
+    获取可用的模型列表
+    """
+    models = [
+        {
+            "id": "bilstm_attention",
+            "name": "Bi-LSTM注意力模型",
+            "description": "基于双向LSTM和注意力机制的情感分析模型，适合处理长文本和复杂语义依赖的文本"
+        },
+        {
+            "id": "bilstm",
+            "name": "Bi-LSTM模型",
+            "description": "基于双向LSTM的情感分析模型，适合处理长文本和序列依赖性强的文本"
+        },
+        {
+            "id": "lstm_attention",
+            "name": "LSTM注意力模型",
+            "description": "基于LSTM和注意力机制的情感分析模型，能够关注句子中的重要部分"
+        },
+        {
+            "id": "lstm",
+            "name": "LSTM模型",
+            "description": "基于LSTM的情感分析模型，适合处理有序序列数据"
+        },
+        {
+            "id": "cnn",
+            "name": "TextCNN模型",
+            "description": "基于CNN的情感分析模型，适合处理短文本和特征提取"
+        }
+    ]
+
+    return jsonify({
+        "models": models,
+        "default": default_model
+    })
+
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     try:
         data = request.get_json()
         text = data.get('text', '')
-
+        model_type = data.get('model_type', '').lower()  # 获取模型类型参数
         if not text:
             return jsonify({'error': '请输入要分析的文本'}), 400
+
+        # 验证模型类型
+        if model_type and model_type not in ['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn']:
+            return jsonify({'error': '不支持的模型类型，请选择有效的模型类型'}), 400
 
         logger.info("=" * 80)
         logger.info("收到新的分析请求")
         logger.info(f"设备: {device}")
+        logger.info(f"模型类型: {model_type if model_type else '默认'}")
 
         # 按回车分割句子
         original_sentences = [s.strip() for s in text.split('\n') if s.strip()]
@@ -370,19 +398,16 @@ def analyze():
             for sentence in processed_sentences:
                 file.write(sentence + '\n')
 
-        # 初始化数据（使用缓存）
+        # 初始化数据
         word2id, test_dataloader, val_dataloader, train_array, train_label = initialize_data()
 
-        # 生成或加载 word2vec（使用缓存）
-        w2vec_cache_params = {"pre_word2vec_path": Config.pre_word2vec_path}
-        w2vec = cache_manager.load("w2vec", w2vec_cache_params)
-        if w2vec is None:
-            w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
-            w2vec = torch.from_numpy(w2vec).float()
-            cache_manager.save(w2vec, "w2vec", w2vec_cache_params)
+        # 生成 word2vec
+        logger.info("生成word2vec...")
+        w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
+        w2vec = torch.from_numpy(w2vec).float()
 
-        # 初始化模型（使用缓存）
-        model = initialize_model(w2vec)
+        # 初始化模型，传入模型类型
+        model = initialize_model(w2vec, model_type)
 
         logger.info("开始进行情感分析...")
         # 获取预测结果
@@ -392,6 +417,12 @@ def analyze():
         for i, sentence_result in enumerate(result['sentences']):
             if i < len(original_sentences):  # 确保索引有效
                 sentence_result['text'] = original_sentences[i]
+
+        # 添加使用的模型信息到结果中
+        used_model = model_type.upper() if model_type else Config.model_name
+        result['modelInfo'] = {
+            'type': used_model
+        }
 
         logger.info("分析完成")
         logger.info("=" * 80)
@@ -406,4 +437,5 @@ def analyze():
 
 
 if __name__ == '__main__':
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     app.run(debug=False, port=5003)

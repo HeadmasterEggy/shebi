@@ -8,7 +8,7 @@
  */
 function initCharts(data) {
     initWordFreqTags(data);
-    
+
     setTimeout(() => {
         initOverallPieChart(data);
         initSentimentPieChart(data);
@@ -16,10 +16,10 @@ function initCharts(data) {
         initSentimentScatterChart(data);
         initWordFreqBarChart(data);
         initWordCloudChart(data);
-        
+
         // 应用共同的图表动画选项
         applyChartAnimations();
-        
+
         // 添加窗口大小改变事件监听器
         setupChartResizing();
     }, 0);
@@ -35,16 +35,16 @@ function initWordFreqTags(data) {
     if (data.wordFreq && data.wordFreq.length > 0) {
         const maxCount = Math.max(...data.wordFreq.map(item => item.count));
         const minCount = Math.min(...data.wordFreq.map(item => item.count));
-        
+
         data.wordFreq.forEach((item, index) => {
             const colorIntensity = Math.max(0, Math.min(1, (item.count - minCount) / (maxCount - minCount || 1)));
             const r = Math.round(220 - colorIntensity * 150);
             const g = Math.round(240 - colorIntensity * 150);
             const b = Math.round(255 - colorIntensity * 150);
             const textColor = colorIntensity > 0.6 ? '#ffffff' : '#333333';
-            const borderColor = `rgba(${r-30}, ${g-30}, ${b-30}, 0.3)`;
-            
-            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: linear-gradient(135deg, rgb(${r}, ${g}, ${b}), rgb(${r+10}, ${g+10}, ${b+10})); color: ${textColor}; border-color: ${borderColor};">${item.word} (${item.count})</span>`;
+            const borderColor = `rgba(${r - 30}, ${g - 30}, ${b - 30}, 0.3)`;
+
+            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: linear-gradient(135deg, rgb(${r}, ${g}, ${b}), rgb(${r + 10}, ${g + 10}, ${b + 10})); color: ${textColor}; border-color: ${borderColor};">${item.word} (${item.count})</span>`;
         });
         wordFreqTags.innerHTML = tagsHtml;
     } else {
@@ -245,12 +245,12 @@ function initSentimentScatterChart(data) {
         },
         tooltip: {
             trigger: 'item',
-            formatter: function(params) {
+            formatter: function (params) {
                 const sentimentType = params.data[3] === 0 ? '积极' : '消极';
                 return `句子${params.data[2]}<br/>` +
-                       `积极概率: ${params.data[0]}%<br/>` +
-                       `置信度: ${params.data[1]}%<br/>` +
-                       `情感类型: ${sentimentType}`;
+                    `积极概率: ${params.data[0]}%<br/>` +
+                    `置信度: ${params.data[1]}%<br/>` +
+                    `情感类型: ${sentimentType}`;
             }
         },
         legend: {
@@ -339,7 +339,7 @@ function initWordFreqBarChart(data) {
             axisPointer: {
                 type: 'shadow'
             },
-            formatter: function(params) {
+            formatter: function (params) {
                 return params[0].name + ': ' + params[0].value;
             }
         },
@@ -439,16 +439,16 @@ function initWordCloudChart(data) {
 function initConfusionMatrix(data) {
     const confusionMatrixChart = echarts.init(document.getElementById('confusionMatrixChart'));
     const confusionData = [
-        [Math.round(data.sentences.filter(s => s.sentiment === '消极').length * data.modelMetrics.accuracy), 
-         Math.round(data.sentences.filter(s => s.sentiment === '消极').length * (1 - data.modelMetrics.accuracy))],
-        [Math.round(data.sentences.filter(s => s.sentiment === '积极').length * (1 - data.modelMetrics.accuracy)), 
-         Math.round(data.sentences.filter(s => s.sentiment === '积极').length * data.modelMetrics.accuracy)]
+        [Math.round(data.sentences.filter(s => s.sentiment === '消极').length * data.modelMetrics.accuracy),
+            Math.round(data.sentences.filter(s => s.sentiment === '消极').length * (1 - data.modelMetrics.accuracy))],
+        [Math.round(data.sentences.filter(s => s.sentiment === '积极').length * (1 - data.modelMetrics.accuracy)),
+            Math.round(data.sentences.filter(s => s.sentiment === '积极').length * data.modelMetrics.accuracy)]
     ];
-    
+
     const confusionOption = {
         tooltip: {
             position: 'top',
-            formatter: function(params) {
+            formatter: function (params) {
                 const labels = ['真实消极', '真实积极'];
                 const predictions = ['预测消极', '预测积极'];
                 return `${labels[params.data[0]]}<br>${predictions[params.data[1]]}<br>数量: ${params.data[2]}`;
@@ -506,7 +506,7 @@ function initConfusionMatrix(data) {
         }]
     };
     confusionMatrixChart.setOption(confusionOption);
-    
+
     return confusionMatrixChart;
 }
 

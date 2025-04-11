@@ -3,18 +3,7 @@
 
 
 class Config:
-    update_w2v = True  # 是否在训练中更新w2v
-    vocab_size = 54848  # 词汇量，与word2id中的词汇量一致
-    n_class = 2  # 分类数：分别为pos和neg
-    max_sen_len = 75  # 句子最大长度
-    embedding_dim = 50  # 词向量维度
-    batch_size = 64  # 批处理尺寸
-    hidden_dim = 128  # 隐藏层节点数
-    n_epoch = 15  # 训练迭代周期，即遍历整个训练样本的次数
-    lr = 0.0001  # 学习率；若opt=‘adadelta'，则不需要定义学习率
-    drop_keep_prob = 0.2  # dropout层，参数keep的比例
-    num_layers = 2  # LSTM层数
-    bidirectional = True  # 是否使用双向LSTM
+    # mutual
     model_dir = "./model"
     stopword_path = "./data/stopword.txt"
     train_path = "data/train.txt"
@@ -24,5 +13,31 @@ class Config:
     word2id_path = "./word2vec/word2id.txt"
     pre_word2vec_path = "./word2vec/wiki_word2vec_50.bin"
     corpus_word2vec_path = "./word2vec/word_vec.txt"
-    model_state_dict_path = "./model/sen_model.pth"  # 训练模型保存的地址
-    best_model_path = "./model/sen_model_best.pkl"
+    cnn_best_model_path = "./model/cnn_model_best.pkl"
+    lstm_best_model_path = "./model/lstm_model_best.pkl"
+    bilstm_best_model_path = "./model/bilstm_model_best.pkl"
+    lstm_attention_best_model_path = "./model/lstm_attention_model_best.pkl"
+    bilstm_attention_best_model_path = "./model/bilstm_attention_model_best.pkl"
+    n_class = 2  # 分类数：分别为pos和neg
+    n_epoch = 50  # 训练迭代周期，即遍历整个训练样本的次数
+    lr = 0.0001  # 学习率；若opt='adadelta'，则不需要定义学习率
+    vocab_size = 54848  # 词汇量，与word2id中的词汇量一致
+    embedding_dim = 50  # 词向量维度
+
+    # Bi-LSTM, LSTM, LSTM+Attention, Bi-LSTM+Attention
+    update_w2v = True  # 是否在训练中更新w2v
+    max_sen_len = 75  # 句子最大长度
+    lstm_batch_size = 64  # 批处理尺寸
+    hidden_dim = 128  # 隐藏层节点数
+    drop_keep_prob = 0.2  # dropout层，参数keep的比例
+    num_layers = 2  # LSTM层数
+    bidirectional_1 = True  # 是否使用双向LSTM
+    bidirectional_2 = False  # 是否使用双向LSTM
+
+    # CNN
+    dropout = 0.5  # 随机失活
+    require_improvement = 1000  # 若超过1000batch效果还没提升，则提前结束训练
+    cnn_batch_size = 128  # mini-batch大小
+    pad_size = 32  # 每句话处理成的长度(短填长切)
+    filter_sizes = (2, 3, 4)  # 卷积核尺寸
+    num_filters = 256  # 卷积核数量(channels数)

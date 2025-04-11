@@ -194,17 +194,23 @@ def clean_text(review):
       - 去除英文字符
       - 去除多余空格
     """
-    # 处理 NaN 值
     # ===================== 正则表达式预编译 =====================
+    # 移除HTML标签
     TAG_RE = re.compile(r'<[^>]+>')
-    URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9\$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF]|[\u2600-\u26FF]|[\u2700-\u27BF]')
+    # 匹配URL
+    URL_RE = re.compile(r'http[s]?://(?:[a-zA-Z0-9$\-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+    # 匹配表情符号 (包括Unicode范围)
+    EMOJI_RE = re.compile(r'[\U0001F300-\U0001F9FF\u2600-\u26FF\u2700-\u27BF]')
+    # 匹配标点符号 (包括中文标点)
     PUNCT_RE = re.compile(r'[^\w\s\u4e00-\u9fff]')
+    # 匹配数字
     DIGITS_RE = re.compile(r'\d+')
+    # 匹配空白字符（包括空格、制表符、换行等）
     SPACE_RE = re.compile(r'\s+')
-    # 新增：用于去除英文字符
-    ENGLISH_RE = re.compile(r'\b[a-zA-Z]{2,}\b')  # 删除 2个以上英文字母的词
+    # 移除英文字符
+    ENGLISH_RE = re.compile(r'[a-zA-Z]+')
 
+    # 处理NaN值    
     if pd.isna(review):
         return ""
 
@@ -311,30 +317,6 @@ def text_to_array_nolabel(word2id, seq_length, path):
 
     # 转换为NumPy数组并返回
     return np.array(sentences_array)
-
-
-def to_categorical(y, num_classes=None):
-    """
-    @description: 将类别转化为one-hot编码
-    @param {*}
-    - y: list, 类别特征的列表
-    - num_class: int, 类别个数
-    @return {*}
-    返回one-hot编码数组,shape:（len(y), num_classes）
-    """
-    y = np.array(y, dtype="int")
-    input_shape = y.shape
-    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
-        input_shape = tuple(input_shape[:-1])
-    y = y.ravel()
-    if not num_classes:
-        num_classes = np.max(y) + 1
-    n = y.shape[0]
-    categorical = np.zeros((n, num_classes))
-    categorical[np.arange(n), y] = 1
-    output_shape = input_shape + (num_classes,)
-    categorical = np.reshape(categorical, output_shape)
-    return categorical
 
 
 def prepare_data(w2id, train_path, val_path, test_path, seq_length):

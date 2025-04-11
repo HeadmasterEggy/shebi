@@ -18,7 +18,7 @@ function initFileUpload() {
     const closePreview = document.getElementById('closePreview');
 
     // 监听文件选择事件
-    fileInput.addEventListener('change', function(e) {
+    fileInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (!file) {
             fileViewBtn.disabled = true;
@@ -40,10 +40,10 @@ function initFileUpload() {
 
         // 读取文件内容
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             currentFileContent = e.target.result;
         };
-        reader.onerror = function() {
+        reader.onerror = function () {
             showError('读取文件失败，请重试');
             currentFileContent = '';
         };
@@ -51,17 +51,17 @@ function initFileUpload() {
     });
 
     // 预览文件内容
-    fileViewBtn.addEventListener('click', function() {
+    fileViewBtn.addEventListener('click', function () {
         if (!currentFileContent) {
             return;
         }
-        
+
         fileContent.textContent = currentFileContent;
         filePreview.classList.remove('d-none');
     });
 
     // 关闭预览
-    closePreview.addEventListener('click', function() {
+    closePreview.addEventListener('click', function () {
         filePreview.classList.add('d-none');
     });
 }
@@ -73,7 +73,7 @@ function initFileUpload() {
 function getInputText() {
     // 检查当前激活的输入标签页
     const textTabActive = document.getElementById('text-tab').classList.contains('active');
-    
+
     if (textTabActive) {
         // 从文本框获取文本
         return document.getElementById('textInput').value.trim();
@@ -94,7 +94,7 @@ function getInputText() {
  */
 function parseSentencesFromFile(text) {
     if (!text) return [];
-    
+
     // 按行分割，过滤空行
     return text.split('\n')
         .map(line => line.trim())

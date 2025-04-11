@@ -108,14 +108,14 @@ function setSentimentFilter(filter) {
  * 设置界面事件监听器
  */
 function setupUIEventListeners() {
-    document.getElementById('perPageSelect').addEventListener('change', function() {
+    document.getElementById('perPageSelect').addEventListener('change', function () {
         sentencesPerPage = parseInt(this.value);
         currentPage = 1;
         updateDisplay();
     });
 
     document.querySelectorAll('.filter-button[data-sentiment]').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
                 btn.classList.remove('active');
             });
@@ -125,7 +125,7 @@ function setupUIEventListeners() {
     });
 
     document.querySelectorAll('.filter-button[data-display]').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
                 btn.classList.remove('active');
             });
@@ -133,4 +133,10 @@ function setupUIEventListeners() {
             setDisplayMode(this.dataset.display);
         });
     });
+
+    // 添加模型选择下拉框的事件监听器
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', updateModelDescription);
+    }
 }
