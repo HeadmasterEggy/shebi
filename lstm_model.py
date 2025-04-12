@@ -2,10 +2,10 @@
 # -*- coding:utf-8 -*-
 
 """
-@Author: HsuDan
+@Author: QiaoYi
 @Date: 2022-02-18 19:12:58
 @Version: 1.0
-@LastEditors: HsuDan
+@LastEditors: QiaoYi
 @LastEditTime: 2022-02-25 11:18:51
 @Description: build model: LSTM, LSTM+attention
 @FilePath: model.py
