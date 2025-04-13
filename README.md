@@ -179,7 +179,7 @@ Attention(Q, K, V) = softmax(Q·K^T/√d_k)·V
 
 ### 调优建议
 1. **学习率调度**：使用ReduceLROnPlateau或CosineAnnealing
-2. **正则化**：增加L2权重衰减(1e-4到1e-2)
+2. **正则化**：增加L2权重衊减(1e-4到1e-2)
 3. **梯度裁剪**：设置max_norm=1.0防止梯度爆炸
 4. **早停策略**：patience=3监控验证集准确率
 
@@ -274,7 +274,7 @@ print(json.dumps(response.json(), ensure_ascii=False, indent=2))
       "sentiment": "积极/消极",
       "confidence": 0.95,
       "probabilities": {
-        "positive": 0.95,
+        "positive": 95,
         "negative": 0.05
       }
     },
@@ -436,6 +436,479 @@ print(json.dumps(response.json(), ensure_ascii=False, indent=2))
    - 分词异常：确保jieba词典文件完整
    - 内存不足：减小批处理大小或采用流式处理
    - 详细故障排除请参考`docs/troubleshooting.md`
+
+## 算法实现与关键技术
+
+### 文本表示与词嵌入技术
+
+1. **Word2Vec词嵌入**
+   - 使用Skip-gram模型训练50维词向量
+   - 基于中文维基百科语料预训练
+   - 支持OOV(未登录词)处理，采用字符级别拆分后平均值
+   - 实现细粒度词向量微调，提升领域适应性
+
+2. **词向量增强技术**
+   - 集成词性信息，为名词、动词、形容词等设置不同权重
+   - 情感词典增强，整合BosonNLP、知网HowNet情感词典
+   - 上下文敏感词向量调整，处理否定词和程度副词
+   ```python
+   # 否定词处理示例
+   if is_negation_word(previous_word):
+       word_vector = -1 * word_vector
+   ```
+
+3. **文本序列构建**
+   - 动态长度填充策略，根据批次内最长样本确定序列长度
+   - 句子结构感知截断，优先保留主谓宾关键成分
+   - 序列位置编码，结合绝对位置和相对位置信息
+
+### 深度学习模型架构
+
+1. **LSTM模型核心实现**
+   ```python
+   class LSTMModel(nn.Module):
+       def __init__(self, vocab_size, embedding_dim, hidden_dim, layer_dim, output_dim):
+           super(LSTMModel, self).__init__()
+           # 词嵌入层
+           self.embedding = nn.Embedding(vocab_size, embedding_dim)
+           # LSTM层
+           self.lstm = nn.LSTM(embedding_dim, hidden_dim, layer_dim, batch_first=True, dropout=0.2)
+           # 全连接层
+           self.fc = nn.Linear(hidden_dim, output_dim)
+           
+       def forward(self, x):
+           # x shape: (batch_size, seq_length)
+           embedded = self.embedding(x)
+           # embedded shape: (batch_size, seq_length, embedding_dim)
+           
+           # LSTM前向传播
+           lstm_out, (hidden, _) = self.lstm(embedded)
+           # lstm_out shape: (batch_size, seq_length, hidden_dim)
+           # hidden shape: (layer_dim, batch_size, hidden_dim)
+           
+           # 获取最后一个时间步的隐藏状态
+           out = self.fc(hidden[-1])
+           # out shape: (batch_size, output_dim)
+           
+           return out
+   ```
+
+2. **BiLSTM+Attention机制详解**
+   - 双向LSTM捕获双向上下文信息
+   - 自注意力层计算文本各部分重要性权重
+   ```python
+   class BidirectionalLSTMAttention(nn.Module):
+       def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim):
+           super(BidirectionalLSTMAttention, self).__init__()
+           self.embedding = nn.Embedding(vocab_size, embedding_dim)
+           self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=2, 
+                              bidirectional=True, dropout=0.2, batch_first=True)
+           self.attention = nn.Linear(hidden_dim*2, 1)
+           self.fc = nn.Linear(hidden_dim*2, output_dim)
+           
+       def forward(self, x, lengths):
+           embedded = self.embedding(x)
+           
+           # 打包序列以处理变长序列
+           packed = nn.utils.rnn.pack_padded_sequence(
+               embedded, lengths, batch_first=True, enforce_sorted=False
+           )
+           
+           # BiLSTM处理
+           lstm_output, _ = self.lstm(packed)
+           # 解包序列
+           lstm_output, _ = nn.utils.rnn.pad_packed_sequence(lstm_output, batch_first=True)
+           
+           # 注意力机制计算
+           attention_weights = torch.softmax(self.attention(lstm_output), dim=1)
+           # 加权汇总
+           context_vector = torch.sum(attention_weights * lstm_output, dim=1)
+           
+           # 最终分类
+           output = self.fc(context_vector)
+           
+           return output, attention_weights
+   ```
+
+3. **注意力机制计算流程**
+   - 输入: BiLSTM隐层状态矩阵H ∈ ℝ^(seq_len×2d)
+   - 注意力分数: S = W_a · H^T + b_a
+   - 注意力权重: α = softmax(S)
+   - 上下文向量: c = Σ(α_i · h_i)
+   - 输出: o = f(W_o · c + b_o)
+
+4. **CNN文本分类模型**
+   - 多尺寸卷积核并行捕获n-gram特征
+   - 使用1D卷积提取局部特征模式
+   - 最大池化获取最显著特征
+   ```python
+   class TextCNN(nn.Module):
+       def __init__(self, vocab_size, embedding_dim, n_filters, filter_sizes, output_dim, dropout):
+           super(TextCNN, self).__init__()
+           
+           self.embedding = nn.Embedding(vocab_size, embedding_dim)
+           
+           # 多尺寸卷积层
+           self.convs = nn.ModuleList([
+               nn.Conv1d(in_channels=embedding_dim, 
+                        out_channels=n_filters, 
+                        kernel_size=fs)
+               for fs in filter_sizes
+           ])
+           
+           self.fc = nn.Linear(len(filter_sizes) * n_filters, output_dim)
+           self.dropout = nn.Dropout(dropout)
+           
+       def forward(self, x):
+           # x: [batch_size, seq_len]
+           embedded = self.embedding(x)
+           # embedded: [batch_size, seq_len, embedding_dim]
+           
+           # 转置以适应卷积操作
+           embedded = embedded.permute(0, 2, 1)
+           # embedded: [batch_size, embedding_dim, seq_len]
+           
+           # 应用卷积和激活函数
+           conved = [F.relu(conv(embedded)) for conv in self.convs]
+           # conved[i]: [batch_size, n_filters, seq_len-filter_sizes[i]+1]
+           
+           # 最大池化
+           pooled = [F.max_pool1d(conv, conv.shape[2]).squeeze(2) for conv in conved]
+           # pooled[i]: [batch_size, n_filters]
+           
+           # 拼接各卷积核的结果
+           cat = self.dropout(torch.cat(pooled, dim=1))
+           # cat: [batch_size, n_filters * len(filter_sizes)]
+           
+           return self.fc(cat)
+   ```
+
+### 训练优化策略
+
+1. **梯度处理与优化器配置**
+   - 采用梯度裁剪防止梯度爆炸
+   ```python
+   torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+   ```
+   - 使用AdamW优化器，结合权重衰减
+   ```python
+   optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+   ```
+   - 学习率调度：余弦退火与热重启
+   ```python
+   scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+       optimizer, T_0=5, T_mult=2, eta_min=1e-6
+   )
+   ```
+
+2. **正则化技术**
+   - Dropout策略：不同层使用不同比例
+   - 批归一化加速训练：
+   ```python
+   self.bn = nn.BatchNorm1d(hidden_dim)
+   ```
+   - 权重正则化减少过拟合
+   - 标签平滑处理提高泛化能力
+   ```python
+   def label_smoothing_loss(outputs, targets, smoothing=0.1):
+       n_classes = outputs.size(1)
+       
+       # 创建平滑标签
+       targets_one_hot = torch.zeros_like(outputs).scatter_(
+           1, targets.unsqueeze(1), 1
+       )
+       targets_smooth = targets_one_hot * (1 - smoothing) + smoothing / n_classes
+       
+       # 计算损失
+       log_probs = F.log_softmax(outputs, dim=1)
+       loss = -(targets_smooth * log_probs).sum(dim=1).mean()
+       
+       return loss
+   ```
+
+3. **对抗训练**
+   - 基于FGSM(Fast Gradient Sign Method)的对抗扰动
+   ```python
+   # 计算梯度
+   embedding.retain_grad()
+   loss.backward(retain_graph=True)
+   
+   # 生成对抗扰动
+   grad = embedding.grad.detach()
+   delta = epsilon * torch.sign(grad)
+   
+   # 生成对抗样本
+   embedding_adv = embedding + delta
+   ```
+   - 虚拟对抗训练(VAT)提高模型鲁棒性
+
+4. **混合精度训练**
+   - 使用PyTorch AMP加速训练，减少显存占用
+   ```python
+   scaler = torch.cuda.amp.GradScaler()
+   
+   with torch.cuda.amp.autocast():
+       outputs = model(inputs)
+       loss = criterion(outputs, targets)
+   
+   scaler.scale(loss).backward()
+   scaler.step(optimizer)
+   scaler.update()
+   ```
+
+### 模型集成与融合
+
+1. **多模型集成技术**
+   - Bagging集成：多个不同初始化的同构模型投票
+   - Stacking集成：使用LGBM元学习器整合BiLSTM、CNN、LSTM预测
+   ```python
+   def stacking_ensemble(base_models, meta_model, X, y):
+       # 生成基础模型预测
+       base_preds = np.zeros((X.shape[0], len(base_models), 2))
+       for i, model in enumerate(base_models):
+           preds = model.predict_proba(X)
+           base_preds[:, i, :] = preds
+       
+       # 用基础模型的预测训练元模型
+       meta_preds = meta_model.predict_proba(base_preds.reshape(X.shape[0], -1))
+       return meta_preds
+   ```
+   - 软投票：根据各模型置信度加权融合
+
+2. **时序集成**
+   - 指数移动平均(EMA)模型权重
+   ```python
+   ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
+       0.1 * model_parameter + (1 - 0.1) * averaged_model_parameter
+   ```
+   - Snapshot集成：训练周期内的多个检查点模型融合
+
+### 特征工程与数据增强
+
+1. **高级文本特征提取**
+   - n-gram特征：提取2-gram和3-gram统计特征
+   - TF-IDF加权：根据词语重要性调整特征权重
+   - 情感词典特征：基于知网HowNet情感词典构建特征
+   ```python
+   def extract_sentiment_features(text, sentiment_dict):
+       words = jieba.lcut(text)
+       pos_count = sum(1 for w in words if w in sentiment_dict and sentiment_dict[w] > 0)
+       neg_count = sum(1 for w in words if w in sentiment_dict and sentiment_dict[w] < 0)
+       
+       features = {
+           'pos_word_ratio': pos_count / len(words) if words else 0,
+           'neg_word_ratio': neg_count / len(words) if words else 0,
+           'sentiment_polarity': (pos_count - neg_count) / len(words) if words else 0
+       }
+       
+       return features
+   ```
+   - 句法依存特征：基于句法分析树提取主谓宾结构特征
+
+2. **文本数据增强技术**
+   - 同义词替换(SR)：使用WordNet替换部分词语
+   - 随机插入(RI)：随机位置插入同义词
+   - 随机交换(RS)：随机交换文本中词语位置
+   - 回译增强：中文→英文→中文生成风格变体
+   ```python
+   def back_translation_augment(text, zh_en_translator, en_zh_translator):
+       english = zh_en_translator.translate(text)
+       augmented = en_zh_translator.translate(english)
+       return augmented
+   ```
+   - EDA(Easy Data Augmentation)实现示例
+   ```python
+   def eda(text, alpha_sr=0.1, alpha_ri=0.1, alpha_rs=0.1, p_rd=0.1, num_aug=4):
+       augmented_texts = []
+       for _ in range(num_aug):
+           a_text = text
+           
+           # 同义词替换
+           if random.random() < alpha_sr:
+               a_text = synonym_replacement(a_text)
+               
+           # 随机插入
+           if random.random() < alpha_ri:
+               a_text = random_insertion(a_text)
+               
+           # 随机交换
+           if random.random() < alpha_rs:
+               a_text = random_swap(a_text)
+               
+           # 随机删除
+           if random.random() < p_rd:
+               a_text = random_deletion(a_text)
+               
+           augmented_texts.append(a_text)
+       
+       return augmented_texts
+   ```
+
+### 实时推理优化
+
+1. **模型量化与压缩**
+   - 动态/静态量化：减少模型大小和计算量
+   ```python
+   # 动态量化
+   quantized_model = torch.quantization.quantize_dynamic(
+       model, {nn.LSTM, nn.Linear}, dtype=torch.qint8
+   )
+   
+   # 静态量化
+   model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+   torch.quantization.prepare(model, inplace=True)
+   # 校准量化参数
+   evaluate_model(model, calibration_data)
+   torch.quantization.convert(model, inplace=True)
+   ```
+   - 模型剪枝：移除非关键连接减少参数量
+   - 知识蒸馏：从大模型压缩到小模型
+   ```python
+   def knowledge_distillation_loss(student_logits, teacher_logits, targets, T=2.0, alpha=0.5):
+       # 软目标蒸馏损失
+       soft_targets = F.softmax(teacher_logits / T, dim=1)
+       soft_prob = F.log_softmax(student_logits / T, dim=1)
+       soft_targets_loss = -torch.sum(soft_targets * soft_prob) / soft_prob.size(0) * (T**2)
+       
+       # 硬目标损失
+       hard_loss = F.cross_entropy(student_logits, targets)
+       
+       # 总损失 = 软目标损失 + 硬目标损失
+       return soft_targets_loss * alpha + hard_loss * (1 - alpha)
+   ```
+
+2. **批处理推理优化**
+   - 自适应批处理大小调整
+   - 序列长度分组处理
+   - 数据并行处理
+   ```python
+   def optimized_batch_inference(model, texts, tokenizer, max_batch_size=64):
+       # 按长度分组
+       length_groups = {}
+       for i, text in enumerate(texts):
+           tokens = tokenizer(text)
+           length = len(tokens)
+           # 向上取整到最近的8倍数
+           bucket = ((length + 7) // 8) * 8
+           
+           if bucket not in length_groups:
+               length_groups[bucket] = []
+           length_groups[bucket].append((i, tokens))
+       
+       # 按组批处理推理
+       results = [None] * len(texts)
+       for bucket, items in sorted(length_groups.items()):
+           indices = [item[0] for item in items]
+           batch_tokens = [item[1] for item in items]
+           
+           # 处理大批次
+           for i in range(0, len(batch_tokens), max_batch_size):
+               sub_batch = batch_tokens[i:i+max_batch_size]
+               sub_indices = indices[i:i+max_batch_size]
+               
+               # 批处理推理
+               batch_tensor = prepare_batch(sub_batch, bucket)
+               with torch.no_grad():
+                   batch_output = model(batch_tensor)
+               
+               # 保存结果
+               for j, idx in enumerate(sub_indices):
+                   results[idx] = process_output(batch_output[j])
+       
+       return results
+   ```
+
+3. **ONNX与TorchScript优化**
+   - 模型导出为ONNX格式
+   ```python
+   dummy_input = torch.zeros(1, max_seq_length, dtype=torch.long)
+   torch.onnx.export(model, dummy_input, "sentiment_model.onnx",
+                    opset_version=12,
+                    input_names=['input'],
+                    output_names=['output'],
+                    dynamic_axes={'input': {0: 'batch_size', 1: 'sequence'},
+                                 'output': {0: 'batch_size'}})
+   ```
+   - TorchScript JIT编译提升推理速度
+   ```python
+   scripted_model = torch.jit.script(model)
+   scripted_model.save("sentiment_model.pt")
+   ```
+   - ONNX Runtime集成提升推理性能
+   ```python
+   import onnxruntime as ort
+   
+   # 创建推理会话
+   session = ort.InferenceSession("sentiment_model.onnx")
+   
+   # 运行推理
+   def predict(text):
+       inputs = preprocess(text)
+       ort_inputs = {session.get_inputs()[0].name: inputs}
+       ort_outputs = session.run(None, ort_inputs)
+       return postprocess(ort_outputs[0])
+   ```
+
+### 多语言与跨语言处理
+
+1. **多语言支持实现**
+   - 多语言词嵌入对齐
+   ```python
+   def align_word_embeddings(source_emb, target_emb, dictionary):
+       # 获取已知的对应词语
+       src_indices = [source_emb.get_index(src_word) for src_word, _ in dictionary
+                     if src_word in source_emb.vocab]
+       tgt_indices = [target_emb.get_index(tgt_word) for _, tgt_word in dictionary
+                     if tgt_word in target_emb.vocab]
+       
+       # 构建转换矩阵的训练数据
+       X = np.vstack([source_emb.vectors[i] for i in src_indices])
+       Y = np.vstack([target_emb.vectors[i] for i in tgt_indices])
+       
+       # 使用Procrustes分析求解转换矩阵
+       U, _, Vt = np.linalg.svd(Y.T.dot(X))
+       W = U.dot(Vt)
+       
+       # 正交化转换矩阵
+       W = orthogonal_procrustes(X, Y)[0].T
+       
+       return W
+   ```
+   - 跨语言情感知识迁移
+   - 多语言模型适配层
+
+2. **代码语言切换**
+   ```python
+   # 检测语言并选择相应的预处理流程
+   def process_multilingual_text(text):
+       # 语言检测
+       lang = detect_language(text)
+       
+       # 根据语言选择分词器
+       if lang == 'zh':
+           tokens = jieba.lcut(text)
+       elif lang == 'en':
+           tokens = word_tokenize(text)
+       elif lang == 'ja':
+           tokens = japanese_tokenizer.tokenize(text)
+       else:
+           # 默认使用空格分词
+           tokens = text.split()
+           
+       # 语言特定的停用词过滤
+       stopwords = get_stopwords(lang)
+       tokens = [t for t in tokens if t not in stopwords]
+       
+       # 获取语言特定的词向量模型
+       word_vectors = get_word_vectors(lang)
+       
+       # 转换为向量
+       vectors = [word_vectors.get(t, word_vectors.get('UNK')) for t in tokens]
+       
+       return vectors, lang
+   ```
+
+在项目实践中，我们对基础算法进行了多项优化，使系统在兼顾性能和效率的前提下，能够准确捕捉中文文本中的细微情感表达。特别是注意力机制的引入，显著提升了模型对长文本和复杂情感的理解能力。同时，多级优化的推理流程确保了系统在生产环境中能够高效运行，满足实时分析需求。
 
 ## 未来改进
 
