@@ -59,8 +59,12 @@ def train(train_dataloader, model, device, epoches, lr, patience):
     print(model)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
-    # 学习率调整：每10轮降低学习率，衰减系数为0.2
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.2)
+    # 余弦退火学习率调整：在每个周期内学习率从初始值余弦衰减到最小值
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, 
+        T_max=epoches,  # 一个完整的余弦周期的长度，设为总轮数
+        eta_min=1e-6    # 最小学习率
+    )
     best_acc = 0
     counter = 0  # 初始化早停计数器
 
