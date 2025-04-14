@@ -11,7 +11,8 @@ from lstm_model import LSTM_attention, LSTMModel
 
 logger = logging.getLogger(__name__)
 
-def create_model(model_type, w2vec, device=None):
+def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=None, 
+                num_layers=None, dropout=None):
     """
     根据模型类型创建对应的模型实例
     
@@ -19,41 +20,51 @@ def create_model(model_type, w2vec, device=None):
         model_type: 模型类型
         w2vec: 词向量
         device: 可选，运行设备
+        embedding_dim: 可选，词嵌入维度，如果None则使用Config默认值
+        hidden_dim: 可选，隐藏层维度，如果None则使用Config默认值
+        num_layers: 可选，LSTM层数，如果None则使用Config默认值
+        dropout: 可选，dropout比率，如果None则使用Config默认值
     
     返回:
         对应类型的模型实例
     """
     model_type = model_type.lower() if model_type else Config.model_name.lower()
     
+    # 如果参数为None，则使用Config默认值
+    embedding_dim = embedding_dim if embedding_dim is not None else Config.embedding_dim
+    hidden_dim = hidden_dim if hidden_dim is not None else Config.hidden_dim
+    num_layers = num_layers if num_layers is not None else Config.num_layers
+    dropout = dropout if dropout is not None else Config.dropout
+    
     if model_type == 'bilstm_attention':
         model = LSTM_attention(
-            Config.vocab_size, Config.embedding_dim, w2vec, Config.update_w2v,
-            Config.hidden_dim, Config.num_layers, Config.drop_keep_prob,
+            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_1
         )
     elif model_type == 'bilstm':
         model = LSTMModel(
-            Config.vocab_size, Config.embedding_dim, w2vec, Config.update_w2v,
-            Config.hidden_dim, Config.num_layers, Config.drop_keep_prob,
+            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_1
         )
     elif model_type == 'lstm_attention':
         model = LSTM_attention(
-            Config.vocab_size, Config.embedding_dim, w2vec, Config.update_w2v,
-            Config.hidden_dim, Config.num_layers, Config.drop_keep_prob,
+            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_2
         )
     elif model_type == 'lstm':
         model = LSTMModel(
-            Config.vocab_size, Config.embedding_dim, w2vec, Config.update_w2v,
-            Config.hidden_dim, Config.num_layers, Config.drop_keep_prob,
+            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_2
         )
     else:  # 默认使用CNN模型
         model = TextCNN(
-            Config.dropout, Config.require_improvement, Config.vocab_size,
-            Config.cnn_batch_size, Config.pad_size, Config.filter_sizes,
-            Config.num_filters, w2vec, Config.embedding_dim, Config.n_class
+            dropout, Config.require_improvement, Config.vocab_size,
+            Config.batch_size, Config.pad_size, Config.filter_sizes,
+            Config.num_filters, w2vec, embedding_dim, Config.n_class
         )
     
     # 如果指定了设备，则将模型移动到该设备
