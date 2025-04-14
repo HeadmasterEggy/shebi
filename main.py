@@ -192,11 +192,15 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         log = os.path.join("log", args.model)
         os.makedirs(log, exist_ok=True)  
 
-        log_filename = os.path.join(
-            log,
-            f"{args.model.lower()}_bs{args.batch_size}_dp{args.dropout:.2f}_hd{args.hidden_dim}_ed{args.embedding_dim}_wd{args.weight_decay:.0e}.csv"
-        )
+        # 根据模型类型创建不同的日志文件名
+        if args.model.lower() == "cnn":
+            log_filename = os.path.join(log, f"{args.model.lower()}_dp{args.dropout}_wd{args.weight_decay}.csv")
+        else:
+            log_filename = os.path.join(log, f"{args.model.lower()}_dp{args.dropout}_hd{args.hidden_dim}_wd{args.weight_decay}.csv")
         history_df.to_csv(log_filename, index=False)
+        
+
+        print(f'训练日志已保存到: {log_filename}')
 
 
 if __name__ == "__main__":
@@ -214,6 +218,10 @@ if __name__ == "__main__":
     parser.add_argument('--patience', type=int, default=Config.patience, help='早停耐心值 (默认: 10)')
     parser.add_argument('--weight-decay', type=float, default=1e-4, help='权重衰减 (默认: 1e-4)')
     parser.add_argument('--seed', type=int, default=42, help='随机种子，用于实验的可重复性 (默认: 42)')
+
+    #CNN
+    parser.add_argument('--num-filters', type=int, default=Config.num_filters, choices=[64, 128, 256], help='卷积核数量 (默认: 64,128,256)')
+    parser.add_argument('--pad-size', type=int, default=Config.pad_size, help='填充大小 (默认: 32)')
     args = parser.parse_args()
     
     # 设置随机种子
