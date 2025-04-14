@@ -52,7 +52,9 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         "train_loss": [],
         "train_acc": [],
         "f1": [],
-        "recall": []
+        "recall": [],
+        "val_acc": [],    # 添加验证准确率记录
+        "val_loss": []    # 添加验证损失记录
     }
     model.train()
     model = model.to(device)
@@ -79,6 +81,8 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         train_loss = 0.0
         correct = 0
         total = 0
+        all_targets = []  # 收集所有的真实标签
+        all_predictions = []  # 收集所有的预测结果
 
         train_dataloader_cur = tqdm.tqdm(train_dataloader)
         train_dataloader_cur.set_description(
@@ -108,7 +112,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
             _, predicted = torch.max(output, 1)
             total += target.size(0)
             correct += (predicted == target).sum().item()
-
+            
             F1 = f1_score(target.cpu(), predicted.cpu(), average="weighted")
             Recall = recall_score(target.cpu(), predicted.cpu(), average="micro")
 
@@ -116,23 +120,33 @@ def train(train_dataloader, model, device, epoches, lr, patience):
                 "train_loss: {:.5f}, train_acc: {:.3f}%, F1: {:.3f}%, Recall: {:.3f}%".format(train_loss / (i + 1),
                                                                                               100 * correct / total,
                                                                                               100 * F1, 100 * Recall)}
+            
+            # 收集用于计算整个epoch的F1和召回率
+            all_targets.extend(target.cpu().numpy())
+            all_predictions.extend(predicted.cpu().numpy())
+
             train_dataloader_cur.set_postfix(log=postfix)
 
-            # 计算 epoch 平均指标
-            avg_loss = train_loss / len(train_dataloader)
-            avg_acc = 100 * correct / total
-            f1_percent = 100 * F1
-            recall_percent = 100 * Recall
-
-            # 保存日志
-            history["epoch"].append(epoch + 1)
-            history["train_loss"].append(avg_loss)
-            history["train_acc"].append(avg_acc)
-            history["f1"].append(f1_percent)
-            history["recall"].append(recall_percent)
+        # 计算整个epoch的指标
+        avg_loss = train_loss / len(train_dataloader)
+        avg_acc = 100 * correct / total
+        F1 = f1_score(all_targets, all_predictions, average="weighted")
+        Recall = recall_score(all_targets, all_predictions, average="micro")
+        f1_percent = 100 * F1
+        recall_percent = 100 * Recall
+        
+        # 每个epoch结束后，将该epoch的指标添加到history中
+        history["epoch"].append(epoch + 1)
+        history["train_loss"].append(avg_loss)
+        history["train_acc"].append(avg_acc)
+        history["f1"].append(f1_percent)
+        history["recall"].append(recall_percent)
 
         # 注意：val_dataloader 为全局变量，在 __main__ 中定义，用于模型验证
-        acc = val_accuracy(model, val_dataloader, device, criterion)
+        acc, val_loss = val_accuracy(model, val_dataloader, device, criterion)
+        # 记录验证集指标
+        history["val_acc"].append(acc)
+        history["val_loss"].append(val_loss)
         model.train()
 
         if acc > best_acc:
