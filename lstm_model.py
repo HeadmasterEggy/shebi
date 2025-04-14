@@ -35,7 +35,7 @@ class LSTMModel(nn.Module):
             update_w2v,  # 是否更新词嵌入
             hidden_dim,  # LSTM隐藏层维度
             num_layers,  # LSTM层数
-            drop_keep_prob,  # Dropout保留概率
+            dropout,  # Dropout保留概率
             n_class,  # 分类类别数
             bidirectional,  # 是否使用双向LSTM
             **kwargs
@@ -50,7 +50,7 @@ class LSTMModel(nn.Module):
         - update_w2v: 布尔值, 是否在训练过程中更新词嵌入
         - hidden_dim: 整数, LSTM隐藏层维度
         - num_layers: 整数, LSTM层数
-        - drop_keep_prob: 浮点数, Dropout层的保留概率
+        - dropout: 浮点数, Dropout层的保留概率
         - n_class: 整数, 分类类别数
         - bidirectional: 布尔值, 是否使用双向LSTM
         """
@@ -70,7 +70,7 @@ class LSTMModel(nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=num_layers,
             bidirectional=self.bidirectional,
-            dropout=drop_keep_prob,
+            dropout=dropout,
         )
 
         # 初始化分类器(两层全连接网络)
@@ -142,7 +142,7 @@ class LSTM_attention(nn.Module):
             update_w2v,  # 是否更新词嵌入
             hidden_dim,  # LSTM隐藏层维度
             num_layers,  # LSTM层数
-            drop_keep_prob,  # Dropout保留概率
+            dropout,  # Dropout保留概率
             n_class,  # 分类类别数
             bidirectional,  # 是否使用双向LSTM
             **kwargs
@@ -157,7 +157,7 @@ class LSTM_attention(nn.Module):
         - update_w2v: 布尔值, 是否在训练过程中更新词嵌入
         - hidden_dim: 整数, LSTM隐藏层维度
         - num_layers: 整数, LSTM层数
-        - drop_keep_prob: 浮点数, Dropout层的保留概率
+        - dropout: 浮点数, Dropout层的保留概率
         - n_class: 整数, 分类类别数
         - bidirectional: 布尔值, 是否使用双向LSTM
         """
@@ -177,7 +177,7 @@ class LSTM_attention(nn.Module):
             hidden_size=self.hidden_dim,
             num_layers=num_layers,
             bidirectional=self.bidirectional,
-            dropout=drop_keep_prob,
+            dropout=dropout,
         )
 
         # 初始化注意力机制的参数

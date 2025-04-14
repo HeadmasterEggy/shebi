@@ -157,6 +157,9 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='cnn',
                         choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
                         help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
+    parser.add_argument('--batch-size', type=int, default=Config.batch_size, choices=[16, 32, 64, 128],
+                        help='批量大小 (默认: 64)')
+    parser.add_argument('--dropout', type=float, default=Config.dropout, choices=[0.1, 0.2, 0.3, 0.4, 0.5], help='选择丢弃率 (默认: Config.dropout)')
     args = parser.parse_args()
 
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
@@ -186,14 +189,14 @@ if __name__ == "__main__":
 
     # 构建数据加载器
     train_loader = Data_set(train_array, train_label)
-    train_dataloader = DataLoader(train_loader, batch_size=Config.lstm_batch_size, shuffle=True,
+    train_dataloader = DataLoader(train_loader, batch_size=Config.batch_size, shuffle=True,
                                   num_workers=0)  # 注意：num_workers设置为0时速度较快
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
+    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
 
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
 
     # 使用导入的创建模型函数
     model = create_model(args.model, w2vec)

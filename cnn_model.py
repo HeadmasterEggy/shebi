@@ -12,7 +12,7 @@ class TextCNN(nn.Module):
             dropout,
             require_improvement,
             vocab_size,
-            cnn_batch_size,
+            batch_size,
             pad_size,
             filter_sizes,
             num_filters,
@@ -23,7 +23,7 @@ class TextCNN(nn.Module):
         super(TextCNN, self).__init__()
         self.dropout = dropout
         self.require_improvement = require_improvement
-        self.cnn_batch_size = cnn_batch_size
+        self.batch_size = batch_size
         self.pad_size = pad_size
         self.filter_sizes = filter_sizes
         self.num_filters = num_filters
