@@ -10,6 +10,8 @@ from __future__ import unicode_literals, print_function, division
 
 import argparse
 import os
+import random
+import numpy as np
 
 import pandas as pd
 import torch
@@ -31,6 +33,23 @@ from data_Process import (
 from eval import val_accuracy
 # 导入模型工具模块
 from utils import create_model
+
+
+def set_seed(seed):
+    """
+    设置随机种子，确保实验的可重复性
+    
+    参数:
+        seed (int): 随机种子值
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    print(f'设置随机种子为: {seed}')
 
 
 def train(train_dataloader, model, device, epoches, lr, patience):
@@ -187,7 +206,11 @@ if __name__ == "__main__":
     parser.add_argument('--embedding-dim', type=int, default=Config.embedding_dim, choices=[50, 100, 200, 300], help='词嵌入维度 (默认: Config.embedding_dim)')
     parser.add_argument('--patience', type=int, default=Config.patience, help='早停耐心值 (默认: 10)')
     parser.add_argument('--weight-decay', type=float, default=1e-4, help='权重衰减 (默认: 1e-4)')
+    parser.add_argument('--seed', type=int, default=42, help='随机种子，用于实验的可重复性 (默认: 42)')
     args = parser.parse_args()
+    
+    # 设置随机种子
+    set_seed(args.seed)
     
     # 打印所有命令行参数的值
     print("\n" + "="*50)
