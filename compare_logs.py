@@ -17,7 +17,7 @@ def parse_filename(filename):
     # CNN简化模式: cnn_dp0.1_wd0.011.csv
     simple_cnn_pattern = r'cnn_dp(\d+\.\d+)_wd(\d+\.\d+)'
     simple_cnn_match = re.match(simple_cnn_pattern, basename)
-    if simple_cnn_match:
+    if (simple_cnn_match):
         return {
             'model': 'cnn',
             'dropout': float(simple_cnn_match.group(1)),
@@ -33,7 +33,7 @@ def parse_filename(filename):
     # LSTM简化模式: lstm_dp0.3_wd0.001.csv 或 lstmattention_dp0.3_wd0.001.csv
     simple_lstm_pattern = r'(lstm|lstmattention|bilstm|bilstmattention)_dp(\d+\.\d+)_wd(\d+\.\d+)'
     simple_lstm_match = re.match(simple_lstm_pattern, basename)
-    if simple_lstm_match:
+    if (simple_lstm_match):
         return {
             'model': simple_lstm_match.group(1),
             'dropout': float(simple_lstm_match.group(2)),
@@ -47,7 +47,7 @@ def parse_filename(filename):
     # CNN特定参数模式: cnn_ch64_k3_bs64_dp0.50_hd128_ed100_wd1e-04.csv
     cnn_pattern = r'cnn_ch(\d+)_k(\d+)_bs(\d+)_dp(\d+\.\d+)_hd(\d+)_ed(\d+)_wd(\d+e-\d+)'
     cnn_match = re.match(cnn_pattern, basename)
-    if cnn_match:
+    if (cnn_match):
         return {
             'model': 'cnn',
             'channels': int(cnn_match.group(1)),
@@ -62,7 +62,7 @@ def parse_filename(filename):
     # 基本模式: model_bs64_dp0.50_hd128_ed100_wd1e-04.csv
     base_pattern = r'([a-z_]+)_bs(\d+)_dp(\d+\.\d+)_hd(\d+)_ed(\d+)_wd(\d+e-\d+)'
     base_match = re.match(base_pattern, basename)
-    if base_match:
+    if (base_match):
         return {
             'model': base_match.group(1),
             'batch_size': int(base_match.group(2)),
@@ -75,7 +75,7 @@ def parse_filename(filename):
     # 尝试匹配任何包含模型名称的文件
     fallback_pattern = r'(lstm|lstmattention|bilstm|bilstmattention|cnn|rnn|gru).*'
     fallback_match = re.match(fallback_pattern, basename)
-    if fallback_match:
+    if (fallback_match):
         print(f"使用后备模式解析文件: {basename}, 模型类型: {fallback_match.group(1)}")
         # 尝试从文件名中提取参数
         dp_match = re.search(r'dp(\d+\.\d+)', basename)
@@ -98,7 +98,7 @@ def read_log_files(log_dir):
     log_files = []
     for model_dir in os.listdir(log_dir):
         model_path = os.path.join(log_dir, model_dir)
-        if os.path.isdir(model_path):
+        if (os.path.isdir(model_path)):
             log_files.extend(glob.glob(os.path.join(model_path, "*.csv")))
     
     print(f"找到 {len(log_files)} 个日志文件")
@@ -106,13 +106,13 @@ def read_log_files(log_dir):
     log_data = []
     for file in log_files:
         params = parse_filename(file)
-        if not params:
+        if (not params):
             print(f"无法解析文件名: {file}")
             continue
             
         try:
             df = pd.read_csv(file)
-            if df.empty:
+            if (df.empty):
                 print(f"文件为空: {file}")
                 continue
                 
@@ -131,7 +131,7 @@ def read_log_files(log_dir):
 
 def create_comparison_plots(log_data, output_dir):
     """创建比较不同模型性能的图表"""
-    if not log_data:
+    if (not log_data):
         print("未找到日志数据")
         return
         
@@ -176,7 +176,7 @@ def create_comparison_plots(log_data, output_dir):
             
             # 添加可能存在的额外参数
             for param in ['batch_size', 'hidden_dim', 'embedding_dim', 'channels', 'kernel_size']:
-                if param in best_epoch:
+                if (param in best_epoch):
                     summary_dict[param] = best_epoch[param]
             
             model_summary.append(summary_dict)
@@ -202,18 +202,21 @@ def create_comparison_plots(log_data, output_dir):
             config_data = config_data.sort_values('epoch')
             
             # 构建标签，根据可用参数
-            if model == 'cnn':
-                # 简化版CNN标签
-                label = f"{model} (dp={row['dropout']:.2f}, wd={row['weight_decay']:.6f})"
-                # 如果有其他参数，添加到标签中
-                if 'channels' in row and 'kernel_size' in row:
-                    label = f"{model} (ch={row['channels']}, k={row['kernel_size']}, dp={row['dropout']:.2f})"
-                if 'batch_size' in row and 'hidden_dim' in row:
-                    label += f", bs={row.get('batch_size', 'N/A')}, hd={row.get('hidden_dim', 'N/A')}"
-            elif model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']:
+            if (model == 'cnn'):
+                # 简化版CNN标签，只显示dropout和weight_decay
+                label = f"dp={row['dropout']:.2f}, wd={row['weight_decay']:.6f}"
+                
+                # 可选：如果需要分类显示其他参数组合，可以添加前缀
+                if ('channels' in row and 'kernel_size' in row):
+                    ch = row['channels']
+                    k = row['kernel_size']
+                    # 只有当这些参数不是所有配置都相同时才添加到标签
+                    if (len(best_configs[best_configs['model']=='cnn']['channels'].unique()) > 1):
+                        label = f"ch={ch}, k={k}, " + label
+            elif (model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
                 # LSTM及其变体的标签
                 label = f"{model} (dp={row['dropout']:.2f}, wd={row['weight_decay']:.6f})"
-                if 'batch_size' in row and 'hidden_dim' in row:
+                if ('batch_size' in row and 'hidden_dim' in row):
                     label += f", bs={row.get('batch_size', 'N/A')}, hd={row.get('hidden_dim', 'N/A')}"
             else:
                 label = f"{model} (bs={row.get('batch_size', 'N/A')}, dp={row['dropout']:.2f}, hd={row.get('hidden_dim', 'N/A')})"
@@ -221,12 +224,23 @@ def create_comparison_plots(log_data, output_dir):
             plt.plot(config_data['epoch'], config_data[metric], 
                      label=label, marker='o', color=colors[i % len(colors)], linewidth=2)
         
-        plt.title(f'Best Configuration {metric} Comparison', fontsize=15)
+        # 针对CNN模型的特别处理 - 添加模型类型到标题中
+        title_prefix = ''
+        if (any(model == 'cnn' for model in best_configs['model'].values)):
+            title_prefix = 'CNN '
+            
+        plt.title(f'{title_prefix}Best Configuration {metric} Comparison', fontsize=15)
         plt.xlabel('Epoch', fontsize=12)
         plt.ylabel(metric, fontsize=12)
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-        plt.legend(loc='best', fontsize=10)
+        
+        # 改进图例显示
+        if (any(model == 'cnn' for model in best_configs['model'].values)):
+            plt.legend(loc='best', fontsize=10, title="CNN Parameters")
+        else:
+            plt.legend(loc='best', fontsize=10)
+            
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{metric}_best_config_comparison.png"), dpi=300)
         plt.close()
@@ -245,29 +259,29 @@ def create_comparison_plots(log_data, output_dir):
                 config_data = config_data.sort_values('epoch')
                 
                 # 根据模型类型生成适当的标签
-                if model == 'cnn':
+                if (model == 'cnn'):
                     dp = config_data['dropout'].iloc[0]
                     wd = config_data['weight_decay'].iloc[0]
                     label = f"dp={dp:.2f}, wd={wd:.6f}"
                     
                     # 添加其他参数如果存在
-                    if 'channels' in config_data.columns and 'kernel_size' in config_data.columns:
+                    if ('channels' in config_data.columns and 'kernel_size' in config_data.columns):
                         ch = config_data['channels'].iloc[0]
                         k = config_data['kernel_size'].iloc[0]
                         label = f"ch={ch}, k={k}, " + label
                     
-                    if 'batch_size' in config_data.columns and 'hidden_dim' in config_data.columns:
+                    if ('batch_size' in config_data.columns and 'hidden_dim' in config_data.columns):
                         bs = config_data['batch_size'].iloc[0]
                         hd = config_data['hidden_dim'].iloc[0]
                         label += f", bs={bs}, hd={hd}"
-                elif model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']:
+                elif (model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
                     # LSTM及其变体的简化标签
                     dp = config_data['dropout'].iloc[0]
                     wd = config_data['weight_decay'].iloc[0]
                     label = f"dp={dp:.2f}, wd={wd:.6f}"
                     
                     # 添加其他参数如果存在
-                    if 'batch_size' in config_data.columns and 'hidden_dim' in config_data.columns:
+                    if ('batch_size' in config_data.columns and 'hidden_dim' in config_data.columns):
                         bs = config_data['batch_size'].iloc[0]
                         hd = config_data['hidden_dim'].iloc[0]
                         label += f", bs={bs}, hd={hd}"
@@ -356,7 +370,7 @@ def create_comparison_plots(log_data, output_dir):
     # 4. 模型参数影响热力图（以val_acc为指标）
     for model in models:
         model_specific = summary_df[summary_df['model'] == model]
-        if len(model_specific) > 3:  # 确保有足够的数据点
+        if (len(model_specific) > 3):  # 确保有足够的数据点
             plt.figure(figsize=(10, 8))
             pivot_data = model_specific.pivot_table(
                 values='val_acc', 
@@ -370,11 +384,38 @@ def create_comparison_plots(log_data, output_dir):
             plt.savefig(os.path.join(output_dir, f"{model}_param_heatmap.png"), dpi=300)
             plt.close()
             print(f"已生成 {model} 参数热力图")
+            
+            # 专门为CNN模型创建dropout vs weight_decay热力图
+            if (model == 'cnn'):
+                plt.figure(figsize=(10, 8))
+                # 创建dropout vs weight_decay的数据透视表
+                try:
+                    dropout_wd_pivot = model_specific.pivot_table(
+                        values='val_acc',
+                        index='dropout',
+                        columns='weight_decay',
+                        aggfunc='mean'
+                    )
+                    # 确保数据足够才绘图
+                    if (not dropout_wd_pivot.empty and dropout_wd_pivot.shape[0] > 1 and dropout_wd_pivot.shape[1] > 1):
+                        sns.heatmap(dropout_wd_pivot, annot=True, cmap='YlGnBu', fmt='.2f')
+                        plt.title('CNN Validation Accuracy: Dropout vs Weight Decay')
+                        plt.xlabel('Weight Decay')
+                        plt.ylabel('Dropout')
+                        plt.tight_layout()
+                        plt.savefig(os.path.join(output_dir, "cnn_dropout_wd_heatmap.png"), dpi=300)
+                        print("已生成CNN dropout vs weight_decay热力图")
+                    else:
+                        print("CNN数据不足以生成dropout vs weight_decay热力图")
+                except Exception as e:
+                    print(f"生成CNN dropout vs weight_decay热力图时出错: {e}")
+                finally:
+                    plt.close()
 
 def generate_html_report(output_dir):
     """生成HTML格式的报告，展示所有生成的图表和分析结果"""
     summary_file = os.path.join(output_dir, "model_performance_summary.csv")
-    if not os.path.exists(summary_file):
+    if (not os.path.exists(summary_file)):
         print("未找到性能摘要文件，无法生成HTML报告")
         return
         
@@ -410,17 +451,17 @@ def generate_html_report(output_dir):
     """
     
     # 根据模型类型显示不同的参数
-    if best_overall['model'] == 'cnn':
+    if (best_overall['model'] == 'cnn'):
         html_content += f"""<p>参数配置: dropout={best_overall['dropout']:.2f}, weight_decay={best_overall['weight_decay']:.6f}</p>"""
         # 显示其他参数如果存在
-        if 'channels' in best_overall and 'kernel_size' in best_overall:
+        if ('channels' in best_overall and 'kernel_size' in best_overall):
             html_content += f"""<p>CNN参数: channels={best_overall.get('channels', 'N/A')}, kernel_size={best_overall.get('kernel_size', 'N/A')}</p>"""
-        if 'batch_size' in best_overall and 'hidden_dim' in best_overall:
+        if ('batch_size' in best_overall and 'hidden_dim' in best_overall):
             html_content += f"""<p>其他参数: batch_size={best_overall.get('batch_size', 'N/A')}, hidden_dim={best_overall.get('hidden_dim', 'N/A')}, 
                 embedding_dim={best_overall.get('embedding_dim', 'N/A')}</p>"""
-    elif best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']:
+    elif (best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
         html_content += f"""<p>参数配置: dropout={best_overall['dropout']:.2f}, weight_decay={best_overall['weight_decay']:.6f}</p>"""
-        if 'batch_size' in best_overall and 'hidden_dim' in best_overall:
+        if ('batch_size' in best_overall and 'hidden_dim' in best_overall):
             html_content += f"""<p>其他参数: batch_size={best_overall.get('batch_size', 'N/A')}, hidden_dim={best_overall.get('hidden_dim', 'N/A')}, 
                 embedding_dim={best_overall.get('embedding_dim', 'N/A')}</p>"""
     else:
@@ -471,7 +512,7 @@ def generate_html_report(output_dir):
     metrics = ['val_acc', 'train_acc', 'val_loss', 'train_loss', 'f1', 'recall']
     for metric in metrics:
         chart_path = os.path.join(output_dir, f"{metric}_comparison.png")
-        if os.path.exists(chart_path):
+        if (os.path.exists(chart_path)):
             relative_path = os.path.basename(chart_path)
             html_content += f"""
             <div class="chart">
@@ -492,7 +533,7 @@ def generate_html_report(output_dir):
     
     # 添加参数热力图
     for file in os.listdir(output_dir):
-        if file.endswith("_param_heatmap.png"):
+        if (file.endswith("_param_heatmap.png")):
             model_name = file.split("_param_heatmap.png")[0]
             html_content += f"""
             <div class="chart">
@@ -517,12 +558,12 @@ def generate_html_report(output_dir):
     """
     
     # 根据最佳模型类型添加不同的结论
-    if best_overall['model'] == 'cnn':
+    if (best_overall['model'] == 'cnn'):
         html_content += f"""
         <li>对于 {best_overall['model']} 模型，最佳超参数配置为：dropout={best_overall['dropout']:.2f}, 
             weight_decay={best_overall['weight_decay']:.6f}</li>
         """
-    elif best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']:
+    elif (best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
         html_content += f"""
         <li>对于 {best_overall['model']} 模型，最佳超参数配置为：dropout={best_overall['dropout']:.2f}, 
             weight_decay={best_overall['weight_decay']:.6f}</li>
