@@ -19,12 +19,13 @@ class Config:
     lstm_attention_best_model_path = "./model/lstm_attention_model_best.pkl"
     bilstm_attention_best_model_path = "./model/bilstm_attention_model_best.pkl"
     n_class = 2  # 分类数：分别为pos和neg
-    n_epoch = 50  # 训练迭代周期，即遍历整个训练样本的次数
+    n_epoch = 100  # 训练迭代周期，即遍历整个训练样本的次数
     lr = 0.0001  # 学习率；若opt='adadelta'，则不需要定义学习率
     vocab_size = 54848  # 词汇量，与word2id中的词汇量一致
     embedding_dim = 50  # 词向量维度
     batch_size = 64  # 批处理尺寸
     dropout = 0.5  # 随机失活
+    patience = 100  # 提前停止训练的耐心值
 
     # Bi-LSTM, LSTM, LSTM+Attention, Bi-LSTM+Attention
     update_w2v = True  # 是否在训练中更新w2v
