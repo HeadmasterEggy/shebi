@@ -62,9 +62,14 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
         )
     else:  # 默认使用CNN模型
         model = TextCNN(
-            dropout, Config.require_improvement, Config.vocab_size,
-            Config.batch_size, Config.pad_size, Config.filter_sizes,
-            Config.num_filters, w2vec, embedding_dim, Config.n_class
+            dropout,
+            Config.vocab_size,
+            Config.pad_size, 
+            Config.filter_sizes,
+            Config.num_filters, 
+            w2vec, 
+            embedding_dim, 
+            Config.n_class
         )
     
     # 如果指定了设备，则将模型移动到该设备
