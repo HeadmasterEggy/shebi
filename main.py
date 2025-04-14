@@ -42,7 +42,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         device: 训练设备（如GPU或CPU）
         epoches: 训练轮数
         lr: 学习率
-        patience: 早停耐心值，默认为5，当验证集准确率连续patience轮未提升时提前终止训练
+        patience: 早停耐心值，默认为10，当验证集准确率连续patience轮未提升时提前终止训练
 
     返回：
         无
@@ -57,7 +57,13 @@ def train(train_dataloader, model, device, epoches, lr, patience):
     model.train()
     model = model.to(device)
     print(model)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # 定义优化器和损失函数    
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=lr,
+        weight_decay=args.weight_decay,
+    )
     criterion = nn.CrossEntropyLoss()
     # 余弦退火学习率调整：在每个周期内学习率从初始值余弦衰减到最小值
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -65,6 +71,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         T_max=epoches,  # 一个完整的余弦周期的长度，设为总轮数
         eta_min=1e-6    # 最小学习率
     )
+
     best_acc = 0
     counter = 0  # 初始化早停计数器
 
@@ -146,9 +153,10 @@ def train(train_dataloader, model, device, epoches, lr, patience):
             print(f'早停机制触发，在第{epoch + 1}轮训练后停止')
             break
 
-        # 最后保存所有训练日志
+        # 最后保存所有训练日志，使用更详细的命名方式
         history_df = pd.DataFrame(history)
-        history_df.to_csv(f"train_log_{args.model.lower()}.csv", index=False)
+        log_filename = f"{args.model.lower()}_bs{args.batch_size}_dp{args.dropout}_hd{args.hidden_dim}_ed{args.embedding_dim}_wd{args.weight_decay}.csv"
+        history_df.to_csv(log_filename, index=False)
 
 
 if __name__ == "__main__":
@@ -157,10 +165,23 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='cnn',
                         choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
                         help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
-    parser.add_argument('--batch-size', type=int, default=Config.batch_size, choices=[16, 32, 64, 128],
+    parser.add_argument('--batch-size', type=int, default=Config.batch_size, choices=[64, 128, 256],
                         help='批量大小 (默认: 64)')
-    parser.add_argument('--dropout', type=float, default=Config.dropout, choices=[0.1, 0.2, 0.3, 0.4, 0.5], help='选择丢弃率 (默认: Config.dropout)')
+    parser.add_argument('--dropout', type=float, default=Config.dropout, choices=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], help='选择 dropout (默认: Config.dropout)')
+    parser.add_argument('--hidden-dim', type=int, default=Config.hidden_dim, choices=[32, 64, 128, 256], help='隐藏层维度 (默认: Config.hidden_dim)')
+    parser.add_argument('--num-layers', type=int, default=Config.num_layers, choices=[1, 2, 3], help='LSTM层数 (默认: Config.num_layers)')
+    parser.add_argument('--embedding-dim', type=int, default=Config.embedding_dim, choices=[50, 100, 200, 300], help='词嵌入维度 (默认: Config.embedding_dim)')
+    parser.add_argument('--patience', type=int, default=Config.patience, help='早停耐心值 (默认: 10)')
+    parser.add_argument('--weight-decay', type=float, default=1e-4, help='权重衰减 (默认: 1e-4)')
     args = parser.parse_args()
+    
+    # 打印所有命令行参数的值
+    print("\n" + "="*50)
+    print("运行配置参数:")
+    print("="*50)
+    for arg in vars(args):
+        print(f"{arg}: {getattr(args, arg)}")
+    print("="*50 + "\n")
 
     # 主函数：预览数据、预处理、模型构建、训练和保存模型
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -189,17 +210,24 @@ if __name__ == "__main__":
 
     # 构建数据加载器
     train_loader = Data_set(train_array, train_label)
-    train_dataloader = DataLoader(train_loader, batch_size=Config.batch_size, shuffle=True,
+    train_dataloader = DataLoader(train_loader, batch_size=args.batch_size, shuffle=True,
                                   num_workers=0)  # 注意：num_workers设置为0时速度较快
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    val_dataloader = DataLoader(val_loader, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
-    # 使用导入的创建模型函数
-    model = create_model(args.model, w2vec)
+    # 使用导入的创建模型函数，传入args参数
+    model = create_model(
+        args.model, 
+        w2vec, 
+        embedding_dim=args.embedding_dim,
+        hidden_dim=args.hidden_dim,
+        num_layers=args.num_layers,
+        dropout=args.dropout
+    )
     print(f'使用 {args.model.upper()} 模型训练')
 
     # 保存模型（根据模型名字保存，并添加缓存）
@@ -207,7 +235,7 @@ if __name__ == "__main__":
     model_path = os.path.join(Config.model_dir, model_filename)
 
     # 训练模型
-    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr, patience=10)
+    train(train_dataloader, model=model, device=device, epoches=Config.n_epoch, lr=Config.lr, patience=Config.patience)
 
     # 保存模型（使用torch默认缓存机制）
     torch.save(model, model_path)
