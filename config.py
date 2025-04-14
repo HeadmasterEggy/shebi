@@ -39,4 +39,4 @@ class Config:
     require_improvement = 1000  # 若超过1000batch效果还没提升，则提前结束训练
     pad_size = 32  # 每句话处理成的长度(短填长切)
     filter_sizes = (2, 3, 4)  # 卷积核尺寸
-    num_filters = 256  # 卷积核数量(channels数)
+    num_filters = 128  # 卷积核数量(channels数)
