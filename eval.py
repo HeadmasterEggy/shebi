@@ -59,7 +59,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         criterion (Object): 损失函数，默认为nn.CrossEntropyLoss()。
 
     返回:
-        float: 验证集的准确率。
+        float: 验证集的准确率。y, loss) 验证集的准确率和损失值。
     """
     # 设置模型为评估模式
     model.eval()
@@ -104,7 +104,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['validation'],
-            'model': [model_name],
+            #'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -119,7 +119,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         logging.info(f"\n验证集准确率: {accuracy:.3f}%, 总损失: {total_loss:.3f}, F1分数: {100 * f1:.3f}%, "
                      f"召回率: {100 * recall:.3f}%, 混淆矩阵:\n{confusion_mat}")
 
-    return accuracy
+    return accuracy, total_loss
 
 
 def test_accuracy(model, test_dataloader, device):
@@ -174,7 +174,7 @@ def test_accuracy(model, test_dataloader, device):
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['test'],
-            'model': [model_name],
+            #'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
