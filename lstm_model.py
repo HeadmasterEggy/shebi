@@ -76,7 +76,7 @@ class LSTMModel(nn.Module):
         # 初始化分类器(两层全连接网络)
         # 如果是双向LSTM, 输入维度需要乘以2
         if self.bidirectional:
-            self.decoder1 = nn.Linear(hidden_dim * 4, hidden_dim)  # *4是因为我们连接了两个方向的首尾隐藏状态
+            self.decoder1 = nn.Linear(hidden_dim * 2 * 2, hidden_dim)  # *4是因为我们连接了两个方向的首尾隐藏状态
             self.decoder2 = nn.Linear(hidden_dim, n_class)
         else:
             self.decoder1 = nn.Linear(hidden_dim * 2, hidden_dim)  # *2是因为我们连接了首尾隐藏状态
@@ -92,34 +92,11 @@ class LSTMModel(nn.Module):
         返回:
         - outputs: 形状为[batch_size, n_class]的张量, 表示每个类别的预测分数
         """
-        # 步骤1: 将输入转换为词嵌入向量
-        # 输入: [batch_size, seq_length] => 输出: [batch_size, seq_length, embedding_dim]
-        # 例如: [64, 75] => [64, 75, 50]
         embeddings = self.embedding(inputs)
-
-        # 步骤2: 将嵌入向量输入LSTM进行编码
-        # LSTM要求输入形状为: [seq_length, batch_size, embedding_dim]
-        # 所以我们需要调整维度顺序: [batch_size, seq_length, embedding_dim] => [seq_length, batch_size, embedding_dim]
-        # 例如: [64, 75, 50] => [75, 64, 50]
         states, hidden = self.encoder(embeddings.permute(1, 0, 2))
-
-        # states形状: [seq_length, batch_size, D*hidden_dim], 其中D=2如果bidirectional=True否则D=1
-        # 例如: [75, 64, 256] (如果是双向且hidden_dim=128)
-        # hidden: (h_n, c_n), 其中h_n/c_n形状为: [D*num_layers, batch_size, hidden_dim]
-        # 例如: [4, 64, 128] (如果是双向且num_layers=2, hidden_dim=128)
-
-        # 步骤3: 连接序列的第一个和最后一个隐藏状态作为特征表示
-        # states[0]表示第一个时间步的所有批次样本, states[-1]表示最后一个时间步
-        # 结果形状: [batch_size, 2*D*hidden_dim]
-        # 例如: [64, 512] (如果是双向且hidden_dim=128)
         encoding = torch.cat([states[0], states[-1]], dim=1)
-
-        # 步骤4: 通过两层全连接网络进行分类
-        outputs = self.decoder1(encoding)  # 第一层全连接
+        outputs = F.relu(self.decoder1(encoding))  # 第一层全连接, 使用ReLU激活
         outputs = self.decoder2(outputs)  # 第二层全连接, 输出各类别的分数
-        # 最终输出形状: [batch_size, n_class]
-        # 例如: [64, 2] (如果有2个类别)
-
         return outputs
 
 
