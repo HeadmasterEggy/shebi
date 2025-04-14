@@ -188,7 +188,14 @@ def train(train_dataloader, model, device, epoches, lr, patience):
 
         # 最后保存所有训练日志，使用更详细的命名方式
         history_df = pd.DataFrame(history)
-        log_filename = f"{args.model.lower()}_bs{args.batch_size}_dp{args.dropout}_hd{args.hidden_dim}_ed{args.embedding_dim}_wd{args.weight_decay}.csv"
+
+        log = os.path.join("log", args.model)
+        os.makedirs(log, exist_ok=True)  
+
+        log_filename = os.path.join(
+            log,
+            f"{args.model.lower()}_bs{args.batch_size}_dp{args.dropout:.2f}_hd{args.hidden_dim}_ed{args.embedding_dim}_wd{args.weight_decay:.0e}.csv"
+        )
         history_df.to_csv(log_filename, index=False)
 
 
