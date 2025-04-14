@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>模型训练性能对比分析</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2, h3 { color: #2c3e50; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; }
+        tr:hover { background-color: #f5f5f5; }
+        .metric-img { max-width: 100%; margin-top: 10px; }
+        .container { display: flex; flex-wrap: wrap; }
+        .chart { margin: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; }
+        .highlight { background-color: #e8f4f8; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>模型训练性能对比分析报告</h1>
+    
+    <h2>最佳性能模型</h2>
+    <p>整体最佳模型: <strong>bilstm (验证准确率: 89.96%)</strong></p>
+    <p>参数配置: dropout=0.50, weight_decay=0.000100</p><p>其他参数: batch_size=256, hidden_dim=64, 
+                embedding_dim=50</p>
+    
+    <h2>各模型最佳配置</h2>
+    <table>
+        <tr>
+            <th>模型</th>
+            <th>验证准确率</th>
+            <th>训练准确率</th>
+            <th>F1分数</th>
+            <th>召回率</th>
+            <th>Batch Size</th>
+            <th>Dropout</th>
+            <th>Hidden Dim</th>
+            <th>Embedding Dim</th>
+            <th>最佳Epoch</th>
+        </tr>
+    
+        <tr class="highlight">
+            <td>bilstm</td>
+            <td>89.96%</td>
+            <td>92.64%</td>
+            <td>92.64%</td>
+            <td>92.64%</td>
+            <td>256</td>
+            <td>0.5</td>
+            <td>64</td>
+            <td>50</td>
+            <td>29</td>
+        </tr>
+        
+        <tr class="">
+            <td>cnn</td>
+            <td>88.84%</td>
+            <td>93.19%</td>
+            <td>93.19%</td>
+            <td>93.19%</td>
+            <td>64</td>
+            <td>0.1</td>
+            <td>128</td>
+            <td>100</td>
+            <td>99</td>
+        </tr>
+        
+        <tr class="">
+            <td>lstm</td>
+            <td>89.94%</td>
+            <td>93.68%</td>
+            <td>93.68%</td>
+            <td>93.68%</td>
+            <td>64</td>
+            <td>0.3</td>
+            <td>128</td>
+            <td>100</td>
+            <td>34</td>
+        </tr>
+        
+    </table>
+    
+    <h2>性能指标对比图</h2>
+    <div class="container">
+    
+    </div>
+    
+    <h2>最佳模型对比</h2>
+    <img src="best_model_comparison.png" alt="Best Model Comparison" style="max-width: 100%;">
+    
+    <h2>参数影响分析</h2>
+    <div class="container">
+    
+            <div class="chart">
+                <h3>lstm 参数影响</h3>
+                <img src="lstm_param_heatmap.png" alt="lstm Parameter Analysis" class="metric-img">
+            </div>
+            
+            <div class="chart">
+                <h3>bilstm 参数影响</h3>
+                <img src="bilstm_param_heatmap.png" alt="bilstm Parameter Analysis" class="metric-img">
+            </div>
+            
+            <div class="chart">
+                <h3>cnn 参数影响</h3>
+                <img src="cnn_param_heatmap.png" alt="cnn Parameter Analysis" class="metric-img">
+            </div>
+            
+    </div>
+    
+    <h2>结论与建议</h2>
+    <p>根据性能对比分析，我们得出以下结论：</p>
+    <ul>
+    
+        <li>最佳性能模型是 <strong>bilstm</strong>，验证准确率达到 89.96%</li>
+        <li>模型性能排名（按验证准确率）：bilstm (89.96%), lstm (89.94%), cnn (88.84%)</li>
+    
+        <li>对于 bilstm 模型，最佳超参数配置为：dropout=0.50, 
+            weight_decay=0.000100</li>
+        
+    </ul>
+    
+    <footer>
+        <p>此报告由模型对比分析工具自动生成</p>
+        <p>生成时间: 2025-04-14 20:09:07</p>
+    </footer>
+</body>
+</html>
+    
