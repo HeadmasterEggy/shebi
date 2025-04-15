@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>模型训练性能对比分析</title>
+    <title>模型训练性能对比分析 - Dropout和Weight Decay参数研究</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2, h3 { color: #2c3e50; }
+        body { font-family: "Songti SC", "宋体", serif; margin: 20px; }
+        h1, h2, h3, h4, h5, h6 { color: #2c3e50; font-family: "Songti SC", "宋体", serif; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-family: "Songti SC", "宋体", serif; }
         th { background-color: #f2f2f2; }
         tr:hover { background-color: #f5f5f5; }
+        p, li, ul, ol { font-family: "Songti SC", "宋体", serif; }
         .metric-img { max-width: 100%; margin-top: 10px; }
         .container { display: flex; flex-wrap: wrap; }
         .chart { margin: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; }
@@ -16,181 +17,442 @@
     </style>
 </head>
 <body>
-    <h1>模型训练性能对比分析报告</h1>
+    <h1>模型训练性能对比分析报告 - Dropout和Weight Decay参数研究</h1>
     
     <h2>最佳性能模型</h2>
     <p>整体最佳模型: <strong>lstm (验证准确率: 90.07%)</strong></p>
-    <p>参数配置: dropout=0.30, weight_decay=0.000010</p><p>其他参数: batch_size=64, hidden_dim=128, 
-                embedding_dim=100</p>
+    <p>最佳参数配置: dropout=0.30, weight_decay=0.000010</p>
+    <p>最佳epoch: 35</p>
     
     <h2>各模型最佳配置</h2>
     <table>
         <tr>
             <th>模型</th>
+            <th>Dropout</th>
+            <th>Weight Decay</th>
             <th>验证准确率</th>
             <th>训练准确率</th>
             <th>F1分数</th>
             <th>召回率</th>
-            <th>Batch Size</th>
-            <th>Dropout</th>
-            <th>Hidden Dim</th>
-            <th>Embedding Dim</th>
             <th>最佳Epoch</th>
         </tr>
     
         <tr class="">
             <td>bilstm</td>
+            <td>0.1</td>
+            <td>0.000100</td>
             <td>89.90%</td>
             <td>93.14%</td>
             <td>93.14%</td>
             <td>93.14%</td>
-            <td>64</td>
-            <td>0.1</td>
-            <td>128</td>
-            <td>100</td>
             <td>28</td>
         </tr>
         
         <tr class="">
             <td>bilstm_attention</td>
+            <td>0.2</td>
+            <td>0.000100</td>
             <td>89.44%</td>
             <td>91.12%</td>
             <td>91.12%</td>
             <td>91.12%</td>
-            <td>64</td>
-            <td>0.2</td>
-            <td>128</td>
-            <td>100</td>
             <td>22</td>
         </tr>
         
         <tr class="">
             <td>cnn</td>
+            <td>0.1</td>
+            <td>0.010000</td>
             <td>88.84%</td>
             <td>93.19%</td>
             <td>93.19%</td>
             <td>93.19%</td>
-            <td>64</td>
-            <td>0.1</td>
-            <td>128</td>
-            <td>100</td>
             <td>99</td>
         </tr>
         
         <tr class="highlight">
             <td>lstm</td>
+            <td>0.3</td>
+            <td>0.000010</td>
             <td>90.07%</td>
             <td>94.56%</td>
             <td>94.56%</td>
             <td>94.56%</td>
-            <td>64</td>
-            <td>0.3</td>
-            <td>128</td>
-            <td>100</td>
             <td>35</td>
         </tr>
         
         <tr class="">
             <td>lstm_attention</td>
+            <td>0.4</td>
+            <td>0.000010</td>
             <td>89.60%</td>
-            <td>92.24%</td>
-            <td>92.24%</td>
-            <td>92.24%</td>
-            <td>64</td>
-            <td>0.2</td>
-            <td>128</td>
-            <td>100</td>
+            <td>91.92%</td>
+            <td>91.92%</td>
+            <td>91.92%</td>
             <td>24</td>
         </tr>
         
     </table>
     
-    <h2>性能指标对比图</h2>
+    <h2>不同Dropout和Weight Decay下的性能比较</h2>
     <div class="container">
     
+        <div class="chart" style="width: 48%;">
+            <h3>bilstm_attention Dropout vs Weight Decay 热力图</h3>
+            <img src="bilstm_attention_dropout_wd_heatmap.png" alt="bilstm_attention Dropout vs Weight Decay Heatmap" class="metric-img">
+        </div>
+        
+        <div class="chart" style="width: 48%;">
+            <h3>cnn Dropout vs Weight Decay 热力图</h3>
+            <img src="cnn_dropout_wd_heatmap.png" alt="cnn Dropout vs Weight Decay Heatmap" class="metric-img">
+        </div>
+        
+        <div class="chart" style="width: 48%;">
+            <h3>lstm_attention Dropout vs Weight Decay 热力图</h3>
+            <img src="lstm_attention_dropout_wd_heatmap.png" alt="lstm_attention Dropout vs Weight Decay Heatmap" class="metric-img">
+        </div>
+        
+        <div class="chart" style="width: 48%;">
+            <h3>lstm Dropout vs Weight Decay 热力图</h3>
+            <img src="lstm_dropout_wd_heatmap.png" alt="lstm Dropout vs Weight Decay Heatmap" class="metric-img">
+        </div>
+        
+        <div class="chart" style="width: 48%;">
+            <h3>bilstm Dropout vs Weight Decay 热力图</h3>
+            <img src="bilstm_dropout_wd_heatmap.png" alt="bilstm Dropout vs Weight Decay Heatmap" class="metric-img">
+        </div>
+        
     </div>
     
-    <h2>最佳模型对比</h2>
-    <img src="best_model_comparison.png" alt="Best Model Comparison" style="max-width: 100%;">
-    
-    <h2>参数影响分析</h2>
+    <h2>模型性能指标对比</h2>
     <div class="container">
     
-    <h2>参数影响分析</h2>
-    <div class="container">
-    
-                <div class="chart" style="width: 48%;">
-                    <h3>bilstm_attention dropout vs hd</h3>
-                    <img src="bilstm_attention_dropout_hd_heatmap.png" alt="bilstm_attention dropout vs hd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>cnn ch vs k</h3>
-                    <img src="cnn_ch_k_heatmap.png" alt="cnn ch vs k" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>bilstm_attention dropout vs wd</h3>
-                    <img src="bilstm_attention_dropout_wd_heatmap.png" alt="bilstm_attention dropout vs wd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>cnn dropout vs hd</h3>
-                    <img src="cnn_dropout_hd_heatmap.png" alt="cnn dropout vs hd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>cnn dropout vs wd</h3>
-                    <img src="cnn_dropout_wd_heatmap.png" alt="cnn dropout vs wd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>lstm_attention dropout vs wd</h3>
-                    <img src="lstm_attention_dropout_wd_heatmap.png" alt="lstm_attention dropout vs wd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>lstm_attention dropout vs hd</h3>
-                    <img src="lstm_attention_dropout_hd_heatmap.png" alt="lstm_attention dropout vs hd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>lstm dropout vs hd</h3>
-                    <img src="lstm_dropout_hd_heatmap.png" alt="lstm dropout vs hd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>bilstm dropout vs hd</h3>
-                    <img src="bilstm_dropout_hd_heatmap.png" alt="bilstm dropout vs hd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>lstm dropout vs wd</h3>
-                    <img src="lstm_dropout_wd_heatmap.png" alt="lstm dropout vs wd" class="metric-img">
-                </div>
-                
-                <div class="chart" style="width: 48%;">
-                    <h3>bilstm dropout vs wd</h3>
-                    <img src="bilstm_dropout_wd_heatmap.png" alt="bilstm dropout vs wd" class="metric-img">
-                </div>
-                
+            <div class="chart" style="width: 95%;">
+                <h3>按Dropout分组的模型性能比较</h3>
+                <img src="model_metrics_by_dropout.png" alt="Model metrics comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>按Weight Decay分组的模型性能比较</h3>
+                <img src="model_metrics_by_weight_decay.png" alt="Model metrics comparison" class="metric-img">
+            </div>
+            
     </div>
     
+    <h2>各模型最佳配置的指标对比</h2>
+    <div class="container">
+    
+            <div class="chart" style="width: 95%;">
+                <h3>val_acc 最佳配置对比</h3>
+                <img src="val_acc_best_config_comparison.png" alt="val_acc best config comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>train_acc 最佳配置对比</h3>
+                <img src="train_acc_best_config_comparison.png" alt="train_acc best config comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>val_loss 最佳配置对比</h3>
+                <img src="val_loss_best_config_comparison.png" alt="val_loss best config comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>train_loss 最佳配置对比</h3>
+                <img src="train_loss_best_config_comparison.png" alt="train_loss best config comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>f1 最佳配置对比</h3>
+                <img src="f1_best_config_comparison.png" alt="f1 best config comparison" class="metric-img">
+            </div>
+            
+            <div class="chart" style="width: 95%;">
+                <h3>recall 最佳配置对比</h3>
+                <img src="recall_best_config_comparison.png" alt="recall best config comparison" class="metric-img">
+            </div>
+            
+    </div>
+    
+    <h2>各模型不同Dropout值的性能比较</h2>
+    
+        <h3>bilstm 模型不同Dropout值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同dropout值)</h4>
+                    <img src="bilstm_val_acc_dp_comparison.png" alt="bilstm val_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同dropout值)</h4>
+                    <img src="bilstm_train_acc_dp_comparison.png" alt="bilstm train_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同dropout值)</h4>
+                    <img src="bilstm_val_loss_dp_comparison.png" alt="bilstm val_loss dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同dropout值)</h4>
+                    <img src="bilstm_train_loss_dp_comparison.png" alt="bilstm train_loss dropout comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>bilstm_attention 模型不同Dropout值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同dropout值)</h4>
+                    <img src="bilstm_attention_val_acc_dp_comparison.png" alt="bilstm_attention val_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同dropout值)</h4>
+                    <img src="bilstm_attention_train_acc_dp_comparison.png" alt="bilstm_attention train_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同dropout值)</h4>
+                    <img src="bilstm_attention_val_loss_dp_comparison.png" alt="bilstm_attention val_loss dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同dropout值)</h4>
+                    <img src="bilstm_attention_train_loss_dp_comparison.png" alt="bilstm_attention train_loss dropout comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>cnn 模型不同Dropout值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同dropout值)</h4>
+                    <img src="cnn_val_acc_dp_comparison.png" alt="cnn val_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同dropout值)</h4>
+                    <img src="cnn_train_acc_dp_comparison.png" alt="cnn train_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同dropout值)</h4>
+                    <img src="cnn_val_loss_dp_comparison.png" alt="cnn val_loss dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同dropout值)</h4>
+                    <img src="cnn_train_loss_dp_comparison.png" alt="cnn train_loss dropout comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>lstm 模型不同Dropout值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同dropout值)</h4>
+                    <img src="lstm_val_acc_dp_comparison.png" alt="lstm val_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同dropout值)</h4>
+                    <img src="lstm_train_acc_dp_comparison.png" alt="lstm train_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同dropout值)</h4>
+                    <img src="lstm_val_loss_dp_comparison.png" alt="lstm val_loss dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同dropout值)</h4>
+                    <img src="lstm_train_loss_dp_comparison.png" alt="lstm train_loss dropout comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>lstm_attention 模型不同Dropout值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同dropout值)</h4>
+                    <img src="lstm_attention_val_acc_dp_comparison.png" alt="lstm_attention val_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同dropout值)</h4>
+                    <img src="lstm_attention_train_acc_dp_comparison.png" alt="lstm_attention train_acc dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同dropout值)</h4>
+                    <img src="lstm_attention_val_loss_dp_comparison.png" alt="lstm_attention val_loss dropout comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同dropout值)</h4>
+                    <img src="lstm_attention_train_loss_dp_comparison.png" alt="lstm_attention train_loss dropout comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+    <h2>各模型不同Weight Decay值的性能比较</h2>
+    
+        <h3>bilstm 模型不同Weight Decay值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同weight_decay值)</h4>
+                    <img src="bilstm_val_acc_wd_comparison.png" alt="bilstm val_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同weight_decay值)</h4>
+                    <img src="bilstm_train_acc_wd_comparison.png" alt="bilstm train_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同weight_decay值)</h4>
+                    <img src="bilstm_val_loss_wd_comparison.png" alt="bilstm val_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同weight_decay值)</h4>
+                    <img src="bilstm_train_loss_wd_comparison.png" alt="bilstm train_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>bilstm_attention 模型不同Weight Decay值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同weight_decay值)</h4>
+                    <img src="bilstm_attention_val_acc_wd_comparison.png" alt="bilstm_attention val_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同weight_decay值)</h4>
+                    <img src="bilstm_attention_train_acc_wd_comparison.png" alt="bilstm_attention train_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同weight_decay值)</h4>
+                    <img src="bilstm_attention_val_loss_wd_comparison.png" alt="bilstm_attention val_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同weight_decay值)</h4>
+                    <img src="bilstm_attention_train_loss_wd_comparison.png" alt="bilstm_attention train_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>cnn 模型不同Weight Decay值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同weight_decay值)</h4>
+                    <img src="cnn_val_acc_wd_comparison.png" alt="cnn val_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同weight_decay值)</h4>
+                    <img src="cnn_train_acc_wd_comparison.png" alt="cnn train_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同weight_decay值)</h4>
+                    <img src="cnn_val_loss_wd_comparison.png" alt="cnn val_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同weight_decay值)</h4>
+                    <img src="cnn_train_loss_wd_comparison.png" alt="cnn train_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>lstm 模型不同Weight Decay值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同weight_decay值)</h4>
+                    <img src="lstm_val_acc_wd_comparison.png" alt="lstm val_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同weight_decay值)</h4>
+                    <img src="lstm_train_acc_wd_comparison.png" alt="lstm train_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同weight_decay值)</h4>
+                    <img src="lstm_val_loss_wd_comparison.png" alt="lstm val_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同weight_decay值)</h4>
+                    <img src="lstm_train_loss_wd_comparison.png" alt="lstm train_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
+        <h3>lstm_attention 模型不同Weight Decay值的性能比较</h3>
+        <div class="container">
+        
+                <div class="chart" style="width: 48%;">
+                    <h4>val_acc (不同weight_decay值)</h4>
+                    <img src="lstm_attention_val_acc_wd_comparison.png" alt="lstm_attention val_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_acc (不同weight_decay值)</h4>
+                    <img src="lstm_attention_train_acc_wd_comparison.png" alt="lstm_attention train_acc weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>val_loss (不同weight_decay值)</h4>
+                    <img src="lstm_attention_val_loss_wd_comparison.png" alt="lstm_attention val_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h4>train_loss (不同weight_decay值)</h4>
+                    <img src="lstm_attention_train_loss_wd_comparison.png" alt="lstm_attention train_loss weight_decay comparison" class="metric-img">
+                </div>
+                
+        </div>
+        
     <h2>结论与建议</h2>
-    <p>根据性能对比分析，我们得出以下结论：</p>
+    <p>根据对不同模型、不同dropout和weight_decay参数配置的性能分析，我们得出以下结论：</p>
     <ul>
     
-        <li>最佳性能模型是 <strong>lstm</strong>，验证准确率达到 90.07%</li>
-        <li>模型性能排名（按验证准确率）：lstm (90.07%), bilstm (89.90%), lstm_attention (89.60%), bilstm_attention (89.44%), cnn (88.84%)</li>
-    
-        <li>对于 lstm 模型，最佳超参数配置为：dropout=0.30, 
-            weight_decay=0.000010</li>
+        <li>整体性能最佳的模型是 <strong>lstm</strong>，验证准确率达到 90.07%</li>
+        <li>该模型的最佳参数配置是：dropout=0.30, weight_decay=0.000010</li>
+    <li>各模型的最佳参数配置：</li><ul>
+            <li>bilstm: dropout=0.10, weight_decay=0.000100</li>
         
+            <li>bilstm_attention: dropout=0.20, weight_decay=0.000100</li>
+        
+            <li>cnn: dropout=0.10, weight_decay=0.010000</li>
+        
+            <li>lstm: dropout=0.30, weight_decay=0.000010</li>
+        
+            <li>lstm_attention: dropout=0.40, weight_decay=0.000010</li>
+        </ul>
+        <li>通过热力图可以观察到，dropout和weight_decay的不同组合对模型性能有显著影响</li>
+        <li>较小的weight_decay值（如1e-5）通常能够获得更好的验证准确率</li>
+        <li>过高或过低的dropout值都可能导致模型性能下降</li>
     </ul>
     
     <footer>
-        <p>此报告由模型对比分析工具自动生成</p>
-        <p>生成时间: 2025-04-15 18:01:36</p>
+        <p>此报告由模型对比分析工具自动生成，专注于Dropout和Weight Decay参数的影响分析</p>
+        <p>生成时间: 2025-04-15 20:00:33</p>
     </footer>
 </body>
 </html>
