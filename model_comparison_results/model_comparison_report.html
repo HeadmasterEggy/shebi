@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>模型训练性能对比分析</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2, h3 { color: #2c3e50; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f2f2f2; }
+        tr:hover { background-color: #f5f5f5; }
+        .metric-img { max-width: 100%; margin-top: 10px; }
+        .container { display: flex; flex-wrap: wrap; }
+        .chart { margin: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 15px; }
+        .highlight { background-color: #e8f4f8; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>模型训练性能对比分析报告</h1>
+    
+    <h2>最佳性能模型</h2>
+    <p>整体最佳模型: <strong>lstm (验证准确率: 90.07%)</strong></p>
+    <p>参数配置: dropout=0.30, weight_decay=0.000010</p><p>其他参数: batch_size=64, hidden_dim=128, 
+                embedding_dim=100</p>
+    
+    <h2>各模型最佳配置</h2>
+    <table>
+        <tr>
+            <th>模型</th>
+            <th>验证准确率</th>
+            <th>训练准确率</th>
+            <th>F1分数</th>
+            <th>召回率</th>
+            <th>Batch Size</th>
+            <th>Dropout</th>
+            <th>Hidden Dim</th>
+            <th>Embedding Dim</th>
+            <th>最佳Epoch</th>
+        </tr>
+    
+        <tr class="">
+            <td>bilstm</td>
+            <td>89.90%</td>
+            <td>93.14%</td>
+            <td>93.14%</td>
+            <td>93.14%</td>
+            <td>64</td>
+            <td>0.1</td>
+            <td>128</td>
+            <td>100</td>
+            <td>28</td>
+        </tr>
+        
+        <tr class="">
+            <td>bilstm_attention</td>
+            <td>89.44%</td>
+            <td>91.12%</td>
+            <td>91.12%</td>
+            <td>91.12%</td>
+            <td>64</td>
+            <td>0.2</td>
+            <td>128</td>
+            <td>100</td>
+            <td>22</td>
+        </tr>
+        
+        <tr class="">
+            <td>cnn</td>
+            <td>88.84%</td>
+            <td>93.19%</td>
+            <td>93.19%</td>
+            <td>93.19%</td>
+            <td>64</td>
+            <td>0.1</td>
+            <td>128</td>
+            <td>100</td>
+            <td>99</td>
+        </tr>
+        
+        <tr class="highlight">
+            <td>lstm</td>
+            <td>90.07%</td>
+            <td>94.56%</td>
+            <td>94.56%</td>
+            <td>94.56%</td>
+            <td>64</td>
+            <td>0.3</td>
+            <td>128</td>
+            <td>100</td>
+            <td>35</td>
+        </tr>
+        
+        <tr class="">
+            <td>lstm_attention</td>
+            <td>89.60%</td>
+            <td>92.24%</td>
+            <td>92.24%</td>
+            <td>92.24%</td>
+            <td>64</td>
+            <td>0.2</td>
+            <td>128</td>
+            <td>100</td>
+            <td>24</td>
+        </tr>
+        
+    </table>
+    
+    <h2>性能指标对比图</h2>
+    <div class="container">
+    
+    </div>
+    
+    <h2>最佳模型对比</h2>
+    <img src="best_model_comparison.png" alt="Best Model Comparison" style="max-width: 100%;">
+    
+    <h2>参数影响分析</h2>
+    <div class="container">
+    
+    <h2>参数影响分析</h2>
+    <div class="container">
+    
+                <div class="chart" style="width: 48%;">
+                    <h3>bilstm_attention dropout vs hd</h3>
+                    <img src="bilstm_attention_dropout_hd_heatmap.png" alt="bilstm_attention dropout vs hd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>cnn ch vs k</h3>
+                    <img src="cnn_ch_k_heatmap.png" alt="cnn ch vs k" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>bilstm_attention dropout vs wd</h3>
+                    <img src="bilstm_attention_dropout_wd_heatmap.png" alt="bilstm_attention dropout vs wd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>cnn dropout vs hd</h3>
+                    <img src="cnn_dropout_hd_heatmap.png" alt="cnn dropout vs hd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>cnn dropout vs wd</h3>
+                    <img src="cnn_dropout_wd_heatmap.png" alt="cnn dropout vs wd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>lstm_attention dropout vs wd</h3>
+                    <img src="lstm_attention_dropout_wd_heatmap.png" alt="lstm_attention dropout vs wd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>lstm_attention dropout vs hd</h3>
+                    <img src="lstm_attention_dropout_hd_heatmap.png" alt="lstm_attention dropout vs hd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>lstm dropout vs hd</h3>
+                    <img src="lstm_dropout_hd_heatmap.png" alt="lstm dropout vs hd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>bilstm dropout vs hd</h3>
+                    <img src="bilstm_dropout_hd_heatmap.png" alt="bilstm dropout vs hd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>lstm dropout vs wd</h3>
+                    <img src="lstm_dropout_wd_heatmap.png" alt="lstm dropout vs wd" class="metric-img">
+                </div>
+                
+                <div class="chart" style="width: 48%;">
+                    <h3>bilstm dropout vs wd</h3>
+                    <img src="bilstm_dropout_wd_heatmap.png" alt="bilstm dropout vs wd" class="metric-img">
+                </div>
+                
+    </div>
+    
+    <h2>结论与建议</h2>
+    <p>根据性能对比分析，我们得出以下结论：</p>
+    <ul>
+    
+        <li>最佳性能模型是 <strong>lstm</strong>，验证准确率达到 90.07%</li>
+        <li>模型性能排名（按验证准确率）：lstm (90.07%), bilstm (89.90%), lstm_attention (89.60%), bilstm_attention (89.44%), cnn (88.84%)</li>
+    
+        <li>对于 lstm 模型，最佳超参数配置为：dropout=0.30, 
+            weight_decay=0.000010</li>
+        
+    </ul>
+    
+    <footer>
+        <p>此报告由模型对比分析工具自动生成</p>
+        <p>生成时间: 2025-04-15 18:01:36</p>
+    </footer>
+</body>
+</html>
+    
