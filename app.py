@@ -185,10 +185,10 @@ def initialize_data():
 
     # 创建 DataLoader
     test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
 
     val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.lstm_batch_size, shuffle=True, num_workers=0)
+    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
 
     return word2id, test_dataloader, val_dataloader, train_array, train_label
 

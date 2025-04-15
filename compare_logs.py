@@ -10,11 +10,46 @@ import seaborn as sns
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
+# 添加一个辅助函数来检测bilstm_attention文件
+def is_bilstm_attention_file(filename):
+    """检查是否为bilstm_attention模型文件"""
+    basename = os.path.basename(filename).lower()
+    # 检查多种可能的格式组合
+    patterns = [
+        'bilstm_attention', 'bilstm-attention', 'bilstm_att', 'bilstm-att',
+        'bilstmattention', 'bilstm-attn', 'bilstm_attn', 'bi_lstm_attention'
+    ]
+    for pattern in patterns:
+        if pattern in basename:
+            print(f"发现BiLSTM Attention文件: {basename} (匹配模式: {pattern})")
+            return True
+    return False
+
 def parse_filename(filename):
     """从文件名解析模型参数"""
     basename = os.path.basename(filename)
+    print(f"正在解析文件: {basename}")
     
-    # CNN简化模式: cnn_dp0.1_wd0.011.csv
+    # 新增: 直接检查常见模型名称
+    model_type = None
+    if 'lstm_attention' in basename.lower() or 'lstm-attention' in basename.lower():
+        model_type = 'lstm_attention'
+        print(f"直接匹配到LSTM Attention模型: {basename}")
+    elif 'bilstm_attention' in basename.lower() or 'bilstm-attention' in basename.lower():
+        model_type = 'bilstm_attention'
+        print(f"直接匹配到BiLSTM Attention模型: {basename}")
+    
+    # 特别检查是否为bilstm_attention文件
+    if is_bilstm_attention_file(filename):
+        model_type = 'bilstm_attention'
+        print(f"直接匹配到BiLSTM Attention模型: {basename}")
+    
+    # 其他特定模型检查
+    elif 'lstm_attention' in basename.lower() or 'lstm-attention' in basename.lower() or 'lstm_att' in basename.lower():
+        model_type = 'lstm_attention'
+        print(f"直接匹配到LSTM Attention模型: {basename}")
+    
+    # CNN简化模式: cnn_dp(\d+\.\d+)_wd(\d+\.\d+).csv
     simple_cnn_pattern = r'cnn_dp(\d+\.\d+)_wd(\d+\.\d+)'
     simple_cnn_match = re.match(simple_cnn_pattern, basename)
     if (simple_cnn_match):
@@ -30,14 +65,35 @@ def parse_filename(filename):
             'kernel_size': 3   # 默认值
         }
     
-    # LSTM简化模式: lstm_dp0.3_wd0.001.csv 或 lstmattention_dp0.3_wd0.001.csv
-    simple_lstm_pattern = r'(lstm|lstmattention|bilstm|bilstmattention)_dp(\d+\.\d+)_wd(\d+\.\d+)'
-    simple_lstm_match = re.match(simple_lstm_pattern, basename)
-    if (simple_lstm_match):
+    # LSTM简化模式 (包含科学计数法权重衰减): lstm_dp0.3_wd0.001.csv 或 bilstm_dp0.3_wd1e-5.csv
+    # 修复：支持不同格式的模型名称和科学计数表示法，更灵活的匹配方式
+    simple_lstm_pattern = r'(lstm|lstm[_\-]attention|bilstm|bilstm[_\-]attention)[-_]dp(\d+\.\d+)[-_]wd((?:\d+\.\d+)|(?:\d+e-\d+))'
+    simple_lstm_match = re.match(simple_lstm_pattern, basename, re.IGNORECASE)
+    if (simple_lstm_match or model_type):
+        # 使用直接检测到的模型类型，或从正则表达式中获取
+        if model_type:
+            model_name = model_type
+        else:
+            # 标准化模型名称，确保一致性
+            model_name = simple_lstm_match.group(1).lower().replace('-', '_')
+        
+        # 从正则表达式中提取dropout和weight_decay
+        if simple_lstm_match:
+            dropout = float(simple_lstm_match.group(2))
+            weight_decay = float(simple_lstm_match.group(3))
+            print(f"匹配LSTM模式: {model_name}, dropout={dropout}, weight_decay={weight_decay}")
+        else:
+            # 从文件名中尝试提取参数
+            dp_match = re.search(r'dp(\d+\.\d+)', basename)
+            wd_match = re.search(r'wd((?:\d+\.\d+)|(?:\d+e-\d+))', basename)
+            
+            dropout = float(dp_match.group(1)) if dp_match else 0.5
+            weight_decay = float(wd_match.group(1)) if wd_match else 0.001
+        
         return {
-            'model': simple_lstm_match.group(1),
-            'dropout': float(simple_lstm_match.group(2)),
-            'weight_decay': float(simple_lstm_match.group(3)),
+            'model': model_name,
+            'dropout': dropout,
+            'weight_decay': weight_decay,
             # 为缺失参数设置默认值
             'batch_size': 64,  # 默认值
             'hidden_dim': 128,  # 默认值
@@ -72,23 +128,53 @@ def parse_filename(filename):
             'weight_decay': float(base_match.group(6))
         }
     
-    # 尝试匹配任何包含模型名称的文件
-    fallback_pattern = r'(lstm|lstmattention|bilstm|bilstmattention|cnn|rnn|gru).*'
-    fallback_match = re.match(fallback_pattern, basename)
+    # 尝试匹配任何包含模型名称的文件 - 扩展和修复模式
+    fallback_pattern = r'(lstm|lstm[_\-]att(?:ention)?|bilstm|bilstm[_\-]att(?:ention)?|cnn|gru|rnn).*'
+    fallback_match = re.match(fallback_pattern, basename, re.IGNORECASE)
     if (fallback_match):
-        print(f"使用后备模式解析文件: {basename}, 模型类型: {fallback_match.group(1)}")
+        model_name = fallback_match.group(1).lower()
+        # 处理复合名称
+        if 'bilstm' in model_name and ('att' in model_name or 'attention' in model_name):
+            model_name = 'bilstm_attention'
+        elif 'lstm' in model_name and ('att' in model_name or 'attention' in model_name):
+            model_name = 'lstm_attention'
+        else:
+            model_name = model_name.replace('-', '_')
+        
+        print(f"使用后备模式解析文件: {basename}, 模型类型: {model_name}")
         # 尝试从文件名中提取参数
         dp_match = re.search(r'dp(\d+\.\d+)', basename)
-        wd_match = re.search(r'wd(\d+\.\d+)', basename)
+        
+        # 同时支持普通小数和科学计数法的weight_decay
+        wd_match = re.search(r'wd((?:\d+\.\d+)|(?:\d+e-\d+))', basename)
         
         return {
-            'model': fallback_match.group(1),
+            'model': model_name,
             'dropout': float(dp_match.group(1)) if dp_match else 0.5,
             'weight_decay': float(wd_match.group(1)) if wd_match else 0.001,
             'batch_size': 64,  # 默认值
             'hidden_dim': 128,  # 默认值
             'embedding_dim': 100,  # 默认值
         }
+    
+    # 极端情况：尝试直接从文件名中寻找关键字
+    basename_lower = basename.lower()
+    if 'bilstm' in basename_lower:
+        if 'att' in basename_lower or 'attention' in basename_lower:
+            print(f"关键字匹配到BiLSTM Attention: {basename}")
+            
+            # 尝试从文件名中提取参数
+            dp_match = re.search(r'dp(\d+\.\d+)', basename)
+            wd_match = re.search(r'wd((?:\d+\.\d+)|(?:\d+e-\d+))', basename)
+            
+            return {
+                'model': 'bilstm_attention',
+                'dropout': float(dp_match.group(1)) if dp_match else 0.5,
+                'weight_decay': float(wd_match.group(1)) if wd_match else 0.001,
+                'batch_size': 64,
+                'hidden_dim': 128,
+                'embedding_dim': 100,
+            }
     
     print(f"无法解析的文件名格式: {basename}")
     return None
@@ -103,12 +189,30 @@ def read_log_files(log_dir):
     
     print(f"找到 {len(log_files)} 个日志文件")
     
+    # 添加日志文件列表的输出，帮助排查问题
+    print("日志文件列表:")
+    for i, file in enumerate(log_files[:10]):  # 只输出前10个以避免过多
+        print(f"  {i+1}. {os.path.basename(file)}")
+    if len(log_files) > 10:
+        print(f"  ... 以及另外 {len(log_files) - 10} 个文件")
+    
+    # 按模型类型计数文件
+    model_counts = {}
+    model_examples = {}
+    
     log_data = []
     for file in log_files:
         params = parse_filename(file)
         if (not params):
             print(f"无法解析文件名: {file}")
             continue
+        
+        model_name = params['model']
+        if model_name in model_counts:
+            model_counts[model_name] += 1
+        else:
+            model_counts[model_name] = 1
+            model_examples[model_name] = os.path.basename(file)
             
         try:
             df = pd.read_csv(file)
@@ -123,10 +227,15 @@ def read_log_files(log_dir):
             # 添加文件名列，便于追踪
             df['filename'] = os.path.basename(file)
             log_data.append(df)
-            print(f"成功加载: {file}, 包含 {len(df)} 条记录")
+            print(f"成功加载: {file}, 包含 {len(df)} 条记录, 模型类型: {model_name}")
         except Exception as e:
             print(f"读取文件 {file} 时发生错误: {e}")
-            
+    
+    # 打印各模型文件数量统计
+    print("\n各模型文件数量统计:")
+    for model, count in model_counts.items():
+        print(f"  - {model}: {count}个文件, 示例: {model_examples.get(model, 'N/A')}")
+    
     return log_data
 
 def create_comparison_plots(log_data, output_dir):
@@ -138,9 +247,28 @@ def create_comparison_plots(log_data, output_dir):
     # 合并所有日志数据
     all_logs = pd.concat(log_data, ignore_index=True)
     
-    # 获取模型类型列表
+    # 获取模型类型列表并打印模型和数据量
     models = all_logs['model'].unique()
-    print(f"发现的模型类型: {models}")
+    print(f"\n发现的模型类型: {models}")
+    
+    # 特别检查是否有lstm_attention和bilstm_attention模型
+    has_lstm_attention = 'lstm_attention' in models
+    has_bilstm_attention = 'bilstm_attention' in models
+    print(f"检查特定模型: lstm_attention: {'存在' if has_lstm_attention else '不存在'}, "
+          f"bilstm_attention: {'存在' if has_bilstm_attention else '不存在'}")
+    
+    # 打印每种模型的数据量
+    for model in models:
+        model_count = len(all_logs[all_logs['model'] == model])
+        unique_configs = all_logs[all_logs['model'] == model]['filename'].nunique()
+        print(f"  - {model}: {model_count}条记录, {unique_configs}个配置")
+        
+        # 查找每个模型的参数组合
+        if model in ['lstm_attention', 'bilstm_attention']:
+            print(f"    {model}的参数配置:")
+            model_params = all_logs[all_logs['model'] == model][['dropout', 'weight_decay', 'filename']].drop_duplicates()
+            for _, params in model_params.iterrows():
+                print(f"      dropout={params['dropout']}, weight_decay={params['weight_decay']}, 文件={params['filename']}")
     
     # 创建结果文件夹
     os.makedirs(output_dir, exist_ok=True)
@@ -185,10 +313,10 @@ def create_comparison_plots(log_data, output_dir):
     summary_df.to_csv(os.path.join(output_dir, "model_performance_summary.csv"), index=False)
     print(f"模型性能摘要已保存至 {os.path.join(output_dir, 'model_performance_summary.csv')}")
     
-    # 2. 为每个指标绘制对比图 - 使用改进的方法减少拥挤
-    # 2.1 仅使用每个模型的最佳配置进行整体对比图
+    # 2. 为每个指标绘制对比图 - 增加图表大小
+    # 2.1 仅使用每个模型的最佳配置进行整体对比图 
     for metric in metrics:
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(16, 10))  # 增加图表大小
         
         # 获取每个模型的最佳配置
         best_configs = summary_df.loc[summary_df.groupby('model')['val_acc'].idxmax()]
@@ -213,7 +341,7 @@ def create_comparison_plots(log_data, output_dir):
                     # 只有当这些参数不是所有配置都相同时才添加到标签
                     if (len(best_configs[best_configs['model']=='cnn']['channels'].unique()) > 1):
                         label = f"ch={ch}, k={k}, " + label
-            elif (model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
+            elif (model in ['lstm', 'lstm_attention', 'bilstm', 'bilstm_attention']):
                 # LSTM及其变体的标签
                 label = f"{model} (dp={row['dropout']:.2f}, wd={row['weight_decay']:.6f})"
                 if ('batch_size' in row and 'hidden_dim' in row):
@@ -237,9 +365,9 @@ def create_comparison_plots(log_data, output_dir):
         
         # 改进图例显示
         if (any(model == 'cnn' for model in best_configs['model'].values)):
-            plt.legend(loc='best', fontsize=10, title="CNN Parameters")
+            plt.legend(loc='best', fontsize=12)  # 增加字体大小
         else:
-            plt.legend(loc='best', fontsize=10)
+            plt.legend(loc='best', fontsize=12)  # 增加字体大小
             
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{metric}_best_config_comparison.png"), dpi=300)
@@ -252,7 +380,7 @@ def create_comparison_plots(log_data, output_dir):
         model_configs = model_data['filename'].unique()
         
         for metric in metrics:
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(14, 8))  # 增加图表大小
             
             for j, config in enumerate(model_configs):
                 config_data = model_data[model_data['filename'] == config]
@@ -274,7 +402,7 @@ def create_comparison_plots(log_data, output_dir):
                         bs = config_data['batch_size'].iloc[0]
                         hd = config_data['hidden_dim'].iloc[0]
                         label += f", bs={bs}, hd={hd}"
-                elif (model in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
+                elif (model in ['lstm', 'lstm_attention', 'bilstm', 'bilstm_attention']):
                     # LSTM及其变体的简化标签
                     dp = config_data['dropout'].iloc[0]
                     wd = config_data['weight_decay'].iloc[0]
@@ -301,15 +429,14 @@ def create_comparison_plots(log_data, output_dir):
             plt.ylabel(metric, fontsize=12)
             plt.grid(True, linestyle='--', alpha=0.7)
             plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-            plt.legend(loc='best', fontsize=9)
+            plt.legend(loc='best', fontsize=11)  # 增加字体大小
             plt.tight_layout()
             plt.savefig(os.path.join(output_dir, f"{model}_{metric}_comparison.png"), dpi=300)
             plt.close()
             
         print(f"已生成 {model} 模型的各指标对比图")
     
-    # 2.3 创建Accuracy和Loss的组合图
-    # 为每个模型创建一个包含训练/验证准确率和损失的组合图
+    # 2.3 创建Accuracy和Loss的组合图 - 增加图表大小
     for model in models:
         # 获取该模型的最佳配置
         model_best_config = summary_df[summary_df['model'] == model].sort_values('val_acc', ascending=False).iloc[0]
@@ -320,7 +447,7 @@ def create_comparison_plots(log_data, output_dir):
         config_data = config_data.sort_values('epoch')
         
         # 创建2x2子图布局
-        fig, axs = plt.subplots(2, 1, figsize=(10, 10), sharex=True)
+        fig, axs = plt.subplots(2, 1, figsize=(14, 12), sharex=True)  # 增加图表大小
         
         # 准确率图
         axs[0].plot(config_data['epoch'], config_data['train_acc'], 'b-o', label='Train Accuracy')
@@ -342,6 +469,7 @@ def create_comparison_plots(log_data, output_dir):
         # 确保X轴是整数
         for ax in axs:
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.tick_params(axis='both', labelsize=12)  # 增加刻度标签大小
         
         plt.tight_layout()
         plt.savefig(os.path.join(output_dir, f"{model}_acc_loss.png"), dpi=300)
@@ -349,68 +477,114 @@ def create_comparison_plots(log_data, output_dir):
         
         print(f"已生成 {model} 模型的准确率/损失组合图")
         
-    # 3. 生成模型最佳性能对比图表
+    # 3. 生成模型最佳性能对比图表 - 增加图表大小
     best_model_data = summary_df.sort_values('val_acc', ascending=False)
     
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(18, 10))  # 增加图表大小
     metrics_to_plot = ['val_acc', 'train_acc', 'f1', 'recall']
     
     for i, metric in enumerate(metrics_to_plot):
         plt.subplot(2, 2, i+1)
         # 修复 seaborn 使用方式：添加 hue 参数并设置 legend=False
-        sns.barplot(x='model', y=metric, hue='model', data=best_model_data, palette='viridis', legend=False)
-        plt.title(f'Best {metric} by Model')
-        plt.xticks(rotation=45)
+        ax = sns.barplot(x='model', y=metric, hue='model', data=best_model_data, palette='viridis', legend=False)
+        plt.title(f'Best {metric} by Model', fontsize=14)
+        plt.xticks(rotation=45, fontsize=12)
+        plt.yticks(fontsize=12)
+        # 在条形上添加数值标签
+        for p in ax.patches:
+            ax.annotate(f'{p.get_height():.2f}', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()), 
+                        ha = 'center', va = 'bottom',
+                        fontsize=10)
         plt.tight_layout()
     
     plt.savefig(os.path.join(output_dir, "best_model_comparison.png"), dpi=300)
     plt.close()
     print(f"已生成最佳模型对比图")
     
-    # 4. 模型参数影响热力图（以val_acc为指标）
+    # 4. 模型参数影响热力图（以val_acc为指标）- 为所有模型创建热力图
     for model in models:
         model_specific = summary_df[summary_df['model'] == model]
-        if (len(model_specific) > 3):  # 确保有足够的数据点
-            plt.figure(figsize=(10, 8))
-            pivot_data = model_specific.pivot_table(
+        print(f"处理{model}的热力图, 有{len(model_specific)}个数据点")
+        
+        # 为每个模型创建热力图，无论数据点数量
+        # 4.1 dropout vs hidden_dim 热力图
+        plt.figure(figsize=(14, 10))  # 增加图表大小
+        try:
+            pivot_data = pd.pivot_table(
+                model_specific,
                 values='val_acc', 
                 index='dropout',
                 columns='hidden_dim',
                 aggfunc='mean'
             )
-            sns.heatmap(pivot_data, annot=True, cmap='YlGnBu', fmt='.2f')
-            plt.title(f'{model} Validation Accuracy by Dropout and Hidden Dimension')
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_dir, f"{model}_param_heatmap.png"), dpi=300)
+            if not pivot_data.empty and pivot_data.shape[0] > 0 and pivot_data.shape[1] > 0:
+                sns.heatmap(pivot_data, annot=True, cmap='YlGnBu', fmt='.2f', annot_kws={"size": 12})
+                plt.title(f'{model} Validation Accuracy: Dropout vs Hidden Dimension', fontsize=16)
+                plt.xlabel('Hidden Dimension', fontsize=14)
+                plt.ylabel('Dropout', fontsize=14)
+                plt.tight_layout()
+                plt.savefig(os.path.join(output_dir, f"{model}_dropout_hd_heatmap.png"), dpi=300)
+                print(f"已生成 {model} dropout vs hidden_dim 热力图")
+            else:
+                print(f"{model} 数据不足以生成 dropout vs hidden_dim 热力图")
+        except Exception as e:
+            print(f"生成 {model} dropout vs hidden_dim 热力图时出错: {e}")
+        finally:
             plt.close()
-            print(f"已生成 {model} 参数热力图")
-            
-            # 专门为CNN模型创建dropout vs weight_decay热力图
-            if (model == 'cnn'):
-                plt.figure(figsize=(10, 8))
-                # 创建dropout vs weight_decay的数据透视表
-                try:
-                    dropout_wd_pivot = model_specific.pivot_table(
-                        values='val_acc',
-                        index='dropout',
-                        columns='weight_decay',
-                        aggfunc='mean'
-                    )
-                    # 确保数据足够才绘图
-                    if (not dropout_wd_pivot.empty and dropout_wd_pivot.shape[0] > 1 and dropout_wd_pivot.shape[1] > 1):
-                        sns.heatmap(dropout_wd_pivot, annot=True, cmap='YlGnBu', fmt='.2f')
-                        plt.title('CNN Validation Accuracy: Dropout vs Weight Decay')
-                        plt.xlabel('Weight Decay')
-                        plt.ylabel('Dropout')
-                        plt.tight_layout()
-                        plt.savefig(os.path.join(output_dir, "cnn_dropout_wd_heatmap.png"), dpi=300)
-                        print("已生成CNN dropout vs weight_decay热力图")
-                    else:
-                        print("CNN数据不足以生成dropout vs weight_decay热力图")
-                except Exception as e:
-                    print(f"生成CNN dropout vs weight_decay热力图时出错: {e}")
-                finally:
-                    plt.close()
+        
+        # 4.2 dropout vs weight_decay 热力图
+        plt.figure(figsize=(14, 10))
+        try:
+            dropout_wd_pivot = pd.pivot_table(
+                model_specific,
+                values='val_acc',
+                index='dropout',
+                columns='weight_decay',
+                aggfunc='mean'
+            )
+            if not dropout_wd_pivot.empty and dropout_wd_pivot.shape[0] > 0 and dropout_wd_pivot.shape[1] > 0:
+                sns.heatmap(dropout_wd_pivot, annot=True, cmap='YlGnBu', fmt='.2f', annot_kws={"size": 12})
+                plt.title(f'{model} Validation Accuracy: Dropout vs Weight Decay', fontsize=16)
+                plt.xlabel('Weight Decay', fontsize=14)
+                plt.ylabel('Dropout', fontsize=14)
+                plt.tight_layout()
+                plt.savefig(os.path.join(output_dir, f"{model}_dropout_wd_heatmap.png"), dpi=300)
+                print(f"已生成 {model} dropout vs weight_decay 热力图")
+            else:
+                print(f"{model} 数据不足以生成 dropout vs weight_decay 热力图")
+        except Exception as e:
+            print(f"生成 {model} dropout vs weight_decay 热力图时出错: {e}")
+        finally:
+            plt.close()
+        
+        # 删除 batch_size vs hidden_dim 热力图的代码，因为用户不需要这个对比
+        
+        # 4.3 如果是CNN模型，尝试生成channels vs kernel_size热力图
+        if model == 'cnn' and 'channels' in model_specific.columns and 'kernel_size' in model_specific.columns:
+            plt.figure(figsize=(14, 10))
+            try:
+                ch_k_pivot = pd.pivot_table(
+                    model_specific,
+                    values='val_acc',
+                    index='channels',
+                    columns='kernel_size',
+                    aggfunc='mean'
+                )
+                if not ch_k_pivot.empty and ch_k_pivot.shape[0] > 0 and ch_k_pivot.shape[1] > 0:
+                    sns.heatmap(ch_k_pivot, annot=True, cmap='YlGnBu', fmt='.2f', annot_kws={"size": 12})
+                    plt.title('CNN Validation Accuracy: Channels vs Kernel Size', fontsize=16)
+                    plt.xlabel('Kernel Size', fontsize=14)
+                    plt.ylabel('Channels', fontsize=14)
+                    plt.tight_layout()
+                    plt.savefig(os.path.join(output_dir, f"cnn_ch_k_heatmap.png"), dpi=300)
+                    print("已生成CNN channels vs kernel_size热力图")
+                else:
+                    print("CNN数据不足以生成channels vs kernel_size热力图")
+            except Exception as e:
+                print(f"生成CNN channels vs kernel_size热力图时出错: {e}")
+            finally:
+                plt.close()
 
 def generate_html_report(output_dir):
     """生成HTML格式的报告，展示所有生成的图表和分析结果"""
@@ -459,7 +633,7 @@ def generate_html_report(output_dir):
         if ('batch_size' in best_overall and 'hidden_dim' in best_overall):
             html_content += f"""<p>其他参数: batch_size={best_overall.get('batch_size', 'N/A')}, hidden_dim={best_overall.get('hidden_dim', 'N/A')}, 
                 embedding_dim={best_overall.get('embedding_dim', 'N/A')}</p>"""
-    elif (best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
+    elif (best_overall['model'] in ['lstm', 'lstm_attention', 'bilstm', 'bilstm_attention']):
         html_content += f"""<p>参数配置: dropout={best_overall['dropout']:.2f}, weight_decay={best_overall['weight_decay']:.6f}</p>"""
         if ('batch_size' in best_overall and 'hidden_dim' in best_overall):
             html_content += f"""<p>其他参数: batch_size={best_overall.get('batch_size', 'N/A')}, hidden_dim={best_overall.get('hidden_dim', 'N/A')}, 
@@ -531,16 +705,26 @@ def generate_html_report(output_dir):
     <div class="container">
     """
     
-    # 添加参数热力图
+    # 添加参数热力图 - 更新为支持所有模型的多种热力图
+    html_content += """
+    <h2>参数影响分析</h2>
+    <div class="container">
+    """
+    
+    # 为所有热力图添加
+    heatmap_types = ['dropout_hd_heatmap', 'dropout_wd_heatmap', 'ch_k_heatmap']
+    
     for file in os.listdir(output_dir):
-        if (file.endswith("_param_heatmap.png")):
-            model_name = file.split("_param_heatmap.png")[0]
-            html_content += f"""
-            <div class="chart">
-                <h3>{model_name} 参数影响</h3>
-                <img src="{file}" alt="{model_name} Parameter Analysis" class="metric-img">
-            </div>
-            """
+        for hm_type in heatmap_types:
+            if hm_type in file and file.endswith(".png"):
+                model_name = file.split(f"_{hm_type}.png")[0]
+                param_name = hm_type.replace('_heatmap', '').replace('_', ' vs ')
+                html_content += f"""
+                <div class="chart" style="width: 48%;">
+                    <h3>{model_name} {param_name}</h3>
+                    <img src="{file}" alt="{model_name} {param_name}" class="metric-img">
+                </div>
+                """
     
     html_content += """
     </div>
@@ -563,7 +747,7 @@ def generate_html_report(output_dir):
         <li>对于 {best_overall['model']} 模型，最佳超参数配置为：dropout={best_overall['dropout']:.2f}, 
             weight_decay={best_overall['weight_decay']:.6f}</li>
         """
-    elif (best_overall['model'] in ['lstm', 'lstmattention', 'bilstm', 'bilstmattention']):
+    elif (best_overall['model'] in ['lstm', 'lstm_attention', 'bilstm', 'bilstm_attention']):
         html_content += f"""
         <li>对于 {best_overall['model']} 模型，最佳超参数配置为：dropout={best_overall['dropout']:.2f}, 
             weight_decay={best_overall['weight_decay']:.6f}</li>
