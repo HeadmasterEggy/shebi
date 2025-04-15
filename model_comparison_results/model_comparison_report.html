@@ -66,15 +66,15 @@
         
         <tr class="">
             <td>lstm</td>
-            <td>89.94%</td>
-            <td>93.68%</td>
-            <td>93.68%</td>
-            <td>93.68%</td>
+            <td>89.77%</td>
+            <td>93.18%</td>
+            <td>93.18%</td>
+            <td>93.18%</td>
             <td>64</td>
-            <td>0.3</td>
+            <td>0.2</td>
             <td>128</td>
             <td>100</td>
-            <td>34</td>
+            <td>43</td>
         </tr>
         
     </table>
@@ -91,6 +91,11 @@
     <div class="container">
     
             <div class="chart">
+                <h3>cnn 参数影响</h3>
+                <img src="cnn_param_heatmap.png" alt="cnn Parameter Analysis" class="metric-img">
+            </div>
+            
+            <div class="chart">
                 <h3>lstm 参数影响</h3>
                 <img src="lstm_param_heatmap.png" alt="lstm Parameter Analysis" class="metric-img">
             </div>
@@ -100,11 +105,6 @@
                 <img src="bilstm_param_heatmap.png" alt="bilstm Parameter Analysis" class="metric-img">
             </div>
             
-            <div class="chart">
-                <h3>cnn 参数影响</h3>
-                <img src="cnn_param_heatmap.png" alt="cnn Parameter Analysis" class="metric-img">
-            </div>
-            
     </div>
     
     <h2>结论与建议</h2>
@@ -112,7 +112,7 @@
     <ul>
     
         <li>最佳性能模型是 <strong>bilstm</strong>，验证准确率达到 89.96%</li>
-        <li>模型性能排名（按验证准确率）：bilstm (89.96%), lstm (89.94%), cnn (88.84%)</li>
+        <li>模型性能排名（按验证准确率）：bilstm (89.96%), lstm (89.77%), cnn (88.84%)</li>
     
         <li>对于 bilstm 模型，最佳超参数配置为：dropout=0.50, 
             weight_decay=0.000100</li>
@@ -121,7 +121,7 @@
     
     <footer>
         <p>此报告由模型对比分析工具自动生成</p>
-        <p>生成时间: 2025-04-14 20:09:07</p>
+        <p>生成时间: 2025-04-14 23:19:57</p>
     </footer>
 </body>
 </html>
