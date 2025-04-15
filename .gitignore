@@ -2,4 +2,4 @@
 static/.ipynb_checkpoints
 __pycache__/
 .idea
-cache
+model_comparison_results
