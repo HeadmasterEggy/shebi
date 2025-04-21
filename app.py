@@ -5,7 +5,7 @@ import jieba
 import pandas as pd
 import torch
 import torch.nn as nn
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from torch.utils.data import DataLoader
 
@@ -16,6 +16,10 @@ from data_Process import tokenize, clean_text
 from lstm_model import LSTM_attention, LSTMModel
 # 导入模型工具模块
 from utils import initialize_model
+# 导入用户模型和认证模块
+from models import db, User
+from auth import auth, login_manager, admin_required
+from flask_login import login_required, current_user
 
 # 配置日志
 logging.basicConfig(
@@ -28,8 +32,18 @@ logger = logging.getLogger(__name__)
 jieba.initialize()
 logger.info("Jieba分词器初始化完成")
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='static', template_folder='templates')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_for_testing')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 初始化扩展
 CORS(app)  # 启用CORS
+db.init_app(app)
+login_manager.init_app(app)
+
+# 注册认证蓝图
+app.register_blueprint(auth, url_prefix='/auth')
 
 # 添加安全全局类
 torch.serialization.add_safe_globals([
@@ -262,19 +276,41 @@ with open("data/stopword.txt", "r", encoding="utf-8") as f:
     for line in f.readlines():
         stopwords.append(line.strip())
 
+# 删除 @app.before_first_request 装饰器及其函数，改为在启动前初始化
+# 创建数据表和初始化管理员账户
+with app.app_context():
+    db.create_all()
+    
+    # 检查是否已存在管理员账户
+    admin = User.query.filter_by(is_admin=True).first()
+    if not admin:
+        # 创建默认管理员账户
+        admin = User(
+            username='admin',
+            email='admin@example.com',
+            password='admin123',
+            is_admin=True
+        )
+        db.session.add(admin)
+        db.session.commit()
+        logger.info("已创建默认管理员账户 (admin/admin123)")
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
-
+    """主页面路由，检查用户是否已登录"""
+    if current_user.is_authenticated:
+        return send_from_directory('static', 'index.html')
+    else:
+        return render_template('login.html')
 
 # 定义默认模型
 default_model = "cnn"
 
 @app.route('/api/models', methods=['GET'])
+@login_required
 def get_models():
     """
-    获取可用的模型列表
+    获取可用的模型列表 (需要登录)
     """
     models = [
         {
@@ -309,9 +345,10 @@ def get_models():
         "default": default_model
     })
 
-
 @app.route('/api/analyze', methods=['POST'])
+@login_required
 def analyze():
+    """文本分析API (需要登录)"""
     try:
         data = request.get_json()
         text = data.get('text', '')
@@ -383,6 +420,269 @@ def analyze():
         logger.error("=" * 80)
         return jsonify({'error': error_msg}), 500
 
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def get_users():
+    """获取所有用户列表 (仅限管理员)"""
+    users = User.query.all()
+    return jsonify({
+        'users': [
+            {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_admin': user.is_admin
+            } for user in users
+        ]
+    })
+
+@app.route('/api/admin/create_user', methods=['POST'])
+@admin_required
+def create_user():
+    """创建新用户 (仅限管理员)"""
+    data = request.get_json()
+    
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+    is_admin = data.get('is_admin', False)
+    
+    if not all([username, email, password]):
+        return jsonify({'error': '缺少必要参数'}), 400
+        
+    # 检查用户名是否已存在
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': '用户名已被使用'}), 400
+        
+    # 检查邮箱是否已存在
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': '邮箱已被注册'}), 400
+    
+    # 创建新用户
+    new_user = User(
+        username=username,
+        email=email,
+        password=password,
+        is_admin=is_admin
+    )
+    
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify({'message': '用户创建成功', 'user_id': new_user.id}), 201
+
+@app.route('/api/admin/update_user/<int:user_id>', methods=['PUT'])
+@admin_required
+def update_user(user_id):
+    """更新用户信息 (仅限管理员)"""
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    
+    # 获取请求数据
+    username = data.get('username')
+    email = data.get('email')
+    is_admin = data.get('is_admin', False)
+    password = data.get('password')  # 可选，如果提供则更新密码
+    
+    # 检查用户名是否与其他用户重复
+    if username != user.username:
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return jsonify({'error': '用户名已被使用'}), 400
+    
+    # 检查邮箱是否与其他用户重复
+    if email != user.email:
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return jsonify({'error': '邮箱已被注册'}), 400
+    
+    # 更新用户信息
+    user.username = username
+    user.email = email
+    user.is_admin = is_admin
+    
+    # 如果提供了新密码则更新
+    if password and password.strip():
+        user.password_hash = User.generate_password_hash(password)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': '用户更新成功', 
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_admin': user.is_admin
+        }
+    })
+
+@app.route('/api/admin/delete_user/<int:user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    """删除用户 (仅限管理员)"""
+    # 不允许删除当前登录的管理员账户
+    if user_id == current_user.id:
+        return jsonify({'error': '不能删除当前登录的管理员账户'}), 400
+        
+    user = User.query.get_or_404(user_id)
+    
+    # 确保系统中至少保留一个管理员账户
+    if user.is_admin and User.query.filter_by(is_admin=True).count() <= 1:
+        return jsonify({'error': '系统必须保留至少一个管理员账户'}), 400
+    
+    db.session.delete(user)
+    db.session.commit()
+    
+    return jsonify({'message': f'用户 {user.username} 已成功删除'})
+
+@app.route('/api/user')
+@login_required
+def get_current_user():
+    """获取当前登录用户信息"""
+    return jsonify({
+        'username': current_user.username,
+        'is_admin': current_user.is_admin
+    })
+
+@app.route('/profile')
+@login_required
+def profile():
+    """个人资料页面"""
+    return render_template('profile.html')
+
+@app.route('/settings')
+@login_required
+def settings():
+    """设置页面"""
+    return render_template('settings.html')
+
+@app.route('/api/profile', methods=['GET'])
+@login_required
+def get_profile():
+    """获取用户个人资料"""
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username,
+        'email': current_user.email,
+        'is_admin': current_user.is_admin
+    })
+
+@app.route('/api/profile/update', methods=['POST'])
+@login_required
+def update_profile():
+    """更新用户个人资料"""
+    data = request.get_json()
+    
+    # 获取要更新的数据
+    email = data.get('email')
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    # 验证当前密码
+    if current_password and not current_user.verify_password(current_password):
+        return jsonify({'error': '当前密码不正确'}), 400
+    
+    # 检查邮箱是否已被其他用户使用
+    if email != current_user.email:
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user and existing_user.id != current_user.id:
+            return jsonify({'error': '该邮箱已被其他用户使用'}), 400
+        current_user.email = email
+    
+    # 如果提供了新密码，则更新密码
+    if current_password and new_password:
+        current_user.password_hash = User.generate_password_hash(new_password)
+    
+    db.session.commit()
+    return jsonify({'message': '个人资料更新成功'})
+
+@app.route('/api/settings', methods=['GET'])
+@login_required
+def get_settings():
+    """获取用户设置"""
+    # 创建一个User_Settings模型或在User模型中添加settings字段
+    # 这里简化处理，使用用户ID为键的文件来存储设置
+    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
+    
+    # 默认设置
+    default_settings = {
+        'theme': 'light',
+        'language': 'zh_CN',
+        'notifications_enabled': True,
+        'sidebar_position': 'left',
+        'font_size': 14,
+        'auto_save': True,
+        'confirm_exit': True,
+        'session_timeout': 30,
+        'admin_notification': False,
+        'system_updates_notification': True,
+        'analysis_complete_notification': True
+    }
+    
+    # 如果设置文件存在，加载其中的设置
+    if os.path.exists(settings_file):
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                user_settings = json.load(f)
+                # 合并用户设置和默认设置
+                settings = {**default_settings, **user_settings}
+        except Exception as e:
+            logger.error(f"读取用户设置出错: {str(e)}")
+            settings = default_settings
+    else:
+        settings = default_settings
+    
+    return jsonify(settings)
+
+@app.route('/api/settings/update', methods=['POST'])
+@login_required
+def update_settings():
+    """更新用户设置"""
+    data = request.get_json()
+    
+    # 确保user_settings目录存在
+    os.makedirs('user_settings', exist_ok=True)
+    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
+    
+    # 读取现有设置，如果存在
+    existing_settings = {}
+    if os.path.exists(settings_file):
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                existing_settings = json.load(f)
+        except Exception as e:
+            logger.error(f"读取现有用户设置出错: {str(e)}")
+    
+    # 更新设置
+    updated_settings = {**existing_settings, **data}
+    
+    # 保存设置
+    try:
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(updated_settings, f, ensure_ascii=False, indent=2)
+        logger.info(f"用户 {current_user.username} 设置已更新")
+        return jsonify({'message': '设置更新成功'})
+    except Exception as e:
+        logger.error(f"保存用户设置出错: {str(e)}")
+        return jsonify({'error': '保存设置失败'}), 500
+
+@app.route('/api/settings/reset', methods=['POST'])
+@login_required
+def reset_settings():
+    """重置用户设置"""
+    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
+    
+    # 如果设置文件存在，删除它
+    if os.path.exists(settings_file):
+        try:
+            os.remove(settings_file)
+            logger.info(f"用户 {current_user.username} 设置已重置")
+        except Exception as e:
+            logger.error(f"重置用户设置出错: {str(e)}")
+            return jsonify({'error': '重置设置失败'}), 500
+    
+    return jsonify({'message': '设置已重置为默认值'})
 
 if __name__ == '__main__':
     app.run(debug=False, port=5003)
