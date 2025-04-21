@@ -251,7 +251,18 @@ function displayResults(data) {
  */
 document.addEventListener('DOMContentLoaded', function () {
     document.body.classList.add('fade-in');
-    setupUIEventListeners();
+    
+    // 确保认证信息先加载
+    if (typeof fetchUserInfo === 'function') {
+        fetchUserInfo().then(() => {
+            // 等认证信息加载完成后再设置UI事件
+            setupUIEventListeners();
+        });
+    } else {
+        // 如果没有认证模块，也设置UI事件
+        setupUIEventListeners();
+    }
+    
     initFileUpload(); // 初始化文件上传功能
     fetchModels(); // 获取可用的模型列表
 

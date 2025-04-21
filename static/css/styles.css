@@ -165,10 +165,13 @@ body {
     display: none;
     height: 100%;
     flex-direction: column;
+    position: relative; /* 添加相对定位 */
+    overflow-y: auto; /* 确保每个区块独立滚动 */
 }
 
 .content-section.active {
     display: flex;
+    z-index: 1; /* 确保活动区块在最前面 */
 }
 
 .main-container {
@@ -895,10 +898,13 @@ body {
     display: none;
     height: 100%;
     flex-direction: column;
+    position: relative; /* 添加相对定位 */
+    overflow-y: auto; /* 确保每个区块独立滚动 */
 }
 
 .content-section.active {
     display: flex;
+    z-index: 1; /* 确保活动区块在最前面 */
 }
 
 .section-header {
@@ -937,7 +943,6 @@ body {
 }
 
 /* 其他保留原有样式 */
-// ...existing code...
 
 /* 调整导航按钮样式 */
 .nav-tabs .nav-link {
@@ -1183,4 +1188,19 @@ body {
 .modal-dialog {
     max-width: 500px;
     margin: 1.75rem auto;
+}
+
+/* 强化管理员区域控制 */
+#admin-section {
+    display: none !important; /* 强制默认隐藏 */
+}
+
+/* 仅当同时具有active类时才显示 */
+#admin-section.active {
+    display: flex !important;
+}
+
+/* 管理员专用菜单项 */
+.menu-item.admin-only {
+    display: none; /* 默认隐藏 */
 }
