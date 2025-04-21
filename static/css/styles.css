@@ -7,6 +7,170 @@ body {
     overflow: hidden;
 }
 
+/* 顶部导航栏样式 - 保留 */
+.top-navbar {
+    background: linear-gradient(90deg, #2c3e50, #1a252f);
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    height: 60px;
+    z-index: 1030;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar-brand i {
+    font-size: 1.4rem;
+}
+
+.system-title {
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 300;
+    letter-spacing: 0.5px;
+}
+
+.user-navbar-panel {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 6px 12px;
+    border-radius: 30px;
+}
+
+.user-dropdown:hover, .user-dropdown:focus {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.user-dropdown i {
+    font-size: 1.1rem;
+}
+
+/* 修改应用容器适应顶部导航栏 */
+.app-container {
+    display: flex;
+    height: calc(100vh - 60px); /* 减去顶部导航栏高度 */
+    overflow: hidden;
+}
+
+/* 恢复原有侧边栏样式 */
+.sidebar {
+    width: 240px;
+    background: linear-gradient(180deg, #2c3e50, #1a252f);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: white;
+}
+
+.sidebar-menu {
+    padding: 20px 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.menu-item {
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.menu-item.active {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-left: 3px solid #3498db;
+    color: white;
+}
+
+.menu-item i {
+    font-size: 1.25rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+    .system-title {
+        display: none !important;
+    }
+    
+    .sidebar {
+        width: 60px;
+    }
+    
+    .sidebar .sidebar-header h3 {
+        display: none;
+    }
+    
+    .sidebar .menu-item span {
+        display: none;
+    }
+    
+    .sidebar .menu-item {
+        justify-content: center;
+        padding: 15px 0;
+    }
+    
+    .sidebar .menu-item i {
+        font-size: 1.4rem;
+    }
+}
+
+/* 主内容区样式 */
+.main-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    background-color: #f5f5f5;
+    position: relative;
+}
+
+.content-section {
+    display: none;
+    height: 100%;
+    flex-direction: column;
+}
+
+.content-section.active {
+    display: flex;
+}
+
 .main-container {
     height: calc(100vh - 40px);
     background-color: white;
@@ -690,14 +854,14 @@ body {
 /* 系统布局 */
 .app-container {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 60px); /* 减去顶部导航栏高度 */
     overflow: hidden;
 }
 
 /* 侧边栏样式 */
 .sidebar {
-    width: 240px;
-    background: linear-gradient(180deg, #2c3e50, #1a252f);
+    width: 220px;
+    background: linear-gradient(180deg, #3a4d63, #2b3a4a);
     color: white;
     display: flex;
     flex-direction: column;
@@ -706,50 +870,17 @@ body {
     z-index: 10;
 }
 
-.sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-header h3 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 500;
-    color: white;
+/* 移除旧的用户面板和头部 */
+.sidebar-header, .user-panel {
+    display: none;
 }
 
 .sidebar-menu {
-    padding: 20px 0;
+    padding: 15px 0;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     gap: 5px;
-}
-
-.menu-item {
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-left: 3px solid transparent;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-.menu-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-.menu-item.active {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-left: 3px solid #3498db;
-    color: white;
-}
-
-.menu-item i {
-    font-size: 1.25rem;
 }
 
 /* 主内容区样式 */
@@ -997,4 +1128,59 @@ body {
     .chart-wide {
         grid-column: span 1;
     }
+}
+
+/* 用户面板样式 */
+.user-panel {
+    padding: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+    font-size: 14px;
+}
+
+#logoutButton {
+    width: 100%;
+    font-size: 12px;
+}
+
+/* 管理员区域样式 */
+.admin-only {
+    display: none; /* 默认隐藏，通过JS根据权限显示 */
+}
+
+/* 修复管理员页面特定样式 */
+#admin-section.content-section {
+    display: none; /* 默认隐藏 */
+}
+
+#admin-section.content-section.active {
+    display: flex; /* 当active时显示 */
+}
+
+/* 表格样式优化 */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #212529;
+    vertical-align: middle;
+}
+
+/* 模态框样式确保正确显示 */
+.modal-dialog {
+    max-width: 500px;
+    margin: 1.75rem auto;
 }

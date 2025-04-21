@@ -11,8 +11,38 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
+<!-- 顶部导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark top-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+            <i class="bi bi-graph-up"></i> 情感分析系统
+        </a>
+        
+        <div class="navbar-text system-title d-none d-md-block">
+            智能文本情感分析平台
+        </div>
+        
+        <!-- 用户信息和操作 -->
+        <div class="ms-auto user-navbar-panel">
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle user-dropdown" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i>
+                    <span id="navbarUsername">加载中...</span>
+                    <span id="navbarUserRole" class="badge bg-primary ms-1">用户</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="#" id="navbarProfile"><i class="bi bi-person"></i> 个人资料</a></li>
+                    <li><a class="dropdown-item" href="#" id="navbarSettings"><i class="bi bi-gear"></i> 设置</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" id="navbarLogoutBtn"><i class="bi bi-box-arrow-right"></i> 注销</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
 <div class="app-container">
-    <!-- 左侧边栏 -->
+    <!-- 左侧边栏 - 恢复原来的结构 -->
     <div class="sidebar">
         <div class="sidebar-header">
             <h3>情感分析系统</h3>
@@ -34,7 +64,11 @@
                 <i class="bi bi-cloud"></i>
                 <span>词频统计</span>
             </div>
-            <!-- 移除模型指标菜单项 -->
+            <!-- 管理员专用菜单项 -->
+            <div class="menu-item admin-only" data-section="admin-section">
+                <i class="bi bi-gear-fill"></i>
+                <span>系统管理</span>
+            </div>
         </div>
     </div>
 
@@ -262,6 +296,43 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 管理员区域 -->
+        <div class="content-section admin-only" id="admin-section">
+            <div class="section-header">
+                <h4>系统管理</h4>
+            </div>
+            <div class="section-body">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>用户管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-primary mb-3" id="createUserBtn">
+                            <i class="bi bi-person-plus"></i> 创建新用户
+                        </button>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>邮箱</th>
+                                        <th>角色</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -272,9 +343,108 @@
     <p class="mb-0 mt-2">正在分析中<span id="loadingDots">...</span></p>
 </div>
 
+<!-- 创建用户模态框 -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createUserModalLabel">创建新用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="mb-3">
+                        <label for="newUsername" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="newUsername" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newEmail" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="newEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isAdmin">
+                        <label class="form-check-label" for="isAdmin">
+                            管理员权限
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑用户模态框 -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">编辑用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="editUsername" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="editEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPassword" class="form-label">密码 <small class="text-muted">(留空则不修改)</small></label>
+                        <input type="password" class="form-control" id="editPassword" placeholder="留空则保持原密码不变">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editIsAdmin">
+                        <label class="form-check-label" for="editIsAdmin">
+                            管理员权限
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="updateUserBtn">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除用户 <span id="deleteUserName" class="fw-bold"></span> 吗？此操作无法撤销。</p>
+                <input type="hidden" id="deleteUserId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- JavaScript files -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/shared.js"></script>
+<script src="/static/js/auth.js"></script>  <!-- 移动到前面 -->
+<script src="/static/js/admin.js"></script>  <!-- 确保在auth.js之后加载 -->
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/pagination.js"></script>

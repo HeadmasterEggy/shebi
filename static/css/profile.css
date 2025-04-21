@@ -1,0 +1,99 @@
+/* 个人资料和设置页面共享样式 */
+
+.profile-container,
+.settings-container {
+    min-height: calc(100vh - 60px);
+    background-color: #f8f9fa;
+    padding-top: 20px;
+    padding-bottom: 40px;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 0.75rem 1.25rem;
+}
+
+.card-header h5 {
+    color: #495057;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* 个人资料页面特定样式 */
+.profile-container img {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}
+
+.profile-container img:hover {
+    transform: scale(1.05);
+}
+
+/* 设置页面特定样式 */
+.settings-tabs .list-group-item {
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.settings-tabs .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.settings-tabs .list-group-item.active {
+    border-left: 3px solid #0d6efd;
+    background-color: #e9f0ff;
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+.range-slider {
+    padding: 0 0.5rem;
+}
+
+/* 表单样式 */
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+/* 切换开关美化 */
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-switch .form-check-input {
+    width: 2.5em;
+    height: 1.25em;
+}
+
+.form-switch .form-check-input:focus {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+}
+
+.form-switch .form-check-input:checked {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e");
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+    .settings-container .col-lg-3 {
+        margin-bottom: 20px;
+    }
+}
