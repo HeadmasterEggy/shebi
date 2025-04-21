@@ -9,20 +9,56 @@
 function initCharts(data) {
     initWordFreqTags(data);
 
+    // 给图表一个更长的延迟，确保DOM元素已经完全可见
     setTimeout(() => {
         initOverallPieChart(data);
         initSentimentPieChart(data);
         initSentimentBarChart(data);
         initSentimentScatterChart(data);
-        initWordFreqBarChart(data);
-        initWordCloudChart(data);
+        
+        // 确保词频图表容器可见
+        document.getElementById('wordFreqCharts').style.display = 'flex';
+        
+        // 先初始化图表
+        const wordFreqBarChart = initWordFreqBarChart(data);
+        const wordCloudChart = initWordCloudChart(data);
 
         // 应用共同的图表动画选项
         applyChartAnimations();
 
         // 添加窗口大小改变事件监听器
         setupChartResizing();
-    }, 0);
+        
+        // 额外调用一次重绘，确保所有图表正确显示
+        setTimeout(() => {
+            const charts = [
+                echarts.getInstanceByDom(document.getElementById('overallPieChart')),
+                echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
+                echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
+                echarts.getInstanceByDom(document.getElementById('sentimentScatterChart')),
+                wordFreqBarChart,
+                wordCloudChart,
+                echarts.getInstanceByDom(document.getElementById('confusionMatrixChart'))
+            ].filter(chart => chart);
+            
+            charts.forEach(chart => chart.resize());
+            
+            // 再次调用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
+            requestAnimationFrame(() => {
+                charts.forEach(chart => chart.resize());
+            });
+        }, 300);
+    }, 200);
+
+    // 在页面加载完成后再次重绘词频图表
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            const wordFreqBarChart = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
+            const wordCloudChart = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
+            if (wordFreqBarChart) wordFreqBarChart.resize();
+            if (wordCloudChart) wordCloudChart.resize();
+        }, 500);
+    });
 }
 
 /**
@@ -326,7 +362,10 @@ function initSentimentScatterChart(data) {
  * 初始化词频柱状图
  */
 function initWordFreqBarChart(data) {
-    const wordFreqBar = echarts.init(document.getElementById('wordFreqBarChart'));
+    const container = document.getElementById('wordFreqBarChart');
+    if (!container) return null;
+    
+    const wordFreqBar = echarts.init(container);
     const wordFreqData = data.wordFreq.slice(0, 20);
     const wordFreqBarOption = {
         title: {
@@ -373,13 +412,19 @@ function initWordFreqBarChart(data) {
         }]
     };
     wordFreqBar.setOption(wordFreqBarOption);
+    
+    // 返回图表实例，方便后续操作
+    return wordFreqBar;
 }
 
 /**
  * 初始化词云图
  */
 function initWordCloudChart(data) {
-    const wordCloud = echarts.init(document.getElementById('wordCloudChart'));
+    const container = document.getElementById('wordCloudChart');
+    if (!container) return null;
+    
+    const wordCloud = echarts.init(container);
     const wordCloudOption = {
         title: {
             text: '词云展示',
@@ -431,6 +476,9 @@ function initWordCloudChart(data) {
         }]
     };
     wordCloud.setOption(wordCloudOption);
+    
+    // 返回图表实例，方便后续操作
+    return wordCloud;
 }
 
 /**

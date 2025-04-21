@@ -128,10 +128,9 @@ async function analyzeText() {
 
     showLoadingAnimation();
     document.getElementById('errorMessage').style.display = 'none';
-    document.getElementById('overallResult').style.display = 'none';
-    document.getElementById('sentenceResults').style.display = 'none';
-    document.getElementById('wordFreq').style.display = 'none';
-    document.getElementById('modelMetrics').style.display = 'none';
+    
+    // 移除直接隐藏结果容器的代码，改为在进行分析前先切换到输入区域
+    switchSection('input-section');
 
     // 检查是否为文件上传模式
     const isFileUpload = document.getElementById('file-tab').classList.contains('active');
@@ -207,14 +206,15 @@ function displayResults(data) {
     document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.display === 'normal');
     });
-
-    const resultCards = document.querySelectorAll('.result-card');
-    resultCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.display = 'block';
-            card.classList.add('show');
-        }, index * 100);
-    });
+    
+    // 确保所有结果卡片都显示出来（覆盖之前可能的隐藏状态）
+    document.getElementById('overallResult').style.display = 'block';
+    document.getElementById('sentenceResults').style.display = 'block';
+    document.getElementById('wordFreq').style.display = 'block';
+    document.getElementById('modelMetrics').style.display = 'block'; // 保留这行，但现在modelMetrics位于overall-section中
+    
+    // 自动切换到结果区块
+    switchSection('overall-section');
 
     updateDisplay();
 
@@ -225,7 +225,6 @@ function displayResults(data) {
         document.getElementById('overallNegative').style.width = `${overall.probabilities.negative || 0}%`;
         document.getElementById('overallPositiveProb').textContent = (overall.probabilities.positive || 0).toFixed(2);
         document.getElementById('overallNegativeProb').textContent = (overall.probabilities.negative || 0).toFixed(2);
-        document.getElementById('overallResult').style.display = 'block';
     } else {
         showError('整体分析结果数据不完整');
     }
@@ -234,14 +233,9 @@ function displayResults(data) {
         document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
         document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
         document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
-        document.getElementById('modelMetrics').style.display = 'block';
 
         // 初始化混淆矩阵
         initConfusionMatrix(data);
-    }
-
-    if (data.wordFreq && Array.isArray(data.wordFreq)) {
-        document.getElementById('wordFreq').style.display = 'block';
     }
 
     try {
@@ -264,4 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 添加模型选择框的事件监听
     document.getElementById('modelSelect').addEventListener('change', updateModelDescription);
     document.getElementById('fileModelSelect').addEventListener('change', updateModelDescription);
+    
+    // 初始状态下激活第一个菜单项
+    switchSection('input-section');
 });

@@ -17,18 +17,28 @@ function switchTab(view) {
     } else {
         listView.style.display = 'none';
         chartView.style.display = 'block';
+        
+        // 给DOM一点时间完成布局
         setTimeout(() => {
             try {
                 const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
                 const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
                 const scatterChart = echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'));
+                
                 if (pieChart) pieChart.resize();
                 if (barChart) barChart.resize();
                 if (scatterChart) scatterChart.resize();
+                
+                // 使用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
+                requestAnimationFrame(() => {
+                    if (pieChart) pieChart.resize();
+                    if (barChart) barChart.resize();
+                    if (scatterChart) scatterChart.resize();
+                });
             } catch (error) {
                 console.error('调整图表大小失败:', error);
             }
-        }, 0);
+        }, 100);
     }
 
     buttons.forEach(button => {
@@ -39,40 +49,7 @@ function switchTab(view) {
     });
 }
 
-/**
- * 切换词频标签页
- * @param {string} view - 视图类型 ('tags' 或 'chart')
- */
-function switchWordFreqTab(view) {
-    const tagsView = document.getElementById('wordFreqTags');
-    const chartsView = document.getElementById('wordFreqCharts');
-    const buttons = document.querySelectorAll('#wordFreq .tab-button');
-
-    if (view === 'tags') {
-        tagsView.style.display = 'block';
-        chartsView.style.display = 'none';
-    } else {
-        tagsView.style.display = 'none';
-        chartsView.style.display = 'block';
-        setTimeout(() => {
-            try {
-                const wordFreqBar = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
-                const wordCloud = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
-                if (wordFreqBar) wordFreqBar.resize();
-                if (wordCloud) wordCloud.resize();
-            } catch (error) {
-                console.error('调整词频图表大小失败:', error);
-            }
-        }, 0);
-    }
-
-    buttons.forEach(button => {
-        button.classList.toggle('active',
-            (view === 'tags' && button.textContent === '标签视图') ||
-            (view === 'chart' && button.textContent === '图表视图')
-        );
-    });
-}
+// 移除 switchWordFreqTab 函数，因为我们不再需要切换视图
 
 /**
  * 切换卡片展开/折叠状态
@@ -102,6 +79,43 @@ function setSentimentFilter(filter) {
     sentimentFilter = filter;
     currentPage = 1;
     updateDisplay();
+}
+
+/**
+ * 切换功能区块
+ * @param {string} sectionId - 区块ID
+ */
+function switchSection(sectionId) {
+    // 隐藏所有内容区块
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // 显示选择的区块
+    document.getElementById(sectionId).classList.add('active');
+    
+    // 更新菜单项状态
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.section === sectionId);
+    });
+    
+    // 如果切换到词频统计区域，重新调整图表大小
+    if (sectionId === 'word-freq-section') {
+        // 给DOM一点时间完成布局
+        setTimeout(() => {
+            const wordFreqBarChart = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
+            const wordCloudChart = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
+            
+            if (wordFreqBarChart) wordFreqBarChart.resize();
+            if (wordCloudChart) wordCloudChart.resize();
+            
+            // 使用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
+            requestAnimationFrame(() => {
+                if (wordFreqBarChart) wordFreqBarChart.resize();
+                if (wordCloudChart) wordCloudChart.resize();
+            });
+        }, 100);
+    }
 }
 
 /**
@@ -139,4 +153,11 @@ function setupUIEventListeners() {
     if (modelSelect) {
         modelSelect.addEventListener('change', updateModelDescription);
     }
+    
+    // 添加侧边栏菜单点击事件
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+            switchSection(this.dataset.section);
+        });
+    });
 }

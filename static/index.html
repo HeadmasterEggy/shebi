@@ -5,206 +5,260 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>情感分析系统</title>
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-<div class="main-container">
-    <div class="header">
-        <h1>情感分析系统</h1>
-    </div>
-
-    <div class="left-panel">
-        <div class="input-section">
-            <ul class="nav nav-tabs mb-3" id="inputTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#textInput-tab"
-                            type="button" role="tab" aria-controls="textInput-tab" aria-selected="true">文本输入
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#fileInput-tab"
-                            type="button" role="tab" aria-controls="fileInput-tab" aria-selected="false">文件上传
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content" id="inputTabsContent">
-                <div class="tab-pane fade show active" id="textInput-tab" role="tabpanel" aria-labelledby="text-tab">
-                    <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
-                    <textarea class="form-control mb-3" id="textInput" rows="4"
-                              placeholder="在此输入文本..."></textarea>
-                    <div class="model-selection mb-3">
-                        <label for="modelSelect" class="form-label fw-bold">选择分析模型：</label>
-                        <select class="form-select" id="modelSelect">
-                            <option value="">加载中...</option>
-                        </select>
-                        <div class="form-text" id="modelDescription"></div>
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="fileInput-tab" role="tabpanel" aria-labelledby="file-tab">
-                    <label for="fileInput" class="form-label fw-bold">上传文本文件（每行一个句子）：</label>
-                    <div class="input-group mb-3">
-                        <input type="file" class="form-control" id="fileInput" accept=".txt">
-                        <button class="btn btn-outline-secondary" type="button" id="fileViewBtn" disabled>预览内容
-                        </button>
-                    </div>
-                    <div class="file-info small text-muted mb-3" id="fileInfo"></div>
-                    <div class="file-preview mb-3 d-none" id="filePreview">
-                        <div class="card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span>文件预览</span>
-                                <button type="button" class="btn-close" aria-label="Close" id="closePreview"></button>
-                            </div>
-                            <div class="card-body">
-                                <pre id="fileContent" class="file-content"></pre>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="model-selection mb-3">
-                        <label for="fileModelSelect" class="form-label fw-bold">选择分析模型：</label>
-                        <select class="form-select" id="fileModelSelect">
-                            <option value="">加载中...</option>
-                        </select>
-                        <div class="form-text" id="fileModelDescription"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center">
-                <button class="btn btn-primary btn-analyze" onclick="analyzeText()">开始分析</button>
-            </div>
-            <div id="errorMessage" class="error-message mt-3"></div>
+<div class="app-container">
+    <!-- 左侧边栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>情感分析系统</h3>
         </div>
-
-        <div id="overallResult" class="result-card" style="display: none;">
-            <h4 class="mb-3">整体分析结果</h4>
-            <div class="overall-sentiment">
-                <h5>情感倾向：<span id="overallSentiment" class="badge bg-primary"></span></h5>
-                <div class="progress">
-                    <div id="overallPositive" class="progress-bar bg-success" role="progressbar"></div>
-                    <div id="overallNegative" class="progress-bar bg-danger" role="progressbar"></div>
-                </div>
-                <div class="text-muted small">
-                    积极：<span id="overallPositiveProb"></span>% |
-                    消极：<span id="overallNegativeProb"></span>%
-                </div>
+        <div class="sidebar-menu">
+            <div class="menu-item active" data-section="input-section">
+                <i class="bi bi-input-cursor-text"></i>
+                <span>文本输入</span>
             </div>
-            <div class="chart-container">
-                <div id="overallPieChart" class="chart"></div>
+            <div class="menu-item" data-section="overall-section">
+                <i class="bi bi-pie-chart"></i>
+                <span>整体分析</span>
             </div>
-        </div>
-
-        <div id="modelMetrics" class="result-card" style="display: none;">
-            <h4 class="mb-3">模型评估指标</h4>
-            <div class="metrics-grid">
-                <div class="metric-item">
-                    <div class="small text-muted">准确率</div>
-                    <div class="h4 mb-0 text-primary"><span id="accuracy"></span>%</div>
-                </div>
-                <div class="metric-item">
-                    <div class="small text-muted">F1分数</div>
-                    <div class="h4 mb-0 text-success"><span id="f1Score"></span>%</div>
-                </div>
-                <div class="metric-item">
-                    <div class="small text-muted">召回率</div>
-                    <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
-                </div>
+            <div class="menu-item" data-section="sentences-section">
+                <i class="bi bi-list-ul"></i>
+                <span>句子分析</span>
             </div>
-            <div class="chart-wrapper mt-4">
-                <h5 class="text-center mb-3">混淆矩阵</h5>
-                <div id="confusionMatrixChart" class="chart"></div>
+            <div class="menu-item" data-section="word-freq-section">
+                <i class="bi bi-cloud"></i>
+                <span>词频统计</span>
             </div>
+            <!-- 移除模型指标菜单项 -->
         </div>
     </div>
 
-    <div class="right-panel">
-        <div id="sentenceResults" class="result-card" style="display: none;">
-            <div class="tab-buttons">
-                <button class="tab-button active" onclick="switchTab('list')">列表视图</button>
-                <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 输入区域 -->
+        <div class="content-section active" id="input-section">
+            <div class="section-header">
+                <h4>文本输入</h4>
             </div>
-            <div id="listView">
-                <h4 class="mb-3">句子分析结果：<span class="badge bg-secondary" id="sentenceCount"></span></h4>
+            <div class="section-body">
+                <div class="input-section">
+                    <ul class="nav nav-tabs mb-3" id="inputTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#textInput-tab"
+                                    type="button" role="tab" aria-controls="textInput-tab" aria-selected="true">文本输入
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#fileInput-tab"
+                                    type="button" role="tab" aria-controls="fileInput-tab" aria-selected="false">文件上传
+                            </button>
+                        </li>
+                    </ul>
 
-                <div class="filter-controls">
-                    <div class="filter-row">
-                        <span class="filter-label">情感筛选：</span>
-                        <div class="filter-buttons">
-                            <button class="filter-button active" data-sentiment="all">全部</button>
-                            <button class="filter-button" data-sentiment="positive">积极</button>
-                            <button class="filter-button" data-sentiment="negative">消极</button>
+                    <div class="tab-content" id="inputTabsContent">
+                        <div class="tab-pane fade show active" id="textInput-tab" role="tabpanel" aria-labelledby="text-tab">
+                            <label for="textInput" class="form-label fw-bold">请输入要分析的文本：</label>
+                            <textarea class="form-control mb-3" id="textInput" rows="4"
+                                    placeholder="在此输入文本..."></textarea>
+                            <div class="model-selection mb-3">
+                                <label for="modelSelect" class="form-label fw-bold">选择分析模型：</label>
+                                <select class="form-select" id="modelSelect">
+                                    <option value="">加载中...</option>
+                                </select>
+                                <div class="form-text" id="modelDescription"></div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="fileInput-tab" role="tabpanel" aria-labelledby="file-tab">
+                            <label for="fileInput" class="form-label fw-bold">上传文本文件（每行一个句子）：</label>
+                            <div class="input-group mb-3">
+                                <input type="file" class="form-control" id="fileInput" accept=".txt">
+                                <button class="btn btn-outline-secondary" type="button" id="fileViewBtn" disabled>预览内容
+                                </button>
+                            </div>
+                            <div class="file-info small text-muted mb-3" id="fileInfo"></div>
+                            <div class="file-preview mb-3 d-none" id="filePreview">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span>文件预览</span>
+                                        <button type="button" class="btn-close" aria-label="Close" id="closePreview"></button>
+                                    </div>
+                                    <div class="card-body">
+                                        <pre id="fileContent" class="file-content"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="model-selection mb-3">
+                                <label for="fileModelSelect" class="form-label fw-bold">选择分析模型：</label>
+                                <select class="form-select" id="fileModelSelect">
+                                    <option value="">加载中...</option>
+                                </select>
+                                <div class="form-text" id="fileModelDescription"></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="filter-row">
-                        <span class="filter-label">显示模式：</span>
-                        <div class="filter-buttons">
-                            <button class="filter-button active" data-display="normal">正常</button>
-                            <button class="filter-button" data-display="compact">紧凑</button>
-                            <button class="filter-button" data-display="expanded">展开</button>
+
+                    <div class="text-center">
+                        <button class="btn btn-primary btn-analyze" onclick="analyzeText()">开始分析</button>
+                    </div>
+                    <div id="errorMessage" class="error-message mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 整体结果区域 -->
+        <div class="content-section" id="overall-section">
+            <div class="section-header">
+                <h4>整体分析结果</h4>
+            </div>
+            <div class="section-body">
+                <div id="overallResult" class="result-card show">
+                    <div class="overall-sentiment">
+                        <h5>情感倾向：<span id="overallSentiment" class="badge bg-primary"></span></h5>
+                        <div class="progress">
+                            <div id="overallPositive" class="progress-bar bg-success" role="progressbar"></div>
+                            <div id="overallNegative" class="progress-bar bg-danger" role="progressbar"></div>
                         </div>
+                        <div class="text-muted small">
+                            积极：<span id="overallPositiveProb"></span>% |
+                            消极：<span id="overallNegativeProb"></span>%
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div id="overallPieChart" class="chart"></div>
                     </div>
                 </div>
-
-                <div id="sentenceList"></div>
-
-                <div id="pagination" class="mt-3">
-                    <div class="pagination-controls">
-                        <div class="per-page-control">
-                            <span>每页显示：</span>
-                            <select id="perPageSelect" class="form-select form-select-sm" style="width: auto">
-                                <option value="5" selected>5条</option>
-                                <option value="10">10条</option>
-                                <option value="20">20条</option>
-                                <option value="50">50条</option>
-                            </select>
+                
+                <!-- 添加模型指标到整体分析区域 -->
+                <div id="modelMetrics" class="result-card show">
+                    <h5 class="mb-3">模型评估指标</h5>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="small text-muted">准确率</div>
+                            <div class="h4 mb-0 text-primary"><span id="accuracy"></span>%</div>
                         </div>
-                        <div class="page-info" id="pageInfo"></div>
+                        <div class="metric-item">
+                            <div class="small text-muted">F1分数</div>
+                            <div class="h4 mb-0 text-success"><span id="f1Score"></span>%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="small text-muted">召回率</div>
+                            <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
+                        </div>
                     </div>
-
-                    <div class="page-numbers" id="pageNumbers"></div>
-
-                    <nav>
-                        <ul class="pagination">
-                            <li class="page-item">
-                                <a class="page-link" href="#" onclick="changePage(-1)">上一页</a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" href="#" onclick="changePage(1)">下一页</a>
-                            </li>
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-            <div id="chartView" style="display: none;">
-                <div class="charts-container">
-                    <div class="chart-wrapper">
-                        <div id="sentimentPieChart" class="chart"></div>
-                    </div>
-                    <div class="chart-wrapper">
-                        <div id="sentimentBarChart" class="chart"></div>
-                    </div>
-                    <div class="chart-wrapper">
-                        <div id="sentimentScatterChart" class="chart"></div>
+                    <div class="chart-wrapper mt-4">
+                        <h5 class="text-center mb-3">混淆矩阵</h5>
+                        <div id="confusionMatrixChart" class="chart"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="wordFreq" class="result-card" style="display: none;">
-            <h4 class="mb-3">词频统计</h4>
-            <div class="tab-buttons">
-                <button class="tab-button active" onclick="switchWordFreqTab('tags')">标签视图</button>
-                <button class="tab-button" onclick="switchWordFreqTab('chart')">图表视图</button>
+        <!-- 句子分析区域 -->
+        <div class="content-section" id="sentences-section">
+            <div class="section-header">
+                <h4>句子分析结果</h4>
             </div>
-            <div id="wordFreqTags" class="mt-3"></div>
-            <div id="wordFreqCharts" style="display: none;">
-                <div class="chart-wrapper">
-                    <div id="wordFreqBarChart" class="chart"></div>
+            <div class="section-body">
+                <div id="sentenceResults" class="result-card show">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" onclick="switchTab('list')">列表视图</button>
+                        <button class="tab-button" onclick="switchTab('chart')">图表视图</button>
+                    </div>
+                    <div id="listView">
+                        <h4 class="mb-3">句子分析：<span class="badge bg-secondary" id="sentenceCount"></span></h4>
+
+                        <div class="filter-controls">
+                            <div class="filter-row">
+                                <span class="filter-label">情感筛选：</span>
+                                <div class="filter-buttons">
+                                    <button class="filter-button active" data-sentiment="all">全部</button>
+                                    <button class="filter-button" data-sentiment="positive">积极</button>
+                                    <button class="filter-button" data-sentiment="negative">消极</button>
+                                </div>
+                            </div>
+                            <div class="filter-row">
+                                <span class="filter-label">显示模式：</span>
+                                <div class="filter-buttons">
+                                    <button class="filter-button active" data-display="normal">正常</button>
+                                    <button class="filter-button" data-display="compact">紧凑</button>
+                                    <button class="filter-button" data-display="expanded">展开</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sentenceList"></div>
+
+                        <div id="pagination" class="mt-3">
+                            <div class="pagination-controls">
+                                <div class="per-page-control">
+                                    <span>每页显示：</span>
+                                    <select id="perPageSelect" class="form-select form-select-sm" style="width: auto">
+                                        <option value="5" selected>5条</option>
+                                        <option value="10">10条</option>
+                                        <option value="20">20条</option>
+                                        <option value="50">50条</option>
+                                    </select>
+                                </div>
+                                <div class="page-info" id="pageInfo"></div>
+                            </div>
+
+                            <div class="page-numbers" id="pageNumbers"></div>
+
+                            <nav>
+                                <ul class="pagination">
+                                    <li class="page-item">
+                                        <a class="page-link" href="#" onclick="changePage(-1)">上一页</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="#" onclick="changePage(1)">下一页</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    <div id="chartView" style="display: none;">
+                        <!-- 修改为更灵活的布局结构 -->
+                        <div class="charts-grid-layout">
+                            <div class="chart-wrapper chart-wide">
+                                <div id="sentimentPieChart" class="chart"></div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <div id="sentimentBarChart" class="chart"></div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <div id="sentimentScatterChart" class="chart"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-wrapper">
-                    <div id="wordCloudChart" class="chart"></div>
+            </div>
+        </div>
+
+        <!-- 词频统计区域 -->
+        <div class="content-section" id="word-freq-section">
+            <div class="section-header">
+                <h4>词频统计</h4>
+            </div>
+            <div class="section-body">
+                <div id="wordFreq" class="result-card show">
+                    <!-- 移除标签切换按钮，同时显示两种视图 -->
+                    <h5 class="mb-3">词频标签</h5>
+                    <div id="wordFreqTags" class="mt-3 mb-4"></div>
+                    
+                    <h5 class="mb-3">词频图表</h5>
+                    <div id="wordFreqCharts" class="charts-horizontal-layout">
+                        <div class="chart-wrapper">
+                            <div id="wordFreqBarChart" class="chart"></div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div id="wordCloudChart" class="chart"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
