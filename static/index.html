@@ -634,30 +634,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="createUserForm"></form>
-                    <div class="mb-3">
-                        <label for="newUsername" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="newUsername" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="newEmail" class="form-label">电子邮箱</label>
-                        <input type="email" class="form-control" id="newEmail" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="newPassword" class="form-label">密码</label>
-                        <input type="password" class="form-control" id="newPassword" required>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="isAdmin">
-                        <label class="form-check-label" for="isAdmin">
-                            管理员权限
-                        </label>
-                    </div>
+                <form id="createUserForm">
+                    <!-- 表单内容在JavaScript中动态生成 -->
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="saveUserBtn">保存</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">创建用户</button>
             </div>
         </div>
     </div>
@@ -673,29 +656,12 @@
             </div>
             <div class="modal-body">
                 <form id="editUserForm">
-                    <input type="hidden" id="editUserId">
-                    <div class="mb-3"></div>
-                        <label for="editUsername" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="editUsername" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editEmail" class="form-label">电子邮箱</label>
-                        <input type="email" class="form-control" id="editEmail" required>
-                    </div>
-                    <div class="mb-3">                        <label for="editPassword" class="form-label">密码 <small class="text-muted">(留空则不修改)</small></label>
-                        <input type="password" class="form-control" id="editPassword" placeholder="留空则保持原密码不变">
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="editIsAdmin">
-                        <label class="form-check-label" for="editIsAdmin">
-                            管理员权限
-                        </label>
-                    </div>
+                    <!-- 表单内容在JavaScript中动态生成 -->
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="updateUserBtn">保存</button>
+                <button type="button" class="btn btn-primary" id="updateUserBtn">更新用户</button>
             </div>
         </div>
     </div>
@@ -703,14 +669,14 @@
 
 <!-- 删除确认模态框 -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog"></div>
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="deleteConfirmModalLabel">确认删除</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>确定要删除用户 <span id="deleteUserName" class="fw-bold"></span> 吗？此操作无法撤销。</p>
+                <p>确定要删除用户吗？此操作无法撤销。</p>
                 <input type="hidden" id="deleteUserId">
             </div>
             <div class="modal-footer">

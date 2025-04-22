@@ -2,262 +2,150 @@
  * 管理员功能模块
  */
 
-let adminInitialized = false;
-let users = []; // 存储用户列表数据
-
-/**
- * 获取所有用户列表
- */
-async function fetchUsers() {
-    try {
-        // 减少调试日志，保留必要信息
-        const response = await fetch('/api/admin/users');
-        if (response.ok) {
-            const data = await response.json();
-            users = data.users; // 存储用户数据
-            displayUsers(data.users);
-        } else if (response.status === 401) {
-            showError('未授权：请先登录');
-        } else if (response.status === 403) {
-            showError('权限不足：需要管理员权限');
-        } else {
-            const error = await response.json();
-            showError('获取用户列表失败：' + (error.error || '未知错误'));
-        }
-    } catch (error) {
-        console.error('获取用户列表出错:', error);
-        showError('获取用户列表出错：' + error.message);
-    }
-}
-
-/**
- * 显示用户列表
- */
-function displayUsers(users) {
-    const tableBody = document.getElementById('usersTableBody');
-    if (!tableBody) {
-        console.error('找不到用户表格主体元素');
-        return;
-    }
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('管理员模块已加载');
     
-    if (users && users.length > 0) {
-        let html = '';
-        users.forEach(user => {
-            html += `
-                <tr>
-                    <td>${user.id}</td>
-                    <td>${user.username}</td>
-                    <td>${user.email}</td>
-                    <td>
-                        <span class="badge ${user.is_admin ? 'bg-danger' : 'bg-primary'}">
-                            ${user.is_admin ? '管理员' : '用户'}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editUser(${user.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+    // 检查用户是否为管理员
+    if (typeof onUserInfoLoaded === 'function') {
+        onUserInfoLoaded(function(username, isAdmin) {
+            if (isAdmin) {
+                console.log('管理员用户已登录，初始化管理功能');
+                initAdminFunctions();
+            } else {
+                console.log('非管理员用户，不初始化管理功能');
+            }
         });
-        tableBody.innerHTML = html;
-    } else {
-        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">没有用户数据</td></tr>';
     }
-}
-
-/**
- * 创建新用户
- */
-async function createUser() {
-    const username = document.getElementById('newUsername').value;
-    const email = document.getElementById('newEmail').value;
-    const password = document.getElementById('newPassword').value;
-    const isAdmin = document.getElementById('isAdmin').checked;
-    
-    if (!username || !email || !password) {
-        alert('请填写所有必填字段');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/admin/create_user', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: username,
-                email: email,
-                password: password,
-                is_admin: isAdmin
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            alert('用户创建成功');
-            // 关闭模态框并重新加载用户列表
-            const modal = bootstrap.Modal.getInstance(document.getElementById('createUserModal'));
-            modal.hide();
-            fetchUsers();
-            
-            // 清空表单
-            document.getElementById('createUserForm').reset();
-        } else {
-            alert('创建用户失败：' + (data.error || '未知错误'));
-        }
-    } catch (error) {
-        console.error('创建用户出错:', error);
-        alert('创建用户出错：' + error.message);
-    }
-}
-
-/**
- * 编辑用户
- * @param {number} userId - 用户ID
- */
-function editUser(userId) {
-    // 从用户列表中查找当前用户数据
-    const user = users.find(u => u.id === userId);
-    if (!user) {
-        showError(`找不到ID为${userId}的用户`);
-        return;
-    }
-    
-    // 填充表单
-    document.getElementById('editUserId').value = user.id;
-    document.getElementById('editUsername').value = user.username;
-    document.getElementById('editEmail').value = user.email;
-    document.getElementById('editIsAdmin').checked = user.is_admin;
-    document.getElementById('editPassword').value = ''; // 密码框清空
-    
-    // 显示编辑模态框
-    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
-    modal.show();
-}
-
-/**
- * 更新用户信息
- */
-async function updateUser() {
-    const userId = document.getElementById('editUserId').value;
-    const username = document.getElementById('editUsername').value;
-    const email = document.getElementById('editEmail').value;
-    const password = document.getElementById('editPassword').value;
-    const isAdmin = document.getElementById('editIsAdmin').checked;
-    
-    if (!username || !email) {
-        alert('用户名和邮箱不能为空');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/admin/update_user/${userId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: username,
-                email: email,
-                password: password, // 如果为空，后端将不更新密码
-                is_admin: isAdmin
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            alert('用户更新成功');
-            // 关闭模态框并重新加载用户列表
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
-            modal.hide();
-            fetchUsers();
-        } else {
-            alert('更新用户失败：' + (data.error || '未知错误'));
-        }
-    } catch (error) {
-        console.error('更新用户出错:', error);
-        alert('更新用户出错：' + error.message);
-    }
-}
-
-/**
- * 删除用户
- * @param {number} userId - 用户ID
- */
-function deleteUser(userId) {
-    // 从用户列表中查找当前用户数据
-    const user = users.find(u => u.id === userId);
-    if (!user) {
-        showError(`找不到ID为${userId}的用户`);
-        return;
-    }
-    
-    // 填充确认对话框
-    document.getElementById('deleteUserId').value = user.id;
-    document.getElementById('deleteUserName').textContent = user.username;
-    
-    // 显示确认对话框
-    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-    modal.show();
-}
-
-/**
- * 确认删除用户
- */
-async function confirmDeleteUser() {
-    const userId = document.getElementById('deleteUserId').value;
-    
-    try {
-        const response = await fetch(`/api/admin/delete_user/${userId}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            alert(data.message || '用户删除成功');
-            
-            // 关闭模态框并重新加载用户列表
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            modal.hide();
-            fetchUsers();
-        } else {
-            const error = await response.json();
-            alert('删除用户失败：' + (error.error || '未知错误'));
-        }
-    } catch (error) {
-        console.error('删除用户出错:', error);
-        alert('删除用户出错：' + error.message);
-    }
-}
+});
 
 /**
  * 初始化管理员功能
  */
-function initAdminFeatures() {
-    if (adminInitialized) {
+function initAdminFunctions() {
+    // 初始化用户管理界面
+    setupUserManagement();
+    
+    // 立即加载用户列表
+    fetchUsers();
+}
+
+/**
+ * 设置用户管理界面
+ */
+function setupUserManagement() {
+    const adminSection = document.getElementById('admin-section');
+    if (!adminSection) {
+        console.error('找不到admin-section元素');
         return;
     }
     
-    // 确保管理员区域显示
-    const adminSection = document.getElementById('admin-section');
-    if (adminSection) {
-        adminSection.style.display = 'flex';
+    console.log('正在设置用户管理界面');
+    
+    // 添加用户管理卡片
+    const userManagementCard = adminSection.querySelector('.card');
+    if (userManagementCard) {
+        userManagementCard.innerHTML = `
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">用户管理</h5>
+                <button class="btn btn-primary btn-sm" id="createUserBtn">
+                    <i class="bi bi-person-plus"></i> 添加用户
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>角色</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } else {
+        console.error('找不到用户管理卡片元素');
     }
+    
+    // 添加创建用户表单
+    const createUserForm = document.getElementById('createUserForm');
+    if (createUserForm) {
+        createUserForm.innerHTML = `
+            <div class="mb-3">
+                <label for="newUsername" class="form-label">用户名</label>
+                <input type="text" class="form-control" id="newUsername" required>
+            </div>
+            <div class="mb-3">
+                <label for="newEmail" class="form-label">电子邮箱</label>
+                <input type="email" class="form-control" id="newEmail" required>
+            </div>
+            <div class="mb-3">
+                <label for="newPassword" class="form-label">密码</label>
+                <input type="password" class="form-control" id="newPassword" required>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="newIsAdmin">
+                <label class="form-check-label" for="newIsAdmin">管理员权限</label>
+            </div>
+        `;
+    } else {
+        console.error('找不到createUserForm元素');
+    }
+    
+    // 添加编辑用户表单
+    const editUserForm = document.getElementById('editUserForm');
+    if (editUserForm) {
+        editUserForm.innerHTML = `
+            <input type="hidden" id="editUserId">
+            <div class="mb-3">
+                <label for="editUsername" class="form-label">用户名</label>
+                <input type="text" class="form-control" id="editUsername" disabled>
+            </div>
+            <div class="mb-3">
+                <label for="editEmail" class="form-label">电子邮箱</label>
+                <input type="email" class="form-control" id="editEmail" required>
+            </div>
+            <div class="mb-3">
+                <label for="editPassword" class="form-label">新密码（留空表示不修改）</label>
+                <input type="password" class="form-control" id="editPassword">
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="editIsAdmin">
+                <label class="form-check-label" for="editIsAdmin">管理员权限</label>
+            </div>
+        `;
+    } else {
+        console.error('找不到editUserForm元素');
+    }
+    
+    // 一定要在创建完DOM元素后再绑定事件
+    setTimeout(() => {
+        bindAdminEvents();
+    }, 100);
+}
+
+/**
+ * 绑定管理员界面的所有事件
+ */
+function bindAdminEvents() {
+    console.log('正在绑定管理员界面事件');
     
     // 绑定创建用户按钮事件
     const createUserBtn = document.getElementById('createUserBtn');
     if (createUserBtn) {
+        console.log('找到创建用户按钮，添加点击事件');
         createUserBtn.addEventListener('click', function() {
-            const modal = new bootstrap.Modal(document.getElementById('createUserModal'));
-            modal.show();
+            showCreateUserModal();
         });
     } else {
         console.error('找不到创建用户按钮');
@@ -266,7 +154,10 @@ function initAdminFeatures() {
     // 绑定保存用户按钮事件
     const saveUserBtn = document.getElementById('saveUserBtn');
     if (saveUserBtn) {
-        saveUserBtn.addEventListener('click', createUser);
+        console.log('找到保存用户按钮，添加点击事件');
+        saveUserBtn.addEventListener('click', function() {
+            createUser();
+        });
     } else {
         console.error('找不到保存用户按钮');
     }
@@ -274,63 +165,570 @@ function initAdminFeatures() {
     // 绑定更新用户按钮事件
     const updateUserBtn = document.getElementById('updateUserBtn');
     if (updateUserBtn) {
-        updateUserBtn.addEventListener('click', updateUser);
+        console.log('找到更新用户按钮，添加点击事件');
+        updateUserBtn.addEventListener('click', function() {
+            updateUser();
+        });
     } else {
         console.error('找不到更新用户按钮');
     }
     
-    // 绑定确认删除用户按钮事件
+    // 绑定确认删除按钮事件
     const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
     if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', confirmDeleteUser);
+        console.log('找到确认删除按钮，添加点击事件');
+        confirmDeleteBtn.addEventListener('click', function() {
+            deleteUser();
+        });
     } else {
         console.error('找不到确认删除按钮');
     }
-    
-    // 当切换到管理员页面时自动加载用户列表
-    const adminMenuItem = document.querySelector('.menu-item[data-section="admin-section"]');
-    if (adminMenuItem) {
-        adminMenuItem.addEventListener('click', function() {
-            fetchUsers();
-        });
-    } else {
-        console.error('找不到管理员菜单项');
-    }
-    
-    adminInitialized = true;
 }
 
-// 使用新增的用户信息加载回调来确保初始化发生在正确的时机
-document.addEventListener('DOMContentLoaded', function() {
-    // 使用auth.js提供的回调机制
-    if (typeof onUserInfoLoaded === 'function') {
-        onUserInfoLoaded(function(username, isAdmin) {
-            if (isAdmin) {
-                initAdminFeatures();
-            }
-        });
-    } else {
-        // 备用方案：如果auth.js未提供回调机制，尝试延迟检查
-        setTimeout(function() {
-            if (typeof isAdmin !== 'undefined' && isAdmin) {
-                initAdminFeatures();
-            }
-        }, 1000); // 给fetchUserInfo一点时间完成
-    }
-});
-
-// 添加全局错误显示函数，如果shared.js中没有提供
-if (typeof showError !== 'function') {
-    window.showError = function(message) {
-        const errorElement = document.getElementById('errorMessage');
-        if (errorElement) {
-            errorElement.textContent = message;
-            errorElement.style.display = 'block';
-            setTimeout(() => {
-                errorElement.style.display = 'none';
-            }, 5000);
+/**
+ * 获取所有用户列表
+ */
+async function fetchUsers() {
+    console.log('正在获取用户列表...');
+    try {
+        const response = await fetch('/api/admin/users');
+        if (response.ok) {
+            const data = await response.json();
+            console.log('用户列表获取成功:', data);
+            displayUsers(data.users || []);
         } else {
-            alert(message);
+            console.error('获取用户列表失败, 状态码:', response.status);
+            try {
+                const errorData = await response.json();
+                console.error('错误详情:', errorData);
+            } catch (e) {
+                console.error('无法解析错误响应');
+            }
+            
+            const tableBody = document.getElementById('usersTableBody');
+            if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">获取用户列表失败 (${response.status})</td>
+                    </tr>
+                `;
+            }
         }
-    };
+    } catch (error) {
+        console.error('获取用户列表出错:', error);
+        const tableBody = document.getElementById('usersTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-danger">获取用户列表出错: ${error.message}</td>
+                </tr>
+            `;
+        }
+    }
 }
+
+/**
+ * 显示用户列表
+ */
+function displayUsers(users) {
+    const tableBody = document.getElementById('usersTableBody');
+    if (!tableBody) return;
+    
+    if (users.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center">暂无用户数据</td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    users.forEach(user => {
+        html += `
+            <tr>
+                <td>${user.id}</td>
+                <td>${user.username}</td>
+                <td>${user.email}</td>
+                <td>
+                    <span class="badge ${user.is_admin ? 'bg-danger' : 'bg-primary'}">
+                        ${user.is_admin ? '管理员' : '用户'}
+                    </span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="editUser(${user.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteUser(${user.id}, '${user.username}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+/**
+ * 显示创建用户模态框
+ */
+function showCreateUserModal() {
+    console.log('显示创建用户模态框');
+    try {
+        // 清空表单
+        const form = document.getElementById('createUserForm');
+        if (form) {
+            form.reset();
+        } else {
+            console.error('找不到创建用户表单');
+        }
+        
+        // 获取模态框元素
+        const modalElement = document.getElementById('createUserModal');
+        if (!modalElement) {
+            console.error('找不到模态框元素 #createUserModal');
+            alert('界面错误: 找不到创建用户的对话框');
+            return;
+        }
+        
+        // 显示模态框
+        try {
+            // 尝试使用不同方法显示模态框
+            if (typeof bootstrap !== 'undefined') {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+                console.log('模态框已显示 (bootstrap)');
+            } else if ($(modalElement).modal) {
+                $(modalElement).modal('show');
+                console.log('模态框已显示 (jQuery)');
+            } else {
+                // 回退方案：直接设置样式
+                modalElement.style.display = 'block';
+                modalElement.classList.add('show');
+                document.body.classList.add('modal-open');
+                console.log('模态框已显示 (手动)');
+            }
+        } catch (modalError) {
+            console.error('显示模态框失败:', modalError);
+            alert('无法显示创建用户对话框: ' + modalError.message);
+        }
+    } catch (error) {
+        console.error('显示创建用户模态框出错:', error);
+        alert('无法打开创建用户窗口: ' + error.message);
+    }
+}
+
+/**
+ * 创建用户
+ */
+async function createUser() {
+    try {
+        const username = document.getElementById('newUsername').value.trim();
+        const email = document.getElementById('newEmail').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const isAdmin = document.getElementById('newIsAdmin').checked;
+        
+        // 表单验证
+        if (!username || !email || !password) {
+            alert('请填写所有必填字段');
+            return;
+        }
+        
+        // 发送创建用户请求
+        const response = await fetch('/api/admin/create_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username,
+                email,
+                password,
+                is_admin: isAdmin
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // 关闭模态框
+            const modalElement = document.getElementById('createUserModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            modal.hide();
+            
+            // 提示创建成功
+            alert('用户创建成功！');
+            
+            // 重新加载用户列表
+            fetchUsers();
+        } else {
+            alert('创建用户失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('创建用户出错:', error);
+        alert('创建用户时发生错误: ' + error.message);
+    }
+}
+
+/**
+ * 编辑用户
+ */
+async function editUser(userId) {
+    console.log('编辑用户:', userId);
+    try {
+        // 尝试多种可能的API端点路径，找到正确的一个
+        const possibleEndpoints = [
+            `/api/admin/user/${userId}`,
+            `/api/admin/users/${userId}`,
+            `/api/users/${userId}`,
+            `/api/admin/get_user/${userId}`
+        ];
+        
+        console.log('尝试以下API端点:');
+        console.log(possibleEndpoints);
+        
+        // 依次尝试各个端点
+        let response = null;
+        let endpointUsed = '';
+        
+        for (const endpoint of possibleEndpoints) {
+            console.log(`尝试API端点: ${endpoint}`);
+            try {
+                const resp = await fetch(endpoint, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                console.log(`端点 ${endpoint} 返回状态: ${resp.status}`);
+                
+                if (resp.ok) {
+                    response = resp;
+                    endpointUsed = endpoint;
+                    console.log(`成功: 使用端点 ${endpoint}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`端点 ${endpoint} 请求失败:`, e);
+            }
+        }
+        
+        // 如果所有端点都失败，使用第一个端点的响应，以便显示错误信息
+        if (!response) {
+            response = await fetch(possibleEndpoints[0], {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        }
+        
+        console.log('最终使用的API端点:', endpointUsed || possibleEndpoints[0]);
+        console.log('获取用户信息响应状态:', response.status);
+        
+        if (response.ok) {
+            const user = await response.json();
+            console.log('获取到用户数据:', user);
+            
+            // 填充表单
+            document.getElementById('editUserId').value = user.id;
+            document.getElementById('editUsername').value = user.username;
+            document.getElementById('editEmail').value = user.email || '';
+            document.getElementById('editPassword').value = '';  // 不显示密码
+            document.getElementById('editIsAdmin').checked = !!user.is_admin;
+            
+            // 显示模态框
+            const modalElement = document.getElementById('editUserModal');
+            if (!modalElement) {
+                console.error('找不到编辑用户模态框');
+                alert('界面错误: 找不到编辑用户对话框');
+                return;
+            }
+            
+            try {
+                // 尝试不同方法显示模态框
+                if (typeof bootstrap !== 'undefined') {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                    console.log('编辑模态框已显示 (bootstrap)');
+                } else {
+                    // 回退方案
+                    modalElement.style.display = 'block';
+                    modalElement.classList.add('show');
+                    document.body.classList.add('modal-open');
+                    console.log('编辑模态框已显示 (手动)');
+                }
+            } catch (modalError) {
+                console.error('显示编辑模态框失败:', modalError);
+                alert('无法显示编辑用户对话框');
+            }
+        } else {
+            // 增强错误处理，显示可能的API路径
+            console.error('获取用户数据失败:', response.status);
+            console.error('尝试使用的API端点:', endpointUsed || possibleEndpoints[0]);
+            const responseText = await response.text();
+            console.error('错误响应内容:', responseText);
+            
+            alert(`获取用户信息失败: 服务器返回状态 ${response.status}。请联系管理员检查API端点。`);
+            alert(`尝试使用API端点: ${possibleEndpoints.join(', ')}`);
+            
+            // 获取API信息以辅助调试
+            try {
+                const infoResponse = await fetch('/api/info');
+                if (infoResponse.ok) {
+                    const apiInfo = await infoResponse.json();
+                    console.log('API信息:', apiInfo);
+                } else {
+                    console.log('无法获取API信息, 状态码:', infoResponse.status);
+                }
+            } catch (e) {
+                console.log('获取API信息时出错:', e);
+            }
+        }
+    } catch (error) {
+        console.error('编辑用户出错:', error);
+        alert('获取用户信息时发生错误: ' + error.message);
+    }
+}
+
+/**
+ * 确认删除用户
+ */
+function confirmDeleteUser(userId, username) {
+    console.log('确认删除用户:', userId, username);
+    
+    // 设置要删除的用户ID
+    document.getElementById('deleteUserId').value = userId;
+    
+    // 设置确认消息
+    const confirmMsg = document.querySelector('#deleteConfirmModal .modal-body p');
+    if (confirmMsg) {
+        confirmMsg.textContent = `确定要删除用户 "${username}" 吗？此操作无法撤销。`;
+    }
+    
+    // 显示确认对话框
+    const modalElement = document.getElementById('deleteConfirmModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+}
+
+/**
+ * 删除用户
+ */
+async function deleteUser() {
+    try {
+        const userId = document.getElementById('deleteUserId').value;
+        
+        // 尝试多种可能的API端点路径
+        const possibleEndpoints = [
+            `/api/admin/delete_user/${userId}`,
+            `/api/admin/users/${userId}`,
+            `/api/admin/user/${userId}`
+        ];
+        
+        console.log('尝试以下删除API端点:');
+        console.log(possibleEndpoints);
+        
+        // 依次尝试各个端点
+        let response = null;
+        let endpointUsed = '';
+        
+        for (const endpoint of possibleEndpoints) {
+            console.log(`尝试删除API端点: ${endpoint}`);
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                console.log(`删除端点 ${endpoint} 返回状态: ${resp.status}`);
+                
+                if (resp.ok) {
+                    response = resp;
+                    endpointUsed = endpoint;
+                    console.log(`成功: 使用删除端点 ${endpoint}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`删除端点 ${endpoint} 请求失败:`, e);
+            }
+        }
+        
+        // 如果所有端点都失败，使用第一个端点的响应
+        if (!response) {
+            response = await fetch(possibleEndpoints[0], {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        }
+        
+        console.log('最终使用的删除API端点:', endpointUsed || possibleEndpoints[0]);
+        console.log('删除用户响应状态:', response.status);
+        
+        if (response.ok) {
+            // 关闭模态框
+            const modalElement = document.getElementById('deleteConfirmModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            } else {
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            }
+            
+            // 提示删除成功
+            alert('用户已成功删除！');
+            
+            // 重新加载用户列表
+            fetchUsers();
+        } else {
+            const responseText = await response.text();
+            console.error('删除用户失败响应:', responseText);
+            let data = {};
+            try {
+                data = responseText ? JSON.parse(responseText) : {};
+            } catch (e) {}
+            alert('删除用户失败: ' + (data.error || `服务器返回状态 ${response.status}`));
+        }
+    } catch (error) {
+        console.error('删除用户出错:', error);
+        alert('删除用户时发生错误: ' + error.message);
+    }
+}
+
+/**
+ * 更新用户信息
+ */
+async function updateUser() {
+    try {
+        const userId = document.getElementById('editUserId').value;
+        const email = document.getElementById('editEmail').value.trim();
+        const password = document.getElementById('editPassword').value;
+        const isAdmin = document.getElementById('editIsAdmin').checked;
+        
+        // 表单验证
+        if (!email) {
+            alert('请填写电子邮箱');
+            return;
+        }
+        
+        // 准备请求体
+        const requestBody = {
+            email,
+            is_admin: isAdmin
+        };
+        
+        // 如果密码字段不为空，则添加到请求体
+        if (password) {
+            requestBody.password = password;
+        }
+        
+        console.log('更新用户请求体:', JSON.stringify(requestBody));
+        
+        // 尝试多种可能的API端点路径
+        const possibleEndpoints = [
+            `/api/admin/update_user/${userId}`,
+            `/api/admin/users/${userId}`,
+            `/api/admin/user/${userId}`
+        ];
+        
+        console.log('尝试以下更新API端点:');
+        console.log(possibleEndpoints);
+        
+        // 依次尝试各个端点
+        let response = null;
+        let endpointUsed = '';
+        
+        for (const endpoint of possibleEndpoints) {
+            console.log(`尝试更新API端点: ${endpoint}`);
+            try {
+                const resp = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log(`更新端点 ${endpoint} 返回状态: ${resp.status}`);
+                
+                if (resp.ok) {
+                    response = resp;
+                    endpointUsed = endpoint;
+                    console.log(`成功: 使用更新端点 ${endpoint}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`更新端点 ${endpoint} 请求失败:`, e);
+            }
+        }
+        
+        // 如果所有端点都失败，使用第一个端点的响应
+        if (!response) {
+            response = await fetch(possibleEndpoints[0], {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(requestBody)
+            });
+        }
+        
+        console.log('最终使用的更新API端点:', endpointUsed || possibleEndpoints[0]);
+        console.log('更新用户响应状态:', response.status);
+        
+        const responseText = await response.text();
+        console.log('更新用户响应内容:', responseText);
+        
+        let data;
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+            console.error('解析响应JSON出错:', e);
+            data = {};
+        }
+        
+        if (response.ok) {
+            // 关闭模态框
+            const modalElement = document.getElementById('editUserModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            } else {
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            }
+            
+            // 提示更新成功
+            alert('用户信息已更新！');
+            
+            // 重新加载用户列表
+            fetchUsers();
+        } else {
+            alert('更新用户失败: ' + (data.error || `服务器返回状态 ${response.status}`));
+        }
+    } catch (error) {
+        console.error('更新用户出错:', error);
+        alert('更新用户信息时发生错误: ' + error.message);
+    }
+}
+
+// 确保全局可访问
+window.fetchUsers = fetchUsers;
+window.editUser = editUser;
+window.confirmDeleteUser = confirmDeleteUser;
+window.createUser = createUser;
+window.updateUser = updateUser;
+window.deleteUser = deleteUser;

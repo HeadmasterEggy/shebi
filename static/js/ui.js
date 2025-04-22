@@ -86,6 +86,8 @@ function setSentimentFilter(filter) {
  * @param {string} sectionId - 区块ID
  */
 function switchSection(sectionId) {
+    console.log(`切换到区块: ${sectionId}, 是否管理员: ${window.isAdmin}`);
+    
     // 首先记录滚动位置，以便切换回来时恢复
     const currentSection = document.querySelector('.content-section.active');
     if (currentSection) {
@@ -100,22 +102,35 @@ function switchSection(sectionId) {
     // 特殊处理管理员区域
     if (sectionId === 'admin-section') {
         // 检查用户是否为管理员
-        if (typeof isAdmin !== 'undefined' && isAdmin) {
+        if (window.isAdmin === true) {
             const adminSection = document.getElementById('admin-section');
-            adminSection.classList.add('active');
-            
-            // 如果已定义fetchUsers函数，调用它获取用户列表
-            if (typeof fetchUsers === 'function') {
-                fetchUsers();
+            if (adminSection) {
+                adminSection.classList.add('active');
+                console.log('管理员区域已激活');
+                
+                // 如果已定义fetchUsers函数，调用它获取用户列表
+                if (typeof fetchUsers === 'function') {
+                    fetchUsers();
+                } else {
+                    console.warn('fetchUsers 函数未定义');
+                }
+            } else {
+                console.error('找不到管理员区域元素');
             }
         } else {
             // 非管理员用户，显示输入区域
+            console.log('非管理员用户尝试访问管理员区域，已重定向到输入区域');
             sectionId = 'input-section';
             document.getElementById('input-section').classList.add('active');
         }
     } else {
         // 普通区域，直接显示
-        document.getElementById(sectionId).classList.add('active');
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        } else {
+            console.error(`找不到目标区块: ${sectionId}`);
+        }
     }
     
     // 恢复滚动位置
@@ -198,14 +213,18 @@ function setupUIEventListeners() {
     // 添加侧边栏菜单点击事件 - 优化处理
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', function() {
+            const targetSection = item.dataset.section;
+            
             // 管理员区域特殊处理
-            if (item.dataset.section === 'admin-section' && 
-                (!window.isAdmin || typeof window.isAdmin === 'undefined')) {
-                console.log('非管理员用户，无法访问系统管理功能');
-                return; // 非管理员用户点击无效
+            if (targetSection === 'admin-section') {
+                if (window.isAdmin !== true) {
+                    console.log('非管理员用户，无法访问系统管理功能');
+                    alert('您没有管理员权限，无法访问系统管理功能');
+                    return; // 非管理员用户点击无效
+                }
             }
             
-            switchSection(item.dataset.section);
+            switchSection(targetSection);
         });
     });
     

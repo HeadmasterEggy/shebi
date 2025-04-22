@@ -68,14 +68,18 @@ function updateUserInterface() {
         navbarUserRole.className = isAdmin ? 'badge bg-danger ms-1' : 'badge bg-primary ms-1';
     }
     
-    // 处理管理员专用菜单项
-    const adminMenuItem = document.querySelector('.menu-item.admin-only');
-    if (adminMenuItem) {
-        adminMenuItem.style.display = isAdmin ? 'flex' : 'none';
-    }
+    // 处理管理员专用菜单项 - 添加visible类而不是直接修改style
+    document.querySelectorAll('.menu-item.admin-only').forEach(item => {
+        if (isAdmin) {
+            item.classList.add('visible');
+        } else {
+            item.classList.remove('visible');
+        }
+    });
     
     // 确保窗口对象可以访问用户状态
     window.isAdmin = isAdmin;
+    console.log('用户权限已更新，管理员:', isAdmin);
 }
 
 /**

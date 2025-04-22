@@ -1190,6 +1190,26 @@ body {
     margin: 1.75rem auto;
 }
 
+/* 强化管理员区域控制 - 移除强制性隐藏 */
+#admin-section {
+    display: none; /* 默认隐藏，但不使用!important */
+}
+
+/* 仅当同时具有active类时才显示 */
+#admin-section.active {
+    display: flex !important;
+}
+
+/* 管理员专用菜单项样式 */
+.menu-item.admin-only {
+    display: none; /* 默认隐藏 */
+}
+
+/* 管理员菜单可见时的样式 */
+.menu-item.admin-only.visible {
+    display: flex; /* 设置为管理员时显示 */
+}
+
 /* 强化管理员区域控制 */
 #admin-section {
     display: none !important; /* 强制默认隐藏 */
