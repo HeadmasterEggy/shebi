@@ -12,7 +12,7 @@ import jieba
 import pandas as pd
 import torch
 import torch.nn as nn
-from flask import Flask, jsonify, send_from_directory, render_template
+from flask import Flask, jsonify, send_from_directory, render_template, request  # 添加request导入
 from flask_cors import CORS
 from flask_login import login_required, current_user
 from torch.utils.data import DataLoader
@@ -552,6 +552,54 @@ def delete_user(user_id):
     return jsonify({'message': f'用户 {user.username} 已成功删除'})
 
 
+@app.route('/api/admin/user/<int:user_id>', methods=['GET', 'PUT'])  # 添加PUT方法支持
+@admin_required
+def get_user_by_id(user_id):
+    """获取单个用户信息或更新用户信息 (仅限管理员)"""
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'GET':
+        return jsonify({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'is_admin': user.is_admin
+        })
+    elif request.method == 'PUT':
+        data = request.get_json()
+
+        # 获取请求数据
+        email = data.get('email')
+        is_admin = data.get('is_admin', False)
+        password = data.get('password')  # 可选，如果提供则更新密码
+
+        # 检查邮箱是否与其他用户重复
+        if email != user.email:
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user and existing_user.id != user.id:
+                return jsonify({'error': '邮箱已被注册'}), 400
+
+        # 更新用户信息
+        user.email = email
+        user.is_admin = is_admin
+
+        # 如果提供了新密码则更新
+        if password and password.strip():
+            user.password_hash = User.generate_password_hash(password)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': '用户更新成功',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'is_admin': user.is_admin
+            }
+        })
+
+
 @app.route('/api/user')
 @login_required
 def get_current_user():
@@ -1079,6 +1127,23 @@ def save_model():
     except Exception as e:
         logger.exception('保存模型出错')
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/info', methods=['GET'])
+@login_required
+def get_api_info():
+    """获取API信息，用于调试"""
+    return jsonify({
+        'api_version': '1.0',
+        'endpoints': [
+            {'path': '/api/user', 'methods': ['GET'], 'description': '获取当前用户信息'},
+            {'path': '/api/admin/users', 'methods': ['GET'], 'description': '获取所有用户列表'},
+            {'path': '/api/admin/user/<id>', 'methods': ['GET'], 'description': '获取单个用户信息'},
+            {'path': '/api/admin/create_user', 'methods': ['POST'], 'description': '创建新用户'},
+            {'path': '/api/admin/update_user/<id>', 'methods': ['PUT'], 'description': '更新用户信息'},
+            {'path': '/api/admin/delete_user/<id>', 'methods': ['DELETE'], 'description': '删除用户'}
+        ]
+    })
 
 
 if __name__ == '__main__':
