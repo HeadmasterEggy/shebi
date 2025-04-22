@@ -371,7 +371,7 @@ async function startTraining() {
         batch_size: parseInt(document.getElementById('batchSizeSelect').value),
         epochs: parseInt(document.getElementById('epochsInput').value),
         learning_rate: parseFloat(document.getElementById('learningRateInput').value),
-        dropout: parseFloat(document.getElementById('dropoutInput').value), // 更新为使用新的输入控件
+        dropout: parseFloat(document.getElementById('dropoutInput').value),
         optimizer: document.getElementById('optimizerSelect').value,
         weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
     };
@@ -459,38 +459,59 @@ async function startTraining() {
         // 添加训练日志
         addTrainingLog('info', '准备启动训练任务...');
         
-        // 发送训练请求
+        // 发送训练请求 - 增强错误处理
         const response = await fetch('/api/train/start', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'  // 确保服务器返回JSON而不是HTML
             },
             body: JSON.stringify(params)
         });
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || '启动训练失败');
+        // 检查响应类型，如果不是JSON，则进行特殊处理
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || '启动训练失败');
+            }
+            
+            // 成功启动训练
+            const trainingId = data.training_id || "default";
+            
+            document.getElementById('trainingStatus').textContent = '训练中';
+            document.getElementById('trainingStatus').className = 'badge bg-primary';
+            addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
+            
+            // 设置轮询获取训练进度
+            trainingInterval = setInterval(() => {
+                // 使用AJAX检查训练状态和进度
+                checkTrainingProgress();
+            }, 3000);
+        } else {
+            // 如果响应不是JSON，先尝试获取文本
+            const textResponse = await response.text();
+            console.error('服务器响应非JSON数据:', textResponse);
+            
+            // 检查是否是HTML错误页面
+            if (textResponse.includes('<!DOCTYPE html>') || textResponse.includes('<html>')) {
+                throw new Error('服务器返回了HTML错误页面，可能是服务器内部错误或API端点不存在');
+            } else {
+                throw new Error(`服务器响应无效: ${textResponse.substring(0, 100)}...`);
+            }
         }
-        
-        // 成功启动训练
-        const trainingId = data.training_id || "default";
-        
-        document.getElementById('trainingStatus').textContent = '训练中';
-        document.getElementById('trainingStatus').className = 'badge bg-primary';
-        addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
-        
-        // 设置轮询获取训练进度
-        trainingInterval = setInterval(() => {
-            // 使用AJAX检查训练状态和进度
-            checkTrainingProgress();
-        }, 3000);
         
     } catch (error) {
         console.error('启动训练出错:', error);
         document.getElementById('errorMessage').textContent = '启动训练失败: ' + error.message;
         document.getElementById('errorMessage').style.display = 'block';
+        
+        // 恢复训练占位符
+        document.getElementById('trainingPlaceholder').classList.remove('d-none');
+        document.getElementById('trainingProgress').classList.add('d-none');
+        document.getElementById('trainingControls').classList.add('d-none');
         
         addTrainingLog('error', '启动训练失败: ' + error.message);
         
@@ -505,12 +526,57 @@ async function startTraining() {
  */
 async function checkTrainingProgress() {
     try {
-        const response = await fetch('/api/train/progress');
-        if (response.ok) {
-            const data = await response.json();
-            console.log("进度数据:", data); // 添加日志调试
+        // 添加请求时间戳防止缓存
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/train/progress?t=${timestamp}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            cache: 'no-store'  // 强制不使用缓存
+        });
+        
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('进度API返回非JSON数据，Content-Type:', contentType);
+            const textResponse = await response.text();
+            console.error('响应文本:', textResponse);
             
-            // 更新进度
+            // 尝试手动将响应解析为JSON
+            try {
+                // 检查是否是JSON字符串但Content-Type设置错误
+                const manualParsed = JSON.parse(textResponse);
+                console.log('成功手动解析为JSON:', manualParsed);
+                updateTrainingProgress(manualParsed);
+                return;
+            } catch (parseError) {
+                console.error('手动解析JSON失败:', parseError);
+                
+                // 显示错误但继续轮询
+                addTrainingLog('error', '获取进度时返回非JSON数据，将继续尝试');
+                
+                // 降级处理：手动构建进度数据以保持界面更新
+                const fallbackData = {
+                    status: 'running',
+                    message: '正在等待有效的进度数据...'
+                };
+                updateTrainingProgress(fallbackData);
+                return;
+            }
+        }
+        
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            console.error('解析JSON响应失败:', jsonError);
+            addTrainingLog('error', '解析进度数据失败');
+            return;
+        }
+        
+        if (response.ok && data) {
+            console.log("进度数据:", data);
             updateTrainingProgress(data);
             
             // 如果训练已完成或失败，停止轮询
@@ -544,8 +610,7 @@ async function checkTrainingProgress() {
         } else {
             console.error("进度API响应错误:", response.status);
             try {
-                const errorData = await response.json();
-                console.error("错误详情:", errorData);
+                console.error("错误详情:", data);
             } catch (e) {
                 console.error("无法解析错误响应");
             }

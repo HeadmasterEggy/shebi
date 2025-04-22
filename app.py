@@ -27,6 +27,10 @@ from flask_login import login_required, current_user
 import subprocess  # 用于调用 main.py
 import json
 import sys
+import uuid
+import signal
+from datetime import datetime
+import traceback
 
 # 配置日志
 logging.basicConfig(
@@ -681,7 +685,7 @@ def reset_settings():
     settings_file = os.path.join('user_settings', f'{current_user.id}.json')
     
     # 如果设置文件存在，删除它
-    if os.path.exists(settings_file):
+    if (os.path.exists(settings_file)):
         try:
             os.remove(settings_file)
             logger.info(f"用户 {current_user.username} 设置已重置")
@@ -692,29 +696,59 @@ def reset_settings():
     return jsonify({'message': '设置已重置为默认值'})
 
 @app.route('/api/train/start', methods=['POST'])
-@admin_required
+@login_required
 def start_training():
-    """接收超参数并调用main.py开始训练"""
+    """启动模型训练任务"""
     try:
-        # 获取请求中的超参数
-        params = request.get_json()
-        required_fields = ['model_type', 'batch_size', 'epochs', 'learning_rate']
-        for field in required_fields:
-            if field not in params:
-                return jsonify({'error': f'缺少必填参数: {field}'}), 400
-
-        # 将超参数保存到JSON文件
-        params_file = os.path.join('config', 'params.json')
-        with open(params_file, 'w') as f:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid JSON data'}), 400
+        
+        # 获取训练参数
+        model_type = data.get('model_type', 'cnn')
+        batch_size = data.get('batch_size', 32)
+        epochs = data.get('epochs', 10)
+        learning_rate = data.get('learning_rate', 0.001)
+        dropout = data.get('dropout', 0.5)
+        optimizer = data.get('optimizer', 'adam')
+        weight_decay = data.get('weight_decay', 0.0001)
+        
+        # 保存训练参数到配置文件
+        params = {
+            'model_type': model_type,
+            'batch_size': batch_size,
+            'epochs': epochs,
+            'learning_rate': learning_rate,
+            'dropout': dropout,
+            'optimizer': optimizer,
+            'weight_decay': weight_decay
+        }
+        
+        # 确保配置目录存在
+        os.makedirs('config', exist_ok=True)
+        
+        # 模型特定参数
+        if model_type.lower() in ['lstm', 'bilstm', 'lstm_attention', 'bilstm_attention']:
+            params['hidden_dim'] = data.get('hidden_dim', 128)
+            params['num_layers'] = data.get('num_layers', 2)
+        elif model_type.lower() == 'cnn':
+            params['num_filters'] = data.get('num_filters', 128)
+            
+        # 早停参数
+        if data.get('early_stopping'):
+            params['early_stopping'] = True
+            params['patience'] = data.get('patience', 5)
+            
+        # 保存参数到配置文件
+        with open('config/params.json', 'w') as f:
             json.dump(params, f)
-
-        # 确保progress.json存在并重置
-        progress_file = os.path.join('config', 'progress.json')
-        with open(progress_file, 'w') as f:
+            
+        # 重置训练进度文件
+        with open('config/progress.json', 'w') as f:
             json.dump({
                 'status': 'initializing',
                 'current_epoch': 0,
-                'total_epochs': params['epochs'],
+                'total_epochs': epochs,
                 'train_loss': 0,
                 'val_loss': 0,
                 'val_acc': 0,
@@ -725,98 +759,103 @@ def start_training():
                     'val_acc': []
                 }
             }, f)
-
-        # 构建命令行参数
-        cmd = [
-            'python', 'main.py', 
-            '--model', params['model_type'],
-            '--batch-size', str(params['batch_size']),
-            '--epochs', str(params['epochs']),
-            '--learning-rate', str(params['learning_rate']),
-            '--dropout', str(params.get('dropout', 0.5)),
-            '--weight-decay', str(params.get('weight_decay', 1e-4))
-        ]
         
-        # 添加特定模型参数
-        if 'hidden_dim' in params:
-            cmd.extend(['--hidden-dim', str(params['hidden_dim'])])
-            
-        if 'num_layers' in params:
-            cmd.extend(['--num-layers', str(params['num_layers'])])
-            
-        if 'num_filters' in params and params['model_type'] == 'cnn':
-            cmd.extend(['--num-filters', str(params['num_filters'])])
-            
-        if params.get('early_stopping', False):
-            cmd.extend(['--patience', str(params.get('patience', 3))])
+        # 确保日志目录存在
+        os.makedirs('log', exist_ok=True)
         
-        # 设置日志文件
-        log_file = os.path.join('log', f'training_{params["model_type"]}_{int(time.time())}.log')
-        os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
         # 启动训练进程
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1
-        )
+        train_process = subprocess.Popen(['python', 'main.py'], 
+                                       stdout=subprocess.PIPE, 
+                                       stderr=subprocess.STDOUT,
+                                       universal_newlines=True)
         
-        # 保存进程ID
-        app.config['TRAINING_PROCESS'] = process
-        
-        # 开启线程监控输出
-        def monitor_output():
-            # 初始化进度文件
-            progress_file = os.path.join('config', 'progress.json')
-            # 记录日志
-            with open(log_file, 'w') as log:
-                try:
-                    for line in iter(process.stdout.readline, ''):
-                        print(line, end='', flush=True)  # 打印到控制台
-                        log.write(line)                 # 写入日志文件
-                        log.flush()                     # 确保立即写入磁盘
-                    
-                    # 处理标准错误输出
-                    for line in iter(process.stderr.readline, ''):
-                        print(line, end='', flush=True)  # 打印到控制台
-                        log.write(f"ERROR: {line}")      # 写入日志文件
-                        log.flush()                    # 确保立即写入磁盘
-                except Exception as e:
-                    print(f"监控输出时出错: {str(e)}")
-                    log.write(f"监控输出时出错: {str(e)}\n")
-                
-                # 进程结束，检查状态
-                return_code = process.wait()
-                if return_code != 0:
-                    log.write(f"训练进程异常退出，返回码: {return_code}\n")
-                    # 更新进度文件，标记为失败
-                    try:
-                        with open(progress_file, 'r+') as f:
-                            progress = json.load(f)
-                            progress['status'] = 'failed'
-                            progress['error'] = f"训练进程异常退出，返回码: {return_code}"
-                            f.seek(0)
-                            json.dump(progress, f)
-                            f.truncate()
-                    except Exception as e:
-                        log.write(f"更新进度文件出错: {str(e)}\n")
-        
-        thread = threading.Thread(target=monitor_output)
-        thread.daemon = True
-        thread.start()
+        # 记录训练进程PID
+        with open('config/train_pid.txt', 'w') as f:
+            f.write(str(train_process.pid))
         
         return jsonify({
-            'status': 'success',
-            'message': '训练已启动',
-            'pid': process.pid,
-            'log_file': log_file
+            'success': True, 
+            'message': '训练任务已启动',
+            'pid': train_process.pid,
+            'training_id': str(uuid.uuid4())
         })
-
     except Exception as e:
-        logger.exception('启动训练出错')
+        app.logger.error(f"启动训练出错: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/train/progress', methods=['GET'])
+@login_required
+def get_training_progress():
+    """获取训练进度"""
+    try:
+        progress_file = os.path.join('config', 'progress.json')
+        
+        # 确保文件存在
+        if not os.path.exists(progress_file):
+            # 如果文件不存在，返回初始状态
+            return jsonify({
+                'status': 'initializing',
+                'current_epoch': 0,
+                'total_epochs': 0,
+                'train_loss': 0,
+                'val_loss': 0,
+                'val_acc': 0,
+                'history': {
+                    'train_loss': [],
+                    'val_loss': [],
+                    'train_acc': [],
+                    'val_acc': []
+                },
+                'message': '等待训练开始'
+            })
+        
+        # 读取进度文件
+        try:
+            with open(progress_file, 'r') as f:
+                progress_data = json.load(f)
+        except json.JSONDecodeError:
+            app.logger.error(f"进度文件格式错误: {progress_file}")
+            # 返回错误格式的提示，但仍然是JSON格式响应
+            return jsonify({
+                'status': 'error',
+                'message': '进度文件格式错误',
+                'error': '无法解析进度文件'
+            })
+        
+        # 添加日志
+        progress_data['recent_logs'] = get_recent_training_logs()
+        
+        # 添加时间戳
+        progress_data['timestamp'] = datetime.now().isoformat()
+        
+        # 添加内容类型头
+        response = jsonify(progress_data)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"获取训练进度出错: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': '获取训练进度出错',
+            'error': str(e)
+        }), 500
+
+def get_recent_training_logs(max_lines=10):
+    """获取最近的训练日志"""
+    try:
+        log_file = os.path.join('log', 'training.log')
+        if not os.path.exists(log_file):
+            return []
+            
+        # 读取最后几行日志
+        with open(log_file, 'r') as f:
+            lines = f.readlines()
+            return [line.strip() for line in lines[-max_lines:] if line.strip()]
+    except Exception as e:
+        app.logger.error(f"读取训练日志出错: {str(e)}")
+        return []
 
 @app.route('/api/train/progress', methods=['GET'])
 @admin_required
