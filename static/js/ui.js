@@ -7,49 +7,289 @@
  * @param {string} view - 视图类型 ('list' 或 'chart')
  */
 function switchTab(view) {
+    console.log(`切换句子分析视图: ${view}`);
     const listView = document.getElementById('listView');
     const chartView = document.getElementById('chartView');
     const buttons = document.querySelectorAll('#sentenceResults .tab-button');
 
+    if (!listView || !chartView) {
+        console.error('找不到视图容器元素:', {listView, chartView});
+        return;
+    }
+
+    // 防止事件连续触发，添加一个小延时
+    if (window.switchTabInProgress) {
+        console.log('视图切换正在进行中，请稍候...');
+        return;
+    }
+    
+    window.switchTabInProgress = true;
+    setTimeout(() => {
+        window.switchTabInProgress = false;
+    }, 300);
+
     if (view === 'list') {
         listView.style.display = 'block';
         chartView.style.display = 'none';
+        console.log('已切换到列表视图');
     } else {
+        // 先显示图表容器
         listView.style.display = 'none';
         chartView.style.display = 'block';
+        chartView.style.visibility = 'visible';
+        
+        console.log('图表视图容器已显示:', chartView);
+        console.log(`图表容器尺寸: ${chartView.offsetWidth}x${chartView.offsetHeight}`);
         
         // 给DOM一点时间完成布局
         setTimeout(() => {
             try {
-                const pieChart = echarts.getInstanceByDom(document.getElementById('sentimentPieChart'));
-                const barChart = echarts.getInstanceByDom(document.getElementById('sentimentBarChart'));
-                const scatterChart = echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'));
+                // 获取图表实例方法1：从全局对象获取
+                let charts = [];
+                if (window.chartInstances) {
+                    charts = [
+                        window.chartInstances.pieChart,
+                        window.chartInstances.barChart,
+                        window.chartInstances.scatterChart
+                    ].filter(chart => chart);
+                }
                 
-                if (pieChart) pieChart.resize();
-                if (barChart) barChart.resize();
-                if (scatterChart) scatterChart.resize();
+                // 获取图表实例方法2：从DOM元素获取
+                if (charts.length === 0) {
+                    charts = [
+                        echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
+                        echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
+                        echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
+                    ].filter(chart => chart);
+                }
                 
-                // 使用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
-                requestAnimationFrame(() => {
-                    if (pieChart) pieChart.resize();
-                    if (barChart) barChart.resize();
-                    if (scatterChart) scatterChart.resize();
+                console.log(`找到 ${charts.length} 个图表实例`);
+                
+                // 如果找不到图表实例，尝试重新初始化
+                if (charts.length === 0) {
+                    console.log('找不到图表实例，尝试重新初始化');
+                    if (window.lastAnalysisData) {
+                        console.log('使用存储的分析数据重新初始化图表');
+                        initSentimentPieChart(window.lastAnalysisData);
+                        initSentimentBarChart(window.lastAnalysisData);
+                        initSentimentScatterChart(window.lastAnalysisData);
+                    } else if (window.allSentences && window.allSentences.length > 0) {
+                        console.log('使用存储的句子数据重新初始化图表');
+                        // 构造数据对象
+                        const data = {
+                            sentences: window.allSentences,
+                            overall: { 
+                                probabilities: {
+                                    positive: window.allSentences.filter(s => s.sentiment === '积极').length / window.allSentences.length * 100,
+                                    negative: window.allSentences.filter(s => s.sentiment === '消极').length / window.allSentences.length * 100
+                                }
+                            }
+                        };
+                        
+                        initSentimentPieChart(data);
+                        initSentimentBarChart(data);
+                        initSentimentScatterChart(data);
+                    } else {
+                        console.error('没有分析数据可用于初始化图表');
+                    }
+                    
+                    // 重新获取图表实例
+                    charts = [
+                        echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
+                        echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
+                        echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
+                    ].filter(chart => chart);
+                }
+                
+                // 调整所有图表大小
+                charts.forEach(chart => {
+                    if (chart) {
+                        try {
+                            chart.resize();
+                            console.log('图表已调整大小');
+                        } catch (e) {
+                            console.error('调整图表大小失败:', e);
+                        }
+                    }
                 });
             } catch (error) {
-                console.error('调整图表大小失败:', error);
+                console.error('处理图表视图切换时出错:', error);
             }
-        }, 100);
+        }, 300);
     }
 
+    // 更新标签按钮状态
     buttons.forEach(button => {
-        button.classList.toggle('active',
-            (view === 'list' && button.textContent === '列表视图') ||
-            (view === 'chart' && button.textContent === '图表视图')
-        );
+        if ((view === 'list' && button.textContent.includes('列表')) ||
+            (view === 'chart' && button.textContent.includes('图表'))) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+    
+    // 重新绑定标签按钮事件，确保切换后仍能点击
+    setupTabButtonsEvents();
+}
+
+/**
+ * 设置标签页按钮事件
+ */
+function setupTabButtonsEvents() {
+    console.log('设置标签页按钮事件');
+    
+    // 移除所有现有事件，防止重复绑定
+    document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+    
+    // 重新绑定事件
+    document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation(); // 防止事件冒泡
+            const view = this.dataset.view;
+            console.log(`标签按钮点击: ${view}`);
+            switchTab(view);
+        });
     });
 }
 
-// 移除 switchWordFreqTab 函数，因为我们不再需要切换视图
+/**
+ * 切换词频视图
+ * @param {string} view - 视图类型 ('tags' 或 'chart')
+ */
+function switchWordFreqTab(view) {
+    console.log(`切换词频视图: ${view}`);
+    const wordFreqTags = document.getElementById('wordFreqTags');
+    const wordFreqCharts = document.getElementById('wordFreqCharts');
+    const buttons = document.querySelectorAll('#wordFreq .tab-button');
+
+    if (!wordFreqTags || !wordFreqCharts) {
+        console.error('找不到词频视图容器元素:', {wordFreqTags, wordFreqCharts});
+        return;
+    }
+    
+    // 防止连续触发
+    if (window.switchWordFreqTabInProgress) {
+        console.log('词频视图切换正在进行中，请稍候...');
+        return;
+    }
+    
+    window.switchWordFreqTabInProgress = true;
+    setTimeout(() => {
+        window.switchWordFreqTabInProgress = false;
+    }, 300);
+
+    if (view === 'tags') {
+        wordFreqTags.style.display = 'block';
+        wordFreqCharts.style.display = 'none';
+        console.log('已切换到词频标签视图');
+    } else {
+        // 先确保词频图表容器可见
+        wordFreqTags.style.display = 'none';
+        wordFreqCharts.style.display = 'flex';
+        wordFreqCharts.style.visibility = 'visible';
+        
+        console.log('词频图表容器已显示');
+        console.log(`词频图表容器尺寸: ${wordFreqCharts.offsetWidth}x${wordFreqCharts.offsetHeight}`);
+        
+        // 找到所有图表容器并检查其可见性
+        const chartContainers = wordFreqCharts.querySelectorAll('.chart');
+        chartContainers.forEach(container => {
+            console.log(`图表容器: ${container.id}, 尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
+            // 确保每个容器都是可见的
+            container.style.width = '100%';
+            container.style.height = '350px';
+            container.style.visibility = 'visible';
+        });
+        
+        // 给DOM一点时间完成布局
+        setTimeout(() => {
+            try {
+                // 获取图表实例方法1：从全局对象获取
+                let charts = [];
+                if (window.chartInstances) {
+                    charts = [
+                        window.chartInstances.wordFreqBarChart,
+                        window.chartInstances.wordCloudChart
+                    ].filter(chart => chart);
+                }
+                
+                // 获取图表实例方法2：从DOM元素获取
+                if (charts.length === 0) {
+                    charts = [
+                        echarts.getInstanceByDom(document.getElementById('wordFreqBarChart')),
+                        echarts.getInstanceByDom(document.getElementById('wordCloudChart'))
+                    ].filter(chart => chart);
+                }
+                
+                console.log(`找到 ${charts.length} 个词频图表实例`);
+                
+                // 如果找不到图表实例，尝试重新初始化
+                if (charts.length === 0 && window.lastAnalysisData) {
+                    console.log('找不到词频图表实例，尝试重新初始化');
+                    const wordFreqBarChart = initWordFreqBarChart(window.lastAnalysisData);
+                    const wordCloudChart = initWordCloudChart(window.lastAnalysisData);
+                    
+                    if (wordFreqBarChart || wordCloudChart) {
+                        charts = [wordFreqBarChart, wordCloudChart].filter(chart => chart);
+                    }
+                }
+                
+                // 调整所有图表大小
+                charts.forEach(chart => {
+                    if (chart) {
+                        try {
+                            chart.resize();
+                            console.log('词频图表已调整大小');
+                        } catch (e) {
+                            console.error('调整词频图表大小失败:', e);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('处理词频图表视图切换时出错:', error);
+            }
+        }, 300);
+    }
+
+    // 更新标签按钮状态
+    buttons.forEach(button => {
+        if ((view === 'tags' && button.textContent.includes('标签')) ||
+            (view === 'chart' && button.textContent.includes('图表'))) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+    
+    // 重新绑定标签按钮事件
+    setupWordFreqTabButtonsEvents();
+}
+
+/**
+ * 设置词频标签页按钮事件
+ */
+function setupWordFreqTabButtonsEvents() {
+    console.log('设置词频标签页按钮事件');
+    
+    // 移除所有现有事件，防止重复绑定
+    document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+    
+    // 重新绑定事件
+    document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation(); // 防止事件冒泡
+            const view = this.dataset.view;
+            console.log(`词频标签按钮点击: ${view}`);
+            switchWordFreqTab(view);
+        });
+    });
+}
 
 /**
  * 切换卡片展开/折叠状态
@@ -149,6 +389,29 @@ function switchSection(sectionId) {
         // 给DOM一点时间完成布局
         setTimeout(resizeChartsInSection, 100, sectionId);
     }
+
+    // 如果切换到总体分析区域，重新调整图表大小
+    if (sectionId === 'overall-section') {
+        setTimeout(() => {
+            console.log('调整总体分析区域中的所有图表大小');
+            resizeChartsInSection(sectionId);
+            
+            // 特别处理词频图表
+            const wordFreqCharts = document.getElementById('wordFreqCharts');
+            if (wordFreqCharts && getComputedStyle(wordFreqCharts).display !== 'none') {
+                const charts = [
+                    echarts.getInstanceByDom(document.getElementById('wordFreqBarChart')),
+                    echarts.getInstanceByDom(document.getElementById('wordCloudChart'))
+                ].filter(chart => chart);
+                
+                charts.forEach(chart => {
+                    if (chart) {
+                        chart.resize();
+                    }
+                });
+            }
+        }, 300);
+    }
 }
 
 /**
@@ -235,4 +498,8 @@ function setupUIEventListeners() {
             resizeChartsInSection(activeSection.id);
         }
     });
+
+    // 设置标签页事件
+    setupTabButtonsEvents();
+    setupWordFreqTabButtonsEvents();
 }

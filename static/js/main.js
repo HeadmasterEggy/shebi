@@ -193,12 +193,31 @@ function displayResults(data) {
         return;
     }
 
+    // 保存分析数据到全局变量，方便视图切换时使用
+    window.lastAnalysisData = data;
+    window.allSentences = data.sentences;
+    
+    console.log('收到分析结果数据:', data);
+    
+    // 检查词频数据并进行预处理
+    if (!data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
+        console.warn('未检测到词频数据或词频数据为空，创建占位数据');
+        // 创建占位词频数据以避免图表错误
+        data.wordFreq = [
+            {word: "无词频数据", count: 1}
+        ];
+    } else {
+        console.log(`检测到词频数据，包含${data.wordFreq.length}个词条`);
+    }
+    
+    // 设置句子数据
     allSentences = data.sentences;
     filteredSentences = [...allSentences];
     currentPage = 1;
     sentimentFilter = 'all';
     displayMode = 'normal';
 
+    // 重置过滤器状态
     document.querySelectorAll('.filter-button[data-sentiment]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.sentiment === 'all');
     });
@@ -207,17 +226,32 @@ function displayResults(data) {
         btn.classList.toggle('active', btn.dataset.display === 'normal');
     });
     
-    // 确保所有结果卡片都显示出来（覆盖之前可能的隐藏状态）
-    document.getElementById('overallResult').style.display = 'block';
-    document.getElementById('sentenceResults').style.display = 'block';
-    document.getElementById('wordFreq').style.display = 'block';
-    document.getElementById('modelMetrics').style.display = 'block'; // 保留这行，但现在modelMetrics位于overall-section中
+    // 确保所有结果卡片都显示出来
+    const resultCards = ['overallResult', 'sentenceResults', 'wordFreq', 'modelMetrics'];
+    resultCards.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'block';
+            element.style.visibility = 'visible';
+            element.style.opacity = '1';
+        }
+    });
     
-    // 自动切换到结果区块
-    switchSection('overall-section');
-
+    // 确保图表容器可见
+    const chartContainers = ['chartView', 'wordFreqCharts'];
+    chartContainers.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            // 确保DOM结构正确，但实际显示由switchTab控制
+            element.style.visibility = 'visible';
+            element.style.opacity = '1';
+        }
+    });
+    
+    // 更新分页和句子显示
     updateDisplay();
 
+    // 处理整体分析结果
     if (data.overall && data.overall.probabilities) {
         const overall = data.overall;
         document.getElementById('overallSentiment').textContent = overall.sentiment || 'N/A';
@@ -229,19 +263,59 @@ function displayResults(data) {
         showError('整体分析结果数据不完整');
     }
 
+    // 处理模型评估指标
     if (data.modelMetrics) {
         document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
         document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
         document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
 
         // 初始化混淆矩阵
-        initConfusionMatrix(data);
+        try {
+            initConfusionMatrix(data);
+        } catch(e) {
+            console.error('初始化混淆矩阵失败:', e);
+        }
     }
 
     try {
+        // 初始化所有图表，包括词频图表
         initCharts(data);
+        
+        // 初始化词频标签
+        initWordFreqTags(data);
+        
+        // 设置标签页事件 - 使用ui.js中的函数
+        if (typeof setupTabButtonsEvents === 'function') {
+            setupTabButtonsEvents();
+        } else {
+            // 旧版本兼容：直接绑定事件
+            document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    switchTab(this.dataset.view);
+                });
+            });
+        }
+        
+        if (typeof setupWordFreqTabButtonsEvents === 'function') {
+            setupWordFreqTabButtonsEvents();
+        } else {
+            // 旧版本兼容：直接绑定事件
+            document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    switchWordFreqTab(this.dataset.view);
+                });
+            });
+        }
+        
+        // 默认显示列表视图
+        switchTab('list');
+        switchWordFreqTab('tags');
+        
+        // 自动切换到总体分析区块
+        switchSection('overall-section');
     } catch (error) {
         console.error('初始化图表失败:', error);
+        console.error(error.stack);
         showError('图表初始化失败: ' + error.message);
     }
 }

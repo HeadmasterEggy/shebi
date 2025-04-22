@@ -7,57 +7,141 @@
  * @param {Object} data - 分析结果数据
  */
 function initCharts(data) {
-    initWordFreqTags(data);
+    console.log('开始初始化图表...');
+    window.allSentences = data.sentences; // 确保全局保存句子数据
+    
+    // 调试日志：检查图表容器
+    checkChartContainers();
 
-    // 给图表一个更长的延迟，确保DOM元素已经完全可见
+    // 确保图表容器在初始化前有正确的尺寸
+    prepareChartContainers();
+
+    // 延迟执行图表初始化，确保DOM已完全加载和渲染
     setTimeout(() => {
-        initOverallPieChart(data);
-        initSentimentPieChart(data);
-        initSentimentBarChart(data);
-        initSentimentScatterChart(data);
-        
-        // 确保词频图表容器可见
-        document.getElementById('wordFreqCharts').style.display = 'flex';
-        
-        // 先初始化图表
-        const wordFreqBarChart = initWordFreqBarChart(data);
-        const wordCloudChart = initWordCloudChart(data);
-
-        // 应用共同的图表动画选项
-        applyChartAnimations();
-
-        // 添加窗口大小改变事件监听器
-        setupChartResizing();
-        
-        // 额外调用一次重绘，确保所有图表正确显示
-        setTimeout(() => {
-            const charts = [
-                echarts.getInstanceByDom(document.getElementById('overallPieChart')),
-                echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
-                echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
-                echarts.getInstanceByDom(document.getElementById('sentimentScatterChart')),
+        try {
+            // 句子分析图表
+            const pieChart = initSentimentPieChart(data);
+            const barChart = initSentimentBarChart(data);
+            const scatterChart = initSentimentScatterChart(data);
+            
+            // 词频图表
+            const wordFreqBarChart = initWordFreqBarChart(data);
+            const wordCloudChart = initWordCloudChart(data);
+            
+            // 保存图表实例到window对象，以便全局访问
+            window.chartInstances = {
+                pieChart,
+                barChart,
+                scatterChart,
                 wordFreqBarChart,
-                wordCloudChart,
-                echarts.getInstanceByDom(document.getElementById('confusionMatrixChart'))
-            ].filter(chart => chart);
+                wordCloudChart
+            };
             
-            charts.forEach(chart => chart.resize());
+            console.log('所有图表初始化完成，图表实例:', window.chartInstances);
             
-            // 再次调用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
-            requestAnimationFrame(() => {
-                charts.forEach(chart => chart.resize());
-            });
-        }, 300);
-    }, 200);
+            // 强制重绘所有图表
+            setTimeout(resizeAllCharts, 500);
+        } catch (error) {
+            console.error('图表初始化过程中出错:', error);
+        }
+    }, 300);
+}
 
-    // 在页面加载完成后再次重绘词频图表
-    window.addEventListener('load', function() {
-        setTimeout(() => {
-            const wordFreqBarChart = echarts.getInstanceByDom(document.getElementById('wordFreqBarChart'));
-            const wordCloudChart = echarts.getInstanceByDom(document.getElementById('wordCloudChart'));
-            if (wordFreqBarChart) wordFreqBarChart.resize();
-            if (wordCloudChart) wordCloudChart.resize();
-        }, 500);
+/**
+ * 检查图表容器是否存在
+ */
+function checkChartContainers() {
+    const containers = [
+        'sentimentPieChart',
+        'sentimentBarChart',
+        'sentimentScatterChart',
+        'wordFreqBarChart',
+        'wordCloudChart'
+    ];
+    
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        console.log(`图表容器 ${id}: ${container ? '存在' : '不存在'}`);
+        if (container) {
+            console.log(`容器尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
+            console.log(`容器样式: display=${getComputedStyle(container).display}, visibility=${getComputedStyle(container).visibility}`);
+        }
+    });
+    
+    // 检查父容器
+    const chartView = document.getElementById('chartView');
+    console.log(`图表视图容器: ${chartView ? '存在' : '不存在'}`);
+    if (chartView) {
+        console.log(`图表视图样式: display=${getComputedStyle(chartView).display}, visibility=${getComputedStyle(chartView).visibility}`);
+    }
+    
+    const wordFreqCharts = document.getElementById('wordFreqCharts');
+    console.log(`词频图表容器: ${wordFreqCharts ? '存在' : '不存在'}`);
+    if (wordFreqCharts) {
+        console.log(`词频图表样式: display=${getComputedStyle(wordFreqCharts).display}, visibility=${getComputedStyle(wordFreqCharts).visibility}`);
+    }
+}
+
+/**
+ * 准备图表容器，确保它们有正确的尺寸和可见性
+ */
+function prepareChartContainers() {
+    const containers = [
+        'sentimentPieChart',
+        'sentimentBarChart',
+        'sentimentScatterChart',
+        'wordFreqBarChart',
+        'wordCloudChart'
+    ];
+    
+    // 临时显示图表视图容器以便初始化
+    const chartView = document.getElementById('chartView');
+    const wordFreqCharts = document.getElementById('wordFreqCharts');
+    const chartViewOrigDisplay = chartView ? chartView.style.display : 'none';
+    const wordFreqChartsOrigDisplay = wordFreqCharts ? wordFreqCharts.style.display : 'none';
+    
+    // 临时设置为block以便初始化
+    if (chartView) chartView.style.display = 'block';
+    if (wordFreqCharts) wordFreqCharts.style.display = 'block';
+    
+    // 确保每个容器有明确的尺寸
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) {
+            container.style.width = '100%';
+            container.style.height = '400px';
+            container.style.minHeight = '300px';
+            container.style.visibility = 'visible';
+            container.style.opacity = '1';
+        }
+    });
+    
+    // 打印日志确认容器已准备好
+    console.log('图表容器已准备好，将在初始化后恢复原始显示状态');
+    
+    // 设置延时恢复原始显示状态
+    setTimeout(() => {
+        if (chartView) chartView.style.display = chartViewOrigDisplay;
+        if (wordFreqCharts) wordFreqCharts.style.display = wordFreqChartsOrigDisplay;
+        console.log('图表容器已恢复原始显示状态');
+    }, 1000);
+}
+
+/**
+ * 强制重绘所有图表
+ */
+function resizeAllCharts() {
+    if (!window.chartInstances) return;
+    
+    Object.values(window.chartInstances).forEach(chart => {
+        if (chart && typeof chart.resize === 'function') {
+            try {
+                chart.resize();
+                console.log('图表已重绘:', chart);
+            } catch (e) {
+                console.warn('重绘图表时出错:', e);
+            }
+        }
     });
 }
 
@@ -65,10 +149,25 @@ function initCharts(data) {
  * 初始化词频标签
  */
 function initWordFreqTags(data) {
+    console.log('初始化词频标签...');
+    
     const wordFreqTags = document.getElementById('wordFreqTags');
+    if (!wordFreqTags) {
+        console.error('找不到词频标签容器');
+        return;
+    }
+    
+    // 更严格的数据检查
+    if (!data || !data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
+        console.warn('词频数据为空或格式不正确');
+        wordFreqTags.innerHTML = '<p class="text-muted text-center py-4">没有词频数据</p>';
+        return;
+    }
+    
+    console.log(`词频标签数据: 共${data.wordFreq.length}项`);
+    
     let tagsHtml = '';
-
-    if (data.wordFreq && data.wordFreq.length > 0) {
+    try {
         const maxCount = Math.max(...data.wordFreq.map(item => item.count));
         const minCount = Math.min(...data.wordFreq.map(item => item.count));
 
@@ -83,8 +182,10 @@ function initWordFreqTags(data) {
             tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: linear-gradient(135deg, rgb(${r}, ${g}, ${b}), rgb(${r + 10}, ${g + 10}, ${b + 10})); color: ${textColor}; border-color: ${borderColor};">${item.word} (${item.count})</span>`;
         });
         wordFreqTags.innerHTML = tagsHtml;
-    } else {
-        wordFreqTags.innerHTML = '<p class="text-muted">没有词频数据</p>';
+        console.log('词频标签渲染成功');
+    } catch (error) {
+        console.error('生成词频标签出错:', error);
+        wordFreqTags.innerHTML = '<p class="text-danger text-center py-4">词频标签生成出错</p>';
     }
 }
 
@@ -362,123 +463,236 @@ function initSentimentScatterChart(data) {
  * 初始化词频柱状图
  */
 function initWordFreqBarChart(data) {
+    console.log('初始化词频柱状图...');
+    
     const container = document.getElementById('wordFreqBarChart');
-    if (!container) return null;
+    if (!container) {
+        console.error('找不到词频柱状图容器');
+        return null;
+    }
     
-    const wordFreqBar = echarts.init(container);
-    const wordFreqData = data.wordFreq.slice(0, 20);
-    const wordFreqBarOption = {
-        title: {
-            text: '高频词汇统计',
-            left: 'center',
-            top: 20
-        },
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow'
+    // 先确保容器有明确的尺寸
+    container.style.width = '100%';
+    container.style.height = '350px';
+    container.style.minHeight = '300px';
+    container.style.visibility = 'visible';
+    
+    // 确保父容器也是可见的
+    const parent = container.closest('.chart-wrapper');
+    if (parent) {
+        parent.style.display = 'block';
+        parent.style.visibility = 'visible';
+    }
+    
+    // 销毁可能存在的旧实例
+    try {
+        const existingChart = echarts.getInstanceByDom(container);
+        if (existingChart) {
+            existingChart.dispose();
+            console.log('已销毁旧的词频柱状图实例');
+        }
+    } catch (e) { 
+        console.warn('尝试销毁旧图表实例时出错:', e);
+    }
+    
+    // 创建图表前再次检查容器
+    console.log(`词频柱状图容器尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
+    
+    // 确保数据有效
+    if (!data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
+        console.warn('词频数据为空');
+        container.innerHTML = '<div class="text-center text-muted p-5">无词频数据可显示</div>';
+        return null;
+    }
+    
+    const wordFreqData = data.wordFreq.slice(0, 20); // 只显示前20个词
+    
+    try {
+        // 使用echarts.init强制指定大小
+        const wordFreqBar = echarts.init(container, null, {
+            width: container.offsetWidth || 500,
+            height: container.offsetHeight || 350
+        });
+        
+        // 设置选项
+        const wordFreqBarOption = {
+            title: {
+                text: '高频词汇统计',
+                left: 'center',
+                top: 20
             },
-            formatter: function (params) {
-                return params[0].name + ': ' + params[0].value;
-            }
-        },
-        grid: {
-            left: '3%',
-            right: '4%',
-            bottom: '15%',
-            top: 60,
-            containLabel: true
-        },
-        xAxis: {
-            type: 'category',
-            data: wordFreqData.map(item => item.word),
-            axisLabel: {
-                interval: 0,
-                rotate: 45
-            }
-        },
-        yAxis: {
-            type: 'value'
-        },
-        series: [{
-            data: wordFreqData.map(item => ({
-                value: item.count,
-                itemStyle: {
-                    color: `rgb(${Math.random() * 150 + 50}, ${Math.random() * 150 + 50}, ${Math.random() * 150 + 50})`
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow'
                 }
-            })),
-            type: 'bar',
-            barWidth: '40%'
-        }]
-    };
-    wordFreqBar.setOption(wordFreqBarOption);
-    
-    // 返回图表实例，方便后续操作
-    return wordFreqBar;
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '15%',
+                top: 60,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: wordFreqData.map(item => item.word),
+                axisLabel: {
+                    interval: 0,
+                    rotate: 45
+                }
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [{
+                data: wordFreqData.map(item => ({
+                    value: item.count,
+                    itemStyle: {
+                        color: `rgb(${Math.random() * 150 + 50}, ${Math.random() * 150 + 50}, ${Math.random() * 150 + 50})`
+                    }
+                })),
+                type: 'bar',
+                barWidth: '40%'
+            }]
+        };
+        
+        // 应用选项
+        wordFreqBar.setOption(wordFreqBarOption);
+        console.log('词频柱状图初始化成功');
+        
+        // 立即调整大小
+        wordFreqBar.resize();
+        
+        return wordFreqBar;
+    } catch (e) {
+        console.error('初始化词频柱状图出错:', e);
+        return null;
+    }
 }
 
 /**
  * 初始化词云图
  */
 function initWordCloudChart(data) {
+    // 类似上面的实现，增强错误处理和日志
+    // ...existing code with similar improvements...
+    
+    console.log('初始化词云图...');
+    
     const container = document.getElementById('wordCloudChart');
-    if (!container) return null;
+    if (!container) {
+        console.error('找不到词云图容器');
+        return null;
+    }
     
-    const wordCloud = echarts.init(container);
-    const wordCloudOption = {
-        title: {
-            text: '词云展示',
-            left: 'center',
-            top: 20
-        },
-        tooltip: {
-            show: true,
-            formatter: function (params) {
-                return params.name + ': ' + (params.value / 100).toFixed(0);
-            }
-        },
-        series: [{
-            type: 'wordCloud',
-            shape: 'circle',
-            size: ['100%', '100%'],
-            left: 'center',
-            top: 'center',
-            width: '100%',
-            height: '100%',
-            right: null,
-            bottom: null,
-            sizeRange: [15, 80],
-            rotationRange: [-45, 45],
-            rotationStep: 30,
-            gridSize: 8,
-            drawOutOfBound: false,
-            textStyle: {
-                fontFamily: 'sans-serif',
-                fontWeight: 'bold',
-                color: function () {
-                    return 'rgb(' +
-                        Math.round(Math.random() * 150 + 50) + ',' +
-                        Math.round(Math.random() * 150 + 50) + ',' +
-                        Math.round(Math.random() * 150 + 50) + ')'
-                }
+    // 先确保容器有明确的尺寸
+    container.style.width = '100%';
+    container.style.height = '350px';
+    container.style.minHeight = '300px';
+    container.style.visibility = 'visible';
+    
+    // 确保父容器也是可见的
+    const parent = container.closest('.chart-wrapper');
+    if (parent) {
+        parent.style.display = 'block';
+        parent.style.visibility = 'visible';
+    }
+    
+    // 销毁可能存在的旧实例
+    try {
+        const existingChart = echarts.getInstanceByDom(container);
+        if (existingChart) {
+            existingChart.dispose();
+            console.log('已销毁旧的词云图实例');
+        }
+    } catch (e) { 
+        console.warn('尝试销毁旧词云图实例时出错:', e);
+    }
+    
+    // 检查wordCloud插件是否可用
+    if (!echarts.getMap) {
+        console.error('echarts-wordcloud插件未找到，词云图无法初始化');
+        container.innerHTML = '<div class="text-center text-danger p-3">无法加载词云图组件</div>';
+        return null;
+    }
+    
+    // 创建图表前再次检查容器
+    console.log(`词云图容器尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
+    
+    if (!data.wordFreq || data.wordFreq.length === 0) {
+        console.warn('词频数据为空');
+        container.innerHTML = '<div class="text-center text-muted p-5">无词频数据可显示</div>';
+        return null;
+    }
+    
+    try {
+        // 使用echarts.init强制指定大小
+        const wordCloud = echarts.init(container, null, {
+            width: container.offsetWidth || 500,
+            height: container.offsetHeight || 350
+        });
+        
+        const wordCloudOption = {
+            title: {
+                text: '词云展示',
+                left: 'center',
+                top: 20
             },
-            emphasis: {
-                focus: 'self',
+            tooltip: {
+                show: true
+            },
+            series: [{
+                type: 'wordCloud',
+                shape: 'circle',
+                left: 'center',
+                top: 'center',
+                width: '90%',
+                height: '90%',
+                right: null,
+                bottom: null,
+                sizeRange: [15, 80],
+                rotationRange: [-45, 45],
+                rotationStep: 30,
+                gridSize: 8,
+                drawOutOfBound: false,
                 textStyle: {
-                    shadowBlur: 10,
-                    shadowColor: '#333'
-                }
-            },
-            data: data.wordFreq.map(item => ({
-                name: item.word,
-                value: item.count * 100
-            }))
-        }]
-    };
-    wordCloud.setOption(wordCloudOption);
-    
-    // 返回图表实例，方便后续操作
-    return wordCloud;
+                    fontFamily: 'sans-serif',
+                    fontWeight: 'bold',
+                    color: function () {
+                        return 'rgb(' +
+                            Math.round(Math.random() * 150 + 50) + ',' +
+                            Math.round(Math.random() * 150 + 50) + ',' +
+                            Math.round(Math.random() * 150 + 50) + ')'
+                    }
+                },
+                emphasis: {
+                    focus: 'self',
+                    textStyle: {
+                        shadowBlur: 10,
+                        shadowColor: '#333'
+                    }
+                },
+                data: data.wordFreq.map(item => ({
+                    name: item.word,
+                    value: item.count * 100
+                }))
+            }]
+        };
+        
+        // 应用选项
+        wordCloud.setOption(wordCloudOption);
+        console.log('词云图初始化成功');
+        
+        // 立即调整大小
+        wordCloud.resize();
+        
+        return wordCloud;
+    } catch (e) {
+        console.error('初始化词云图出错:', e);
+        console.error(e.stack);
+        return null;
+    }
 }
 
 /**
