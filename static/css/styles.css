@@ -1200,6 +1200,15 @@ body {
     display: flex !important;
 }
 
+/* 训练区域控制 - 普通用户也可访问 */
+#training-section {
+    display: none; /* 默认隐藏 */
+}
+
+#training-section.active {
+    display: flex !important; /* 激活时显示 */
+}
+
 /* 管理员专用菜单项样式 */
 .menu-item.admin-only {
     display: none; /* 默认隐藏 */
