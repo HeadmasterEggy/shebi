@@ -160,112 +160,120 @@ function setupTabButtonsEvents() {
  * @param {string} view - 视图类型 ('tags' 或 'chart')
  */
 function switchWordFreqTab(view) {
-    console.log(`切换词频视图: ${view}`);
+    // 去掉不必要的详细日志
     const wordFreqTags = document.getElementById('wordFreqTags');
     const wordFreqCharts = document.getElementById('wordFreqCharts');
     const buttons = document.querySelectorAll('#wordFreq .tab-button');
 
-    if (!wordFreqTags || !wordFreqCharts) {
-        console.error('找不到词频视图容器元素:', {wordFreqTags, wordFreqCharts});
-        return;
-    }
+    if (!wordFreqTags || !wordFreqCharts) return;
     
-    // 防止连续触发
-    if (window.switchWordFreqTabInProgress) {
-        console.log('词频视图切换正在进行中，请稍候...');
-        return;
-    }
-    
+    // 简化状态标志处理
+    if (window.switchWordFreqTabInProgress) return;
     window.switchWordFreqTabInProgress = true;
-    setTimeout(() => {
-        window.switchWordFreqTabInProgress = false;
-    }, 300);
+    setTimeout(() => window.switchWordFreqTabInProgress = false, 300);
 
     if (view === 'tags') {
         wordFreqTags.style.display = 'block';
         wordFreqCharts.style.display = 'none';
-        console.log('已切换到词频标签视图');
     } else {
-        // 先确保词频图表容器可见
+        // 图表视图 - 简化代码
         wordFreqTags.style.display = 'none';
         wordFreqCharts.style.display = 'flex';
         wordFreqCharts.style.visibility = 'visible';
         
-        console.log('词频图表容器已显示');
-        console.log(`词频图表容器尺寸: ${wordFreqCharts.offsetWidth}x${wordFreqCharts.offsetHeight}`);
-        
-        // 找到所有图表容器并检查其可见性
-        const chartContainers = wordFreqCharts.querySelectorAll('.chart');
-        chartContainers.forEach(container => {
-            console.log(`图表容器: ${container.id}, 尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
-            // 确保每个容器都是可见的
+        // 确保图表容器可见
+        wordFreqCharts.querySelectorAll('.chart').forEach(container => {
             container.style.width = '100%';
             container.style.height = '350px';
             container.style.visibility = 'visible';
         });
         
-        // 给DOM一点时间完成布局
+        // 延迟渲染图表，给DOM时间更新
         setTimeout(() => {
-            try {
-                // 获取图表实例方法1：从全局对象获取
-                let charts = [];
-                if (window.chartInstances) {
-                    charts = [
-                        window.chartInstances.wordFreqBarChart,
-                        window.chartInstances.wordCloudChart
-                    ].filter(chart => chart);
-                }
-                
-                // 获取图表实例方法2：从DOM元素获取
-                if (charts.length === 0) {
-                    charts = [
-                        echarts.getInstanceByDom(document.getElementById('wordFreqBarChart')),
-                        echarts.getInstanceByDom(document.getElementById('wordCloudChart'))
-                    ].filter(chart => chart);
-                }
-                
-                console.log(`找到 ${charts.length} 个词频图表实例`);
-                
-                // 如果找不到图表实例，尝试重新初始化
-                if (charts.length === 0 && window.lastAnalysisData) {
-                    console.log('找不到词频图表实例，尝试重新初始化');
-                    const wordFreqBarChart = initWordFreqBarChart(window.lastAnalysisData);
-                    const wordCloudChart = initWordCloudChart(window.lastAnalysisData);
-                    
-                    if (wordFreqBarChart || wordCloudChart) {
-                        charts = [wordFreqBarChart, wordCloudChart].filter(chart => chart);
-                    }
-                }
-                
-                // 调整所有图表大小
-                charts.forEach(chart => {
-                    if (chart) {
-                        try {
-                            chart.resize();
-                            console.log('词频图表已调整大小');
-                        } catch (e) {
-                            console.error('调整词频图表大小失败:', e);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('处理词频图表视图切换时出错:', error);
+            if (window.lastAnalysisData) {
+                // 简化为使用一个函数创建简单图表
+                createWordFreqCharts(window.lastAnalysisData);
             }
         }, 300);
     }
 
-    // 更新标签按钮状态
+    // 更新按钮状态
     buttons.forEach(button => {
-        if ((view === 'tags' && button.textContent.includes('标签')) ||
-            (view === 'chart' && button.textContent.includes('图表'))) {
-            button.classList.add('active');
-        } else {
-            button.classList.remove('active');
-        }
+        button.classList.toggle('active', 
+            (view === 'tags' && button.textContent.includes('标签')) ||
+            (view === 'chart' && button.textContent.includes('图表'))
+        );
     });
     
-    // 重新绑定标签按钮事件
+    // 重新绑定按钮事件
     setupWordFreqTabButtonsEvents();
+}
+
+/**
+ * 创建词频图表
+ */
+function createWordFreqCharts(data) {
+    if (!data || !data.wordFreq) return;
+    
+    // 清理旧实例
+    ['wordFreqBarChart', 'wordCloudChart'].forEach(id => {
+        const container = document.getElementById(id);
+        if (!container) return;
+        
+        try {
+            const existing = echarts.getInstanceByDom(container);
+            if (existing) existing.dispose();
+        } catch (e) {}
+        
+        // 创建图表
+        createSimpleChart(container, data.wordFreq);
+    });
+}
+
+/**
+ * 创建简单图表
+ */
+function createSimpleChart(container, data) {
+    if (!container || !data) return null;
+    
+    // 确保容器尺寸
+    container.style.width = '100%';
+    container.style.height = '350px';
+    
+    try {
+        const chart = echarts.init(container);
+        const isBarChart = container.id === 'wordFreqBarChart';
+        
+        // 准备图表数据
+        const words = data.slice(0, isBarChart ? 15 : 30).map(item => item.word);
+        const values = data.slice(0, isBarChart ? 15 : 30).map(item => item.count);
+        
+        // 设置配置
+        const option = isBarChart ?
+            {
+                title: { text: '高频词汇统计', left: 'center' },
+                tooltip: { trigger: 'axis' },
+                xAxis: { type: 'category', data: words },
+                yAxis: { type: 'value' },
+                series: [{ data: values, type: 'bar' }]
+            } :
+            {
+                title: { text: '词频分布', left: 'center' },
+                tooltip: { trigger: 'item' },
+                series: [{
+                    type: 'pie',
+                    radius: '60%',
+                    data: words.map((word, i) => ({ name: word, value: values[i] }))
+                }]
+            };
+        
+        chart.setOption(option);
+        chart.resize();
+        return chart;
+    } catch (e) {
+        console.error(`图表创建失败: ${e.message}`);
+        return null;
+    }
 }
 
 /**

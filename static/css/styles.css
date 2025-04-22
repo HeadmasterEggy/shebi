@@ -1316,39 +1316,28 @@ body {
 }
 
 #wordFreqCharts {
-    display: flex;
+    display: none;
     flex-wrap: wrap;
     width: 100%;
     min-height: 300px;
-    visibility: visible !important;
 }
 
 #wordFreqCharts .chart-wrapper {
-    min-height: 300px;
-    height: 300px;
     width: 100%;
-    margin-bottom: 0;
+    padding: 10px;
 }
 
 #wordFreqBarChart,
 #wordCloudChart {
-    height: 300px !important; 
+    height: 350px !important;
     width: 100% !important;
-    min-height: 250px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    min-height: 300px !important;
 }
 
 /* 标签动画 */
 @keyframes tagPop {
-    0% {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 /* 确保词频卡片在结果卡片中正确显示 */

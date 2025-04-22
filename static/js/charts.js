@@ -149,42 +149,31 @@ function resizeAllCharts() {
  * 初始化词频标签
  */
 function initWordFreqTags(data) {
-    console.log('初始化词频标签...');
-    
     const wordFreqTags = document.getElementById('wordFreqTags');
-    if (!wordFreqTags) {
-        console.error('找不到词频标签容器');
-        return;
-    }
+    if (!wordFreqTags) return;
     
-    // 更严格的数据检查
-    if (!data || !data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
-        console.warn('词频数据为空或格式不正确');
+    // 简化检查
+    if (!data || !data.wordFreq || !data.wordFreq.length) {
         wordFreqTags.innerHTML = '<p class="text-muted text-center py-4">没有词频数据</p>';
         return;
     }
     
-    console.log(`词频标签数据: 共${data.wordFreq.length}项`);
-    
-    let tagsHtml = '';
     try {
         const maxCount = Math.max(...data.wordFreq.map(item => item.count));
         const minCount = Math.min(...data.wordFreq.map(item => item.count));
+        let tagsHtml = '';
 
         data.wordFreq.forEach((item, index) => {
-            const colorIntensity = Math.max(0, Math.min(1, (item.count - minCount) / (maxCount - minCount || 1)));
-            const r = Math.round(220 - colorIntensity * 150);
-            const g = Math.round(240 - colorIntensity * 150);
-            const b = Math.round(255 - colorIntensity * 150);
-            const textColor = colorIntensity > 0.6 ? '#ffffff' : '#333333';
-            const borderColor = `rgba(${r - 30}, ${g - 30}, ${b - 30}, 0.3)`;
-
-            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: linear-gradient(135deg, rgb(${r}, ${g}, ${b}), rgb(${r + 10}, ${g + 10}, ${b + 10})); color: ${textColor}; border-color: ${borderColor};">${item.word} (${item.count})</span>`;
+            // 简化颜色计算
+            const intensity = (item.count - minCount) / (maxCount - minCount || 1);
+            const color = `hsl(210, ${80 - intensity * 40}%, ${85 - intensity * 30}%)`;
+            const textColor = intensity > 0.6 ? '#fff' : '#333';
+            
+            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: ${color}; color: ${textColor}">${item.word} (${item.count})</span>`;
         });
+        
         wordFreqTags.innerHTML = tagsHtml;
-        console.log('词频标签渲染成功');
     } catch (error) {
-        console.error('生成词频标签出错:', error);
         wordFreqTags.innerHTML = '<p class="text-danger text-center py-4">词频标签生成出错</p>';
     }
 }
