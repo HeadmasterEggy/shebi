@@ -26,11 +26,12 @@ from flask_login import login_required, current_user
 
 import subprocess  # 用于调用 main.py
 import json
+import sys
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -822,9 +823,12 @@ def start_training():
 def check_training_progress():
     """获取训练进度"""
     try:
+        logger.info("正在检查训练进度...")
         progress_file = os.path.join('config', 'progress.json')
         
         if not os.path.exists(progress_file):
+            logger.warning("未找到进度文件，没有正在进行的训练任务")
+            print("未找到进度文件，没有正在进行的训练任务", flush=True)
             return jsonify({
                 'status': 'not_started',
                 'message': '没有正在进行的训练任务'
@@ -833,26 +837,37 @@ def check_training_progress():
         # 读取进度文件
         with open(progress_file, 'r') as f:
             progress = json.load(f)
+            logger.info(f"当前训练状态: {progress['status']}, 进度: {progress.get('current_epoch', 0)}/{progress.get('total_epochs', 0)}")
+            print(f"当前训练状态: {progress['status']}, 进度: {progress.get('current_epoch', 0)}/{progress.get('total_epochs', 0)}", flush=True)
         
         # 检查训练进程是否还在运行
         training_process = app.config.get('TRAINING_PROCESS')
         if training_process:
             # 检查进程是否仍在运行
             if training_process.poll() is not None:  # 如果poll()返回值不是None，表示进程已结束
+                return_code = training_process.poll()
+                logger.info(f"训练进程已结束，返回码: {return_code}")
+                print(f"训练进程已结束，返回码: {return_code}", flush=True)
+                
                 # 进程已结束但状态可能没有更新
                 if progress['status'] not in ['completed', 'failed', 'stopped']:
                     # 查看退出码以确定状态
-                    return_code = training_process.poll()
                     if return_code == 0:
                         progress['status'] = 'completed'
                         progress['message'] = '训练已完成'
+                        logger.info("训练成功完成")
+                        print("训练成功完成", flush=True)
                     else:
                         progress['status'] = 'failed'
                         progress['error'] = f'训练进程异常退出，返回码: {return_code}'
+                        logger.error(f"训练失败，返回码: {return_code}")
+                        print(f"训练失败，返回码: {return_code}", flush=True)
                     
                     # 更新进度文件
                     with open(progress_file, 'w') as f:
                         json.dump(progress, f)
+                        logger.info("已更新进度文件")
+                        print("已更新进度文件", flush=True)
         
         # 读取训练日志末尾的几行用于显示
         log_dir = os.path.join('log')
@@ -863,21 +878,34 @@ def check_training_progress():
                 if log_files:
                     latest_log = max(log_files, key=lambda x: os.path.getmtime(os.path.join(log_dir, x)))
                     log_path = os.path.join(log_dir, latest_log)
+                    logger.info(f"读取最新日志文件: {latest_log}")
+                    print(f"读取最新日志文件: {latest_log}", flush=True)
                     
                     with open(log_path, 'r') as log_file:
                         # 读取最后10行日志
                         lines = log_file.readlines()[-10:]
                         recent_logs = [line.strip() for line in lines]
+                        
+                        # 在终端实时显示最新日志
+                        print("\n----- 最新训练日志 -----")
+                        for line in recent_logs:
+                            print(line, flush=True)
+                        print("-----------------------\n", flush=True)
             
             progress['recent_logs'] = recent_logs
         except Exception as e:
-            logger.error(f"读取日志文件时出错: {str(e)}")
+            error_msg = f"读取日志文件时出错: {str(e)}"
+            logger.error(error_msg)
+            print(error_msg, flush=True)
         
         # 返回进度数据
+        logger.info("成功获取训练进度")
         return jsonify(progress)
     
     except Exception as e:
-        logger.exception('获取训练进度出错')
+        error_msg = f'获取训练进度出错: {str(e)}'
+        logger.exception(error_msg)
+        print(error_msg, flush=True)
         return jsonify({
             'error': str(e),
             'status': 'error',

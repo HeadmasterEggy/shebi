@@ -22,8 +22,35 @@ let trainingData = {
 
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
-    // 初始化图表
-    initCharts();
+    console.log("页面加载完成，准备初始化...");
+    
+    // 延迟初始化图表，确保DOM完全可见
+    setTimeout(function() {
+        const trainingProgress = document.getElementById('trainingProgress');
+        if (trainingProgress) {
+            console.log("训练进度区域是否可见:", 
+                trainingProgress.style.display !== 'none',
+                trainingProgress.offsetHeight > 0);
+            
+            // 如果需要，暂时强制显示以便初始化图表
+            const wasHidden = trainingProgress.classList.contains('d-none');
+            if (wasHidden) {
+                trainingProgress.classList.remove('d-none');
+                console.log("暂时显示训练进度区域以初始化图表");
+            }
+            
+            // 初始化图表
+            initCharts();
+            
+            // 如果之前是隐藏的，恢复隐藏状态
+            if (wasHidden) {
+                setTimeout(() => {
+                    trainingProgress.classList.add('d-none');
+                    console.log("恢复训练进度区域的隐藏状态");
+                }, 1000);
+            }
+        }
+    }, 300);
     
     // 显示/隐藏模型特定选项
     const modelTypeSelect = document.getElementById('modelTypeSelect');
@@ -33,15 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         // 初始化显示/隐藏
         toggleModelSpecificOptions(modelTypeSelect.value);
-    }
-    
-    // Dropout范围滑块值显示
-    const dropoutRange = document.getElementById('dropoutRange');
-    const dropoutValue = document.getElementById('dropoutValue');
-    if (dropoutRange && dropoutValue) {
-        dropoutRange.addEventListener('input', function() {
-            dropoutValue.textContent = this.value;
-        });
     }
     
     // 早停选项切换
@@ -83,13 +101,94 @@ document.addEventListener('DOMContentLoaded', function() {
  * 初始化图表
  */
 function initCharts() {
-    // 初始化损失图表
-    if (document.getElementById('lossChart')) {
-        lossChart = echarts.init(document.getElementById('lossChart'));
-        const lossOption = {
+    console.log("正在初始化图表...");
+    
+    try {
+        // 完全延迟初始化，确保DOM已完全加载和渲染
+        setTimeout(() => {
+            console.log("开始延迟初始化图表...");
+            initLossChart();
+            initAccuracyChart();
+            
+            // 再次触发窗口resize事件，确保图表正确渲染
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('resize'));
+            }
+        }, 500);
+    } catch (error) {
+        console.error("初始化图表出错:", error);
+    }
+}
+
+/**
+ * 初始化损失图表
+ */
+function initLossChart() {
+    const lossChartContainer = document.getElementById('lossChart');
+    if (!lossChartContainer) {
+        console.error("找不到lossChart容器");
+        return;
+    }
+
+    console.log("损失图表容器尺寸:", lossChartContainer.offsetWidth, lossChartContainer.offsetHeight);
+    
+    // 如果容器尺寸为0，添加内联样式确保可见
+    if (lossChartContainer.offsetWidth < 10 || lossChartContainer.offsetHeight < 10) {
+        console.warn("损失图表容器尺寸过小，添加内联样式");
+        lossChartContainer.style.width = '100%';
+        lossChartContainer.style.height = '300px';
+        lossChartContainer.style.minHeight = '300px';
+    }
+    
+    try {
+        // 销毁旧实例（如果存在）
+        if (lossChart) {
+            lossChart.dispose();
+        }
+        
+        // 最简单的配置，确保能正确初始化
+        lossChart = echarts.init(lossChartContainer);
+        const baseOption = {
+            grid: {
+                top: 60,
+                right: 40,
+                bottom: 60,
+                left: 60,
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: [1, 2, 3]  // 放一些示例数据先初始化
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [
+                {
+                    name: '训练损失',
+                    type: 'line',
+                    data: [0.5, 0.4, 0.3]
+                },
+                {
+                    name: '验证损失',
+                    type: 'line',
+                    data: [0.6, 0.5, 0.4]
+                }
+            ]
+        };
+        
+        // 先用简单配置初始化
+        lossChart.setOption(baseOption);
+        console.log("损失图表基础初始化成功");
+        
+        // 再设置完整配置
+        const fullOption = {
             title: {
                 text: '训练/验证损失',
-                left: 'center'
+                left: 'center',
+                textStyle: {
+                    fontSize: 14
+                }
             },
             tooltip: {
                 trigger: 'axis'
@@ -97,57 +196,89 @@ function initCharts() {
             legend: {
                 data: ['训练损失', '验证损失'],
                 bottom: 10
+            }
+        };
+        
+        // 增量更新配置
+        lossChart.setOption(fullOption);
+        console.log("损失图表完整配置已应用");
+        
+        // 重新调整大小
+        lossChart.resize();
+    } catch (e) {
+        console.error("初始化损失图表出错:", e);
+    }
+}
+
+/**
+ * 初始化准确率图表
+ */
+function initAccuracyChart() {
+    const accuracyChartContainer = document.getElementById('accuracyChart');
+    if (!accuracyChartContainer) {
+        console.error("找不到accuracyChart容器");
+        return;
+    }
+
+    console.log("准确率图表容器尺寸:", accuracyChartContainer.offsetWidth, accuracyChartContainer.offsetHeight);
+    
+    // 如果容器尺寸为0，添加内联样式确保可见
+    if (accuracyChartContainer.offsetWidth < 10 || accuracyChartContainer.offsetHeight < 10) {
+        console.warn("准确率图表容器尺寸过小，添加内联样式");
+        accuracyChartContainer.style.width = '100%';
+        accuracyChartContainer.style.height = '300px';
+        accuracyChartContainer.style.minHeight = '300px';
+    }
+    
+    try {
+        // 销毁旧实例（如果存在）
+        if (accuracyChart) {
+            accuracyChart.dispose();
+        }
+        
+        // 最简单的配置，确保能正确初始化
+        accuracyChart = echarts.init(accuracyChartContainer);
+        const baseOption = {
+            grid: {
+                top: 60,
+                right: 40,
+                bottom: 60,
+                left: 60,
+                containLabel: true
             },
             xAxis: {
                 type: 'category',
-                name: '轮次',
-                nameLocation: 'middle',
-                nameGap: 30,
-                data: []
+                data: [1, 2, 3]  // 放一些示例数据先初始化
             },
             yAxis: {
-                type: 'value',
-                name: '损失',
-                nameLocation: 'middle',
-                nameGap: 40
+                type: 'value'
             },
             series: [
                 {
-                    name: '训练损失',
+                    name: '训练准确率',
                     type: 'line',
-                    data: [],
-                    smooth: true,
-                    lineStyle: {
-                        width: 2
-                    }
+                    data: [80, 85, 90]
                 },
                 {
-                    name: '验证损失',
+                    name: '验证准确率',
                     type: 'line',
-                    data: [],
-                    smooth: true,
-                    lineStyle: {
-                        width: 2
-                    }
+                    data: [75, 80, 85]
                 }
-            ],
-            grid: {
-                left: '10%',
-                right: '10%',
-                bottom: '15%',
-                top: '15%'
-            }
+            ]
         };
-        lossChart.setOption(lossOption);
-    }
-    
-    // 初始化准确率图表
-    if (document.getElementById('accuracyChart')) {
-        accuracyChart = echarts.init(document.getElementById('accuracyChart'));
-        const accOption = {
+        
+        // 先用简单配置初始化
+        accuracyChart.setOption(baseOption);
+        console.log("准确率图表基础初始化成功");
+        
+        // 再设置完整配置
+        const fullOption = {
             title: {
                 text: '训练/验证准确率',
-                left: 'center'
+                left: 'center',
+                textStyle: {
+                    fontSize: 14
+                }
             },
             tooltip: {
                 trigger: 'axis'
@@ -156,120 +287,50 @@ function initCharts() {
                 data: ['训练准确率', '验证准确率'],
                 bottom: 10
             },
-            xAxis: {
-                type: 'category',
-                name: '轮次',
-                nameLocation: 'middle',
-                nameGap: 30,
-                data: []
-            },
             yAxis: {
-                type: 'value',
-                name: '准确率 (%)',
-                nameLocation: 'middle',
-                nameGap: 40,
-                min: 0,
-                max: 100
-            },
-            series: [
-                {
-                    name: '训练准确率',
-                    type: 'line',
-                    data: [],
-                    smooth: true,
-                    lineStyle: {
-                        width: 2
-                    }
-                },
-                {
-                    name: '验证准确率',
-                    type: 'line',
-                    data: [],
-                    smooth: true,
-                    lineStyle: {
-                        width: 2
-                    }
-                }
-            ],
-            grid: {
-                left: '10%',
-                right: '10%',
-                bottom: '15%',
-                top: '15%'
-            }
-        };
-        accuracyChart.setOption(accOption);
-    }
-    
-    // 初始化混淆矩阵图表
-    if (document.getElementById('confusionMatrix')) {
-        confusionMatrixChart = echarts.init(document.getElementById('confusionMatrix'));
-        const matrixOption = {
-            title: {
-                text: '混淆矩阵',
-                left: 'center'
-            },
-            tooltip: {
-                position: 'top'
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'category',
-                data: ['预测: 消极', '预测: 积极'],
-                position: 'top'
-            },
-            yAxis: {
-                type: 'category',
-                data: ['实际: 积极', '实际: 消极'],
-            },
-            visualMap: {
                 min: 0,
                 max: 100,
-                calculable: true,
-                orient: 'horizontal',
-                left: 'center',
-                bottom: '0%',
-                text: ['高', '低'],
-                inRange: {
-                    color: ['#f5f5f5', '#4575b4']
-                }
-            },
-            series: [
-                {
-                    name: '混淆矩阵',
-                    type: 'heatmap',
-                    data: [
-                        [0, 0, 0],
-                        [0, 1, 0],
-                        [1, 0, 0],
-                        [1, 1, 0]
-                    ],
-                    label: {
-                        show: true
-                    },
-                    emphasis: {
-                        itemStyle: {
-                            shadowBlur: 10,
-                            shadowColor: 'rgba(0, 0, 0, 0.5)'
-                        }
-                    }
-                }
-            ]
+                name: '准确率 (%)'
+            }
         };
-        confusionMatrixChart.setOption(matrixOption);
+        
+        // 增量更新配置
+        accuracyChart.setOption(fullOption);
+        console.log("准确率图表完整配置已应用");
+        
+        // 重新调整大小
+        accuracyChart.resize();
+    } catch (e) {
+        console.error("初始化准确率图表出错:", e);
     }
+}
+
+/**
+ * 触发图表重新调整大小
+ */
+function triggerResize() {
+    // 执行多次resize确保图表正确渲染
+    setTimeout(() => {
+        if (lossChart) {
+            try { lossChart.resize(); } catch (e) { console.warn("重绘损失图表出错", e); }
+        }
+        if (accuracyChart) {
+            try { accuracyChart.resize(); } catch (e) { console.warn("重绘准确率图表出错", e); }
+        }
+        if (confusionMatrixChart) {
+            try { confusionMatrixChart.resize(); } catch (e) { console.warn("重绘混淆矩阵图表出错", e); }
+        }
+    }, 300);
     
-    // 窗口大小变化时调整图表大小
-    window.addEventListener('resize', function() {
-        if (lossChart) lossChart.resize();
-        if (accuracyChart) accuracyChart.resize();
-        if (confusionMatrixChart) confusionMatrixChart.resize();
-    });
+    // 额外的resize以防止渲染问题
+    setTimeout(() => {
+        if (lossChart) {
+            try { lossChart.resize(); } catch (e) { console.warn("重绘损失图表出错", e); }
+        }
+        if (accuracyChart) {
+            try { accuracyChart.resize(); } catch (e) { console.warn("重绘准确率图表出错", e); }
+        }
+    }, 600);
 }
 
 /**
@@ -310,7 +371,7 @@ async function startTraining() {
         batch_size: parseInt(document.getElementById('batchSizeSelect').value),
         epochs: parseInt(document.getElementById('epochsInput').value),
         learning_rate: parseFloat(document.getElementById('learningRateInput').value),
-        dropout: parseFloat(document.getElementById('dropoutRange').value),
+        dropout: parseFloat(document.getElementById('dropoutInput').value), // 更新为使用新的输入控件
         optimizer: document.getElementById('optimizerSelect').value,
         weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
     };
@@ -344,8 +405,6 @@ async function startTraining() {
         document.getElementById('trainingStatus').textContent = '初始化中';
         document.getElementById('trainingStatus').className = 'badge bg-secondary';
         document.getElementById('currentEpoch').textContent = `0/${params.epochs}`;
-        document.getElementById('currentLoss').textContent = '-';
-        document.getElementById('currentAccuracy').textContent = '-';
         document.getElementById('remainingTime').textContent = '计算中...';
         document.getElementById('totalProgressBar').style.width = '0%';
         document.getElementById('totalProgressBar').textContent = '0%';
@@ -354,19 +413,39 @@ async function startTraining() {
         const logContent = document.querySelector('.log-content');
         if (logContent) logContent.innerHTML = '';
         
-        // 清空图表
-        if (lossChart) {
-            lossChart.setOption({
-                xAxis: { data: [] },
-                series: [{ data: [] }, { data: [] }]
-            });
-        }
-        if (accuracyChart) {
-            accuracyChart.setOption({
-                xAxis: { data: [] },
-                series: [{ data: [] }, { data: [] }]
-            });
-        }
+        // 先显示训练进度区域，然后再初始化/更新图表
+        document.getElementById('trainingProgress').classList.remove('d-none');
+        
+        // 延迟200毫秒，确保训练进度区域已经显示出来
+        setTimeout(() => {
+            // 检查图表是否已初始化，如果没有则初始化
+            if (!lossChart || !accuracyChart) {
+                console.log("图表未初始化，重新初始化");
+                initCharts();
+            } else {
+                // 清空图表数据
+                try {
+                    lossChart.setOption({
+                        xAxis: { data: [] },
+                        series: [
+                            { name: '训练损失', data: [] }, 
+                            { name: '验证损失', data: [] }
+                        ]
+                    });
+                    accuracyChart.setOption({
+                        xAxis: { data: [] },
+                        series: [
+                            { name: '训练准确率', data: [] }, 
+                            { name: '验证准确率', data: [] }
+                        ]
+                    });
+                    console.log("图表数据已清空");
+                } catch (e) {
+                    console.error("清空图表数据出错，重新初始化图表:", e);
+                    initCharts();
+                }
+            }
+        }, 200);
         
         // 禁用表单
         toggleFormElements(false);
@@ -503,17 +582,6 @@ function updateTrainingProgress(data) {
         }
     }
     
-    // 更新损失和准确率
-    if (data.train_loss !== undefined && data.train_loss !== null) {
-        document.getElementById('currentLoss').textContent = 
-            typeof data.train_loss === 'number' ? data.train_loss.toFixed(4) : data.train_loss;
-    }
-    
-    if (data.val_acc !== undefined && data.val_acc !== null) {
-        document.getElementById('currentAccuracy').textContent = 
-            typeof data.val_acc === 'number' ? (data.val_acc * 100).toFixed(2) + '%' : data.val_acc;
-    }
-    
     // 如果有消息，添加到训练日志
     if (data.message && data.message !== lastMessage) {
         addTrainingLog('info', data.message);
@@ -531,39 +599,67 @@ function updateTrainingProgress(data) {
         const epochs = Array.from({length: data.history.train_loss.length}, (_, i) => i + 1);
         
         if (lossChart) {
-            lossChart.setOption({
-                xAxis: {
-                    data: epochs
-                },
-                series: [
-                    {
-                        name: '训练损失',
-                        data: data.history.train_loss
+            try {
+                console.log("更新损失图表，数据长度:", data.history.train_loss.length);
+                
+                // 使用简单明确的方式更新
+                lossChart.setOption({
+                    xAxis: {
+                        data: epochs
                     },
-                    {
-                        name: '验证损失',
-                        data: data.history.val_loss || []
-                    }
-                ]
-            });
+                    series: [
+                        {
+                            name: '训练损失',
+                            data: data.history.train_loss
+                        },
+                        {
+                            name: '验证损失',
+                            data: data.history.val_loss || []
+                        }
+                    ]
+                });
+                
+                // 确保图表可见并调整大小
+                setTimeout(() => {
+                    try { lossChart.resize(); } catch (e) { }
+                }, 100);
+            } catch(e) {
+                console.error("更新损失图表出错:", e);
+                // 尝试重新初始化图表
+                setTimeout(initLossChart, 200);
+            }
         }
         
         if (accuracyChart && data.history.val_acc) {
-            accuracyChart.setOption({
-                xAxis: {
-                    data: epochs
-                },
-                series: [
-                    {
-                        name: '训练准确率',
-                        data: (data.history.train_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
+            try {
+                console.log("更新准确率图表，数据长度:", data.history.val_acc.length);
+                
+                // 使用简单明确的方式更新
+                accuracyChart.setOption({
+                    xAxis: {
+                        data: epochs
                     },
-                    {
-                        name: '验证准确率',
-                        data: (data.history.val_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
-                    }
-                ]
-            });
+                    series: [
+                        {
+                            name: '训练准确率',
+                            data: (data.history.train_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
+                        },
+                        {
+                            name: '验证准确率',
+                            data: data.history.val_acc.map(v => typeof v === 'number' ? v * 100 : 0)
+                        }
+                    ]
+                });
+                
+                // 确保图表可见并调整大小
+                setTimeout(() => {
+                    try { accuracyChart.resize(); } catch (e) { }
+                }, 100);
+            } catch(e) {
+                console.error("更新准确率图表出错:", e);
+                // 尝试重新初始化图表
+                setTimeout(initAccuracyChart, 200);
+            }
         }
     }
     

@@ -348,175 +348,204 @@
             </div>
             <div class="section-body">
                 <form id="trainingForm">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="modelTypeSelect" class="form-label">模型类型</label>
-                            <select class="form-select" id="modelTypeSelect" required>
-                                <option value="cnn">TextCNN模型</option>
-                                <option value="lstm">LSTM模型</option>
-                                <option value="lstm_attention">LSTM注意力模型</option>
-                                <option value="bilstm">Bi-LSTM模型</option>
-                                <option value="bilstm_attention">Bi-LSTM注意力模型</option>
-                            </select>
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">模型参数配置</h5>
                         </div>
-                        <div class="col-md-6">
-                            <label for="batchSizeSelect" class="form-label">批量大小</label>
-                            <select class="form-select" id="batchSizeSelect" required>
-                                <option value="16">16</option>
-                                <option value="32" selected>32</option>
-                                <option value="64">64</option>
-                                <option value="128">128</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="epochsInput" class="form-label">训练轮数</label>
-                            <input type="number" class="form-control" id="epochsInput" min="1" max="100" value="10" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="learningRateInput" class="form-label">学习率</label>
-                            <input type="number" class="form-control" id="learningRateInput" min="0.0001" max="0.1" step="0.0001" value="0.001" required>
-                        </div>
-                    </div>
-                    
-                    <!-- 优化器和权重衰减 -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="optimizerSelect" class="form-label">优化器</label>
-                            <select class="form-select" id="optimizerSelect">
-                                <option value="adam" selected>Adam</option>
-                                <option value="sgd">SGD</option>
-                                <option value="rmsprop">RMSprop</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6"></div>
-                            <label for="weightDecayInput" class="form-label">权重衰减</label>
-                            <input type="number" class="form-control" id="weightDecayInput" min="0" max="0.1" step="0.0001" value="0.0001">
-                        </div>
-                    </div>
-                    
-                    <!-- Dropout -->
-                    <div class="row mb-3"></div>
-                        <div class="col-md-12">
-                            <label for="dropoutRange" class="form-label">Dropout: <span id="dropoutValue">0.5</span></label>
-                            <input type="range" class="form-range" id="dropoutRange" min="0.1" max="0.9" step="0.1" value="0.5">
-                        </div>
-                    </div>
-                    
-                    <!-- LSTM特有参数 -->
-                    <div class="row mb-3 lstm-only">
-                        <div class="col-md-6">
-                            <label for="hiddenDimSelect" class="form-label">隐藏层维度</label>
-                            <select class="form-select" id="hiddenDimSelect">
-                                <option value="64">64</option>
-                                <option value="128" selected>128</option>
-                                <option value="256">256</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="numLayersSelect" class="form-label">LSTM层数</label>
-                            <select class="form-select" id="numLayersSelect">
-                                <option value="1">1</option>
-                                <option value="2" selected>2</option>
-                                <option value="3">3</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- CNN特有参数 -->
-                    <div class="row mb-3 cnn-only">
-                        <div class="col-md-12">
-                            <label for="numFiltersSelect" class="form-label">卷积核数量</label>
-                            <select class="form-select" id="numFiltersSelect">
-                                <option value="64">64</option>
-                                <option value="128" selected>128</option>
-                                <option value="256">256</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- 早停设置 -->
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="earlyStopping">
-                                <label class="form-check-label" for="earlyStopping">启用早停</label>
+                        <div class="card-body">
+                            <!-- 模型类型和批量大小 -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="modelTypeSelect" class="form-label fw-bold">模型类型</label>
+                                    <select class="form-select" id="modelTypeSelect" required>
+                                        <option value="cnn" selected>TextCNN</option>
+                                        <option value="lstm">LSTM</option>
+                                        <option value="lstm_attention">LSTM+Attention</option>
+                                        <option value="bilstm">Bi-LSTM</option>
+                                        <option value="bilstm_attention">Bi-LSTM+Attention</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="batchSizeSelect" class="form-label fw-bold">批量大小</label>
+                                    <select class="form-select" id="batchSizeSelect" required>
+                                        <option value="16">16</option>
+                                        <option value="32" selected>32</option>
+                                        <option value="64">64</option>
+                                        <option value="128">128</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- 训练轮数和学习率 -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="epochsInput" class="form-label fw-bold">训练轮数</label>
+                                    <input type="number" class="form-control" id="epochsInput" min="1" max="100" value="10" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="learningRateInput" class="form-label fw-bold">学习率</label>
+                                    <input type="number" class="form-control" id="learningRateInput" min="0.0001" max="0.1" step="0.0001" value="0.001" required>
+                                </div>
+                            </div>
+                            
+                            <!-- Dropout和权重衰减 -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="dropoutInput" class="form-label fw-bold">Dropout比率</label>
+                                    <input type="number" class="form-control" id="dropoutInput" min="0.1" max="0.9" step="0.1" value="0.5" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="weightDecayInput" class="form-label fw-bold">权重衰减</label>
+                                    <input type="number" class="form-control" id="weightDecayInput" min="0" max="0.1" step="0.0001" value="0.0001">
+                                </div>
+                            </div>
+                            
+                            <!-- 优化器选择 -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="optimizerSelect" class="form-label fw-bold">优化器</label>
+                                    <select class="form-select" id="optimizerSelect">
+                                        <option value="adam" selected>Adam</option>
+                                        <option value="sgd">SGD</option>
+                                        <option value="rmsprop">RMSprop</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="earlyStopping">
+                                        <label class="form-check-label" for="earlyStopping">
+                                            启用早停机制
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 早停设置 -->
+                            <div class="row mb-3" id="earlyStoppingOptions" style="display:none;">
+                                <div class="col-md-6">
+                                    <label for="patienceInput" class="form-label fw-bold">早停耐心值</label>
+                                    <input type="number" class="form-control" id="patienceInput" min="1" max="20" value="3">
+                                    <small class="form-text text-muted">验证集准确率在几轮内没有提高则停止训练</small>
+                                </div>
+                            </div>
+                            
+                            <!-- LSTM特有参数 -->
+                            <div class="row mb-3 lstm-only">
+                                <div class="col-md-6">
+                                    <label for="hiddenDimSelect" class="form-label fw-bold">隐藏层维度</label>
+                                    <select class="form-select" id="hiddenDimSelect">
+                                        <option value="64">64</option>
+                                        <option value="128" selected>128</option>
+                                        <option value="256">256</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="numLayersSelect" class="form-label fw-bold">LSTM层数</label>
+                                    <select class="form-select" id="numLayersSelect">
+                                        <option value="1">1</option>
+                                        <option value="2" selected>2</option>
+                                        <option value="3">3</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- CNN特有参数 -->
+                            <div class="row mb-3 cnn-only">
+                                <div class="col-md-6">
+                                    <label for="numFiltersSelect" class="form-label fw-bold">卷积核数量</label>
+                                    <select class="form-select" id="numFiltersSelect">
+                                        <option value="64">64</option>
+                                        <option value="128" selected>128</option>
+                                        <option value="256">256</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="row mb-3" id="earlyStoppingOptions" style="display:none;">
-                        <div class="col-md-6">
-                            <label for="patienceInput" class="form-label">早停耐心值</label>
-                            <input type="number" class="form-control" id="patienceInput" min="1" max="20" value="3">
+                        <div class="card-footer text-center">
+                            <button type="button" class="btn btn-primary" id="startTrainingBtn" onclick="startTraining()">
+                                <i class="bi bi-play-fill"></i> 开始训练
+                            </button>
                         </div>
-                    </div>
-
-                    <div class="text-center">
-                        <button type="button" class="btn btn-primary" id="startTrainingBtn" onclick="startTraining()">
-                            <i class="bi bi-play-fill"></i> 开始训练
-                        </button>
                     </div>
                 </form>
                 
                 <!-- 训练进度区域 -->
                 <div id="trainingProgress" class="mt-4 d-none">
                     <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="m-0">训练进度</h5>
+                        <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                            <h5 class="mb-0">训练进度</h5>
                             <span id="trainingStatus" class="badge bg-primary">训练中</span>
                         </div>
                         <div class="card-body">
-                            <p><strong>当前轮次:</strong> <span id="currentEpoch">0/0</span></p>
-                            <p><strong>训练损失:</strong> <span id="currentLoss">-</span></p>
-                            <p><strong>验证准确率:</strong> <span id="currentAccuracy">-</span></p>
-                            <p><strong>预计剩余时间:</strong> <span id="remainingTime">计算中...</span></p>
-                            
-                            <div class="progress mb-3">
-                                <div id="totalProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">0%</div>
+                            <div class="row mb-4">
+                                <div class="col-md-6 mb-3">
+                                    <div class="data-item">
+                                        <div class="label text-muted">当前轮次</div>
+                                        <div class="value" id="currentEpoch">0/0</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="data-item">
+                                        <div class="label text-muted">预计剩余</div>
+                                        <div class="value" id="remainingTime">计算中...</div>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div id="trainingControls" class="d-flex justify-content-center gap-3 d-none">
-                                <button id="pauseTrainingBtn" class="btn btn-warning">
+                            <div class="progress mb-4" style="height: 20px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                                     style="width: 0%" id="totalProgressBar" aria-valuenow="0" 
+                                     aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            
+                            <div id="trainingControls" class="d-flex justify-content-center gap-3 mb-3">
+                                <button type="button" class="btn btn-warning" id="pauseTrainingBtn">
                                     <i class="bi bi-pause-fill"></i> 暂停
                                 </button>
-                                <button id="stopTrainingBtn" class="btn btn-danger">
+                                <button type="button" class="btn btn-danger" id="stopTrainingBtn">
                                     <i class="bi bi-stop-fill"></i> 停止
                                 </button>
-                                <button id="saveModelBtn" class="btn btn-success">
-                                    <i class="bi bi-save"></i> 保存模型
+                                <button type="button" class="btn btn-success" id="saveModelBtn" disabled>
+                                    <i class="bi bi-download"></i> 保存模型
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 图表区域 -->
-                    <div class="row mt-4">
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-header">训练/验证损失</div>
-                                <div class="card-body">
-                                    <div id="lossChart" style="height: 300px;"></div>
+                            
+                            <!-- 修改图表区域，确保容器结构和尺寸 -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <h5 class="text-center">训练指标曲线</h5>
+                                    </div>
+                                    <div class="charts-row">
+                                        <div class="chart-item">
+                                            <div class="chart-card">
+                                                <div class="chart-header">损失曲线</div>
+                                                <div class="chart-body">
+                                                    <!-- 添加内联样式确保图表容器可见 -->
+                                                    <div id="lossChart" style="width:100%; height:300px; min-height:300px;"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="chart-item">
+                                            <div class="chart-card">
+                                                <div class="chart-header">准确率曲线</div>
+                                                <div class="chart-body">
+                                                    <!-- 添加内联样式确保图表容器可见 -->
+                                                    <div id="accuracyChart" style="width:100%; height:300px; min-height:300px;"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <div class="card h-100">
-                                <div class="card-header">训练/验证准确率</div>
-                                <div class="card-body">
-                                    <div id="accuracyChart" style="height: 300px;"></div>
+                            
+                            <!-- 训练日志 -->
+                            <div class="card mt-4" id="trainingLog">
+                                <div class="card-header bg-light">训练日志</div>
+                                <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="log-content"></div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 训练日志 -->
-                    <div class="card mt-4" id="trainingLog">
-                        <div class="card-header">训练日志</div>
-                        <div class="card-body" style="max-height: 200px; overflow-y: auto;">
-                            <div class="log-content"></div>
                         </div>
                     </div>
                 </div>
@@ -605,7 +634,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="createUserForm">
+                <form id="createUserForm"></form>
                     <div class="mb-3">
                         <label for="newUsername" class="form-label">用户名</label>
                         <input type="text" class="form-control" id="newUsername" required>
@@ -645,7 +674,7 @@
             <div class="modal-body">
                 <form id="editUserForm">
                     <input type="hidden" id="editUserId">
-                    <div class="mb-3">
+                    <div class="mb-3"></div>
                         <label for="editUsername" class="form-label">用户名</label>
                         <input type="text" class="form-control" id="editUsername" required>
                     </div>
@@ -653,8 +682,7 @@
                         <label for="editEmail" class="form-label">电子邮箱</label>
                         <input type="email" class="form-control" id="editEmail" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="editPassword" class="form-label">密码 <small class="text-muted">(留空则不修改)</small></label>
+                    <div class="mb-3">                        <label for="editPassword" class="form-label">密码 <small class="text-muted">(留空则不修改)</small></label>
                         <input type="password" class="form-control" id="editPassword" placeholder="留空则保持原密码不变">
                     </div>
                     <div class="form-check">
@@ -675,7 +703,7 @@
 
 <!-- 删除确认模态框 -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="deleteConfirmModalLabel">确认删除</h5>
