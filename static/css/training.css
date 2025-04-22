@@ -1,0 +1,71 @@
+/* 训练功能相关样式 */
+
+/* 日志项样式 */
+.log-content {
+    font-family: monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+}
+
+.log-entry.info {
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.log-entry.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.log-entry.warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.log-entry.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* 模型特定选项样式 */
+.lstm-only, .cnn-only {
+    display: none; /* 默认隐藏 */
+}
+
+/* 训练控制按钮样式 */
+#trainingControls {
+    margin-top: 1.5rem;
+}
+
+#trainingControls button {
+    min-width: 100px;
+}
+
+/* 训练进度样式 */
+#trainingProgress .progress {
+    height: 1.5rem;
+}
+
+#trainingProgress .progress-bar {
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+}
+
+#trainingPlaceholder {
+    padding: 3rem 0;
+    border-radius: 0.5rem;
+    background: linear-gradient(45deg, #f9f9f9, #f3f3f3);
+}
+
+/* 模型评估结果样式 */
+#modelEvaluation .card-body h3 {
+    font-size: 1.75rem;
+    font-weight: 600;
+}

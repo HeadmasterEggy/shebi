@@ -53,17 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 表单提交处理
-    const trainingForm = document.getElementById('trainingForm');
-    if (trainingForm) {
-        trainingForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            if (!trainingInProgress) {
-                startTraining();
-            }
-        });
-    }
-    
     // 训练控制按钮事件绑定
     const pauseTrainingBtn = document.getElementById('pauseTrainingBtn');
     const stopTrainingBtn = document.getElementById('stopTrainingBtn');
@@ -291,11 +280,11 @@ function toggleModelSpecificOptions(modelType) {
     const cnnOptions = document.querySelectorAll('.cnn-only');
     
     if (modelType.includes('lstm') || modelType.includes('bilstm')) {
-        lstmOptions.forEach(el => el.style.display = 'block');
+        lstmOptions.forEach(el => el.style.display = 'flex');
         cnnOptions.forEach(el => el.style.display = 'none');
     } else if (modelType === 'cnn') {
         lstmOptions.forEach(el => el.style.display = 'none');
-        cnnOptions.forEach(el => el.style.display = 'block');
+        cnnOptions.forEach(el => el.style.display = 'flex');
     } else {
         lstmOptions.forEach(el => el.style.display = 'none');
         cnnOptions.forEach(el => el.style.display = 'none');
@@ -319,24 +308,78 @@ async function startTraining() {
     const params = {
         model_type: document.getElementById('modelTypeSelect').value,
         batch_size: parseInt(document.getElementById('batchSizeSelect').value),
+        epochs: parseInt(document.getElementById('epochsInput').value),
         learning_rate: parseFloat(document.getElementById('learningRateInput').value),
         dropout: parseFloat(document.getElementById('dropoutRange').value),
-        epochs: parseInt(document.getElementById('epochsInput').value),
-        hidden_dim: parseInt(document.getElementById('hiddenDimSelect').value),
         optimizer: document.getElementById('optimizerSelect').value,
         weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
-        early_stopping: document.getElementById('earlyStopping').checked,
-        patience: parseInt(document.getElementById('patienceInput').value)
     };
     
     // 根据模型类型添加特定参数
     if (params.model_type.includes('lstm') || params.model_type.includes('bilstm')) {
+        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
         params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
     } else if (params.model_type === 'cnn') {
         params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
     }
     
+    // 如果启用了早停
+    const earlyStopping = document.getElementById('earlyStopping');
+    if (earlyStopping && earlyStopping.checked) {
+        params.early_stopping = true;
+        params.patience = parseInt(document.getElementById('patienceInput').value);
+    }
+    
     try {
+        // 隐藏占位符和错误信息
+        document.getElementById('trainingPlaceholder').classList.add('d-none');
+        document.getElementById('errorMessage').style.display = 'none';
+        
+        // 显示训练进度区域
+        document.getElementById('trainingProgress').classList.remove('d-none');
+        document.getElementById('trainingControls').classList.remove('d-none');
+        document.getElementById('modelEvaluation').classList.add('d-none');
+        
+        // 更新UI
+        document.getElementById('trainingStatus').textContent = '初始化中';
+        document.getElementById('trainingStatus').className = 'badge bg-secondary';
+        document.getElementById('currentEpoch').textContent = `0/${params.epochs}`;
+        document.getElementById('currentLoss').textContent = '-';
+        document.getElementById('currentAccuracy').textContent = '-';
+        document.getElementById('remainingTime').textContent = '计算中...';
+        document.getElementById('totalProgressBar').style.width = '0%';
+        document.getElementById('totalProgressBar').textContent = '0%';
+        
+        // 清空训练日志
+        const logContent = document.querySelector('.log-content');
+        if (logContent) logContent.innerHTML = '';
+        
+        // 清空图表
+        if (lossChart) {
+            lossChart.setOption({
+                xAxis: { data: [] },
+                series: [{ data: [] }, { data: [] }]
+            });
+        }
+        if (accuracyChart) {
+            accuracyChart.setOption({
+                xAxis: { data: [] },
+                series: [{ data: [] }, { data: [] }]
+            });
+        }
+        
+        // 禁用表单
+        toggleFormElements(false);
+        
+        // 设置训练状态
+        trainingInProgress = true;
+        trainingStartTime = new Date();
+        totalEpochs = params.epochs;
+        currentEpoch = 0;
+        
+        // 添加训练日志
+        addTrainingLog('info', '准备启动训练任务...');
+        
         // 发送训练请求
         const response = await fetch('/api/train/start', {
             method: 'POST',
@@ -353,207 +396,246 @@ async function startTraining() {
         }
         
         // 成功启动训练
-        const trainingId = data.training_id;
-        totalEpochs = params.epochs;
-        currentEpoch = 0;
+        const trainingId = data.training_id || "default";
         
-        // 更新UI显示
-        document.getElementById('trainingPlaceholder').classList.add('d-none');
-        document.getElementById('trainingProgress').classList.remove('d-none');
-        document.getElementById('trainingControls').classList.remove('d-none');
-        document.getElementById('modelEvaluation').classList.add('d-none');
         document.getElementById('trainingStatus').textContent = '训练中';
         document.getElementById('trainingStatus').className = 'badge bg-primary';
-        document.getElementById('currentEpoch').textContent = `0/${totalEpochs}`;
+        addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
         
-        // 禁用表单
-        toggleFormElements(false);
-        
-        // 记录训练开始时间
-        trainingStartTime = new Date();
-        
-        // 设置训练状态
-        trainingInProgress = true;
-        
-        // 连接WebSocket接收实时训练更新
-        setupTrainingSocket(trainingId);
-        
-        // 添加训练日志
-        addTrainingLog('info', '训练任务已启动...');
-        
-        // 开始定时查询训练状态
+        // 设置轮询获取训练进度
         trainingInterval = setInterval(() => {
-            checkTrainingStatus(trainingId);
-        }, 5000);
+            // 使用AJAX检查训练状态和进度
+            checkTrainingProgress();
+        }, 3000);
         
     } catch (error) {
         console.error('启动训练出错:', error);
-        showError('启动训练失败: ' + error.message);
+        document.getElementById('errorMessage').textContent = '启动训练失败: ' + error.message;
+        document.getElementById('errorMessage').style.display = 'block';
+        
+        addTrainingLog('error', '启动训练失败: ' + error.message);
+        
+        // 恢复UI
+        toggleFormElements(true);
+        trainingInProgress = false;
     }
 }
 
 /**
- * 设置WebSocket连接接收训练更新
+ * 检查训练进度
  */
-function setupTrainingSocket(trainingId) {
-    // 关闭之前的连接
-    if (trainingSocket) {
-        trainingSocket.close();
+async function checkTrainingProgress() {
+    try {
+        const response = await fetch('/api/train/progress');
+        if (response.ok) {
+            const data = await response.json();
+            console.log("进度数据:", data); // 添加日志调试
+            
+            // 更新进度
+            updateTrainingProgress(data);
+            
+            // 如果训练已完成或失败，停止轮询
+            if (data.status === 'completed' || data.status === 'failed' || data.status === 'stopped') {
+                clearInterval(trainingInterval);
+                finishTraining(data);
+                
+                // 如果训练失败，显示错误消息
+                if (data.status === 'failed' && data.error) {
+                    showError(data.error);
+                    addTrainingLog('error', `训练失败: ${data.error}`);
+                } else if (data.status === 'stopped') {
+                    addTrainingLog('warning', '训练已停止');
+                }
+            }
+            
+            // 显示最近的日志
+            if (data.recent_logs && Array.isArray(data.recent_logs)) {
+                data.recent_logs.forEach(log => {
+                    // 避免重复显示同样的日志
+                    if (!recentLogMessages.includes(log)) {
+                        addTrainingLog('info', log);
+                        recentLogMessages.push(log);
+                        // 保持日志列表在合理大小
+                        if (recentLogMessages.length > 50) {
+                            recentLogMessages.shift();
+                        }
+                    }
+                });
+            }
+        } else {
+            console.error("进度API响应错误:", response.status);
+            try {
+                const errorData = await response.json();
+                console.error("错误详情:", errorData);
+            } catch (e) {
+                console.error("无法解析错误响应");
+            }
+        }
+    } catch (error) {
+        console.error('检查训练进度出错:', error);
+        // 添加错误到训练日志，但不停止轮询，以便重试
+        addTrainingLog('error', `检查训练进度出错: ${error.message}`);
     }
-    
-    // 创建WebSocket连接
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/training/${trainingId}`;
-    
-    trainingSocket = new WebSocket(wsUrl);
-    
-    trainingSocket.onopen = function() {
-        addTrainingLog('success', 'WebSocket连接已建立');
-    };
-    
-    trainingSocket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        processTrainingUpdate(data);
-    };
-    
-    trainingSocket.onerror = function(error) {
-        console.error('WebSocket错误:', error);
-        addTrainingLog('error', 'WebSocket连接错误');
-    };
-    
-    trainingSocket.onclose = function() {
-        addTrainingLog('info', 'WebSocket连接已关闭');
-    };
 }
 
+// 用于跟踪已显示的日志消息
+const recentLogMessages = [];
+
 /**
- * 处理训练更新数据
+ * 更新训练进度
  */
-function processTrainingUpdate(data) {
-    switch(data.type) {
-        case 'epoch_start':
-            currentEpoch = data.epoch;
-            addTrainingLog('info', `开始第 ${currentEpoch}/${totalEpochs} 轮训练...`);
-            document.getElementById('currentEpoch').textContent = `${currentEpoch}/${totalEpochs}`;
-            updateProgressBars();
-            break;
-            
-        case 'epoch_end':
-            // 更新损失和准确率
-            document.getElementById('currentLoss').textContent = data.train_loss.toFixed(4);
-            document.getElementById('currentAccuracy').textContent = (data.val_acc * 100).toFixed(2) + '%';
-            
-            // 更新图表数据
-            trainingData.epochs.push(data.epoch);
-            trainingData.trainLoss.push(data.train_loss);
-            trainingData.valLoss.push(data.val_loss);
-            trainingData.trainAcc.push(data.train_acc * 100);
-            trainingData.valAcc.push(data.val_acc * 100);
-            
-            updateCharts();
-            
-            addTrainingLog('success', `第 ${data.epoch}/${totalEpochs} 轮训练完成 - 训练损失: ${data.train_loss.toFixed(4)}, 验证准确率: ${(data.val_acc * 100).toFixed(2)}%`);
-            break;
-            
-        case 'early_stopping':
-            addTrainingLog('warning', `触发早停机制，在第 ${data.epoch} 轮后停止训练`);
-            break;
-            
-        case 'completed':
-            finishTraining(data);
-            break;
-            
-        case 'error':
-            showError(data.message);
-            addTrainingLog('error', data.message);
-            stopTraining();
-            break;
-            
-        default:
-            console.log('未知更新类型:', data);
+function updateTrainingProgress(data) {
+    if (!data) return;
+    
+    // 更新当前轮次
+    if (data.current_epoch !== undefined) {
+        currentEpoch = data.current_epoch;
+        totalEpochs = data.total_epochs || totalEpochs;
+        document.getElementById('currentEpoch').textContent = `${currentEpoch}/${totalEpochs}`;
+        
+        // 更新进度条
+        const progress = Math.round((currentEpoch / totalEpochs) * 100);
+        const progressBar = document.getElementById('totalProgressBar');
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+            progressBar.textContent = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+        }
     }
     
-    // 更新剩余时间估计
-    if (trainingStartTime && currentEpoch > 0) {
+    // 更新损失和准确率
+    if (data.train_loss !== undefined && data.train_loss !== null) {
+        document.getElementById('currentLoss').textContent = 
+            typeof data.train_loss === 'number' ? data.train_loss.toFixed(4) : data.train_loss;
+    }
+    
+    if (data.val_acc !== undefined && data.val_acc !== null) {
+        document.getElementById('currentAccuracy').textContent = 
+            typeof data.val_acc === 'number' ? (data.val_acc * 100).toFixed(2) + '%' : data.val_acc;
+    }
+    
+    // 如果有消息，添加到训练日志
+    if (data.message && data.message !== lastMessage) {
+        addTrainingLog('info', data.message);
+        lastMessage = data.message; // 避免重复显示相同的消息
+    }
+    
+    // 如果有错误信息，添加到训练日志
+    if (data.error && data.error !== lastError) {
+        addTrainingLog('error', data.error);
+        lastError = data.error;
+    }
+    
+    // 更新图表数据
+    if (data.history && data.history.train_loss && data.history.train_loss.length > 0) {
+        const epochs = Array.from({length: data.history.train_loss.length}, (_, i) => i + 1);
+        
+        if (lossChart) {
+            lossChart.setOption({
+                xAxis: {
+                    data: epochs
+                },
+                series: [
+                    {
+                        name: '训练损失',
+                        data: data.history.train_loss
+                    },
+                    {
+                        name: '验证损失',
+                        data: data.history.val_loss || []
+                    }
+                ]
+            });
+        }
+        
+        if (accuracyChart && data.history.val_acc) {
+            accuracyChart.setOption({
+                xAxis: {
+                    data: epochs
+                },
+                series: [
+                    {
+                        name: '训练准确率',
+                        data: (data.history.train_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
+                    },
+                    {
+                        name: '验证准确率',
+                        data: (data.history.val_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
+                    }
+                ]
+            });
+        }
+    }
+    
+    // 更新状态
+    if (data.status) {
+        const statusEl = document.getElementById('trainingStatus');
+        if (statusEl) {
+            statusEl.textContent = getStatusText(data.status);
+            statusEl.className = getStatusClass(data.status);
+        }
+    }
+    
+    // 更新估计剩余时间
+    if (trainingStartTime && currentEpoch > 0 && totalEpochs > 0 && currentEpoch < totalEpochs) {
         const elapsedTime = (new Date() - trainingStartTime) / 1000; // 秒
         const timePerEpoch = elapsedTime / currentEpoch;
         const remainingEpochs = totalEpochs - currentEpoch;
         const remainingSeconds = Math.round(timePerEpoch * remainingEpochs);
         
         document.getElementById('remainingTime').textContent = formatTime(remainingSeconds);
+    } else if (currentEpoch >= totalEpochs) {
+        document.getElementById('remainingTime').textContent = '00:00';
     }
 }
 
+// 存储最后显示的消息和错误
+let lastMessage = '';
+let lastError = '';
+
 /**
- * 更新进度条
+ * 获取状态文本
  */
-function updateProgressBars() {
-    const totalProgress = Math.round((currentEpoch / totalEpochs) * 100);
-    document.getElementById('totalProgressBar').style.width = `${totalProgress}%`;
-    document.getElementById('totalProgressBar').textContent = `${totalProgress}%`;
-    document.getElementById('totalProgressBar').setAttribute('aria-valuenow', totalProgress);
+function getStatusText(status) {
+    const statusMap = {
+        'initializing': '初始化中',
+        'preparing': '准备数据',
+        'running': '训练中',
+        'paused': '已暂停',
+        'stopping': '正在停止',
+        'stopped': '已停止',
+        'completed': '已完成',
+        'failed': '训练失败'
+    };
+    return statusMap[status] || status;
 }
 
 /**
- * 更新图表
+ * 获取状态CSS类
  */
-function updateCharts() {
-    if (lossChart) {
-        lossChart.setOption({
-            xAxis: {
-                data: trainingData.epochs
-            },
-            series: [
-                {
-                    name: '训练损失',
-                    data: trainingData.trainLoss
-                },
-                {
-                    name: '验证损失',
-                    data: trainingData.valLoss
-                }
-            ]
-        });
-    }
-    
-    if (accuracyChart) {
-        accuracyChart.setOption({
-            xAxis: {
-                data: trainingData.epochs
-            },
-            series: [
-                {
-                    name: '训练准确率',
-                    data: trainingData.trainAcc
-                },
-                {
-                    name: '验证准确率',
-                    data: trainingData.valAcc
-                }
-            ]
-        });
-    }
+function getStatusClass(status) {
+    const classMap = {
+        'initializing': 'badge bg-secondary',
+        'preparing': 'badge bg-info',
+        'running': 'badge bg-primary',
+        'paused': 'badge bg-warning',
+        'stopping': 'badge bg-warning',
+        'stopped': 'badge bg-secondary',
+        'completed': 'badge bg-success',
+        'failed': 'badge bg-danger'
+    };
+    return classMap[status] || 'badge bg-secondary';
 }
 
 /**
- * 检查训练状态
+ * 显示错误消息
+ * @param {string} message - 错误消息
  */
-async function checkTrainingStatus(trainingId) {
-    try {
-        const response = await fetch(`/api/train/status/${trainingId}`);
-        const data = await response.json();
-        
-        if (data.status === 'completed' || data.status === 'failed') {
-            clearInterval(trainingInterval);
-        }
-        
-        if (data.status === 'failed' && !data.error_reported) {
-            showError(`训练失败: ${data.error}`);
-            addTrainingLog('error', `训练失败: ${data.error}`);
-            stopTraining();
-        }
-    } catch (error) {
-        console.error('检查训练状态出错:', error);
+function showError(message) {
+    const errorElement = document.getElementById('errorMessage');
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
     }
 }
 
@@ -567,14 +649,15 @@ async function pauseTraining() {
         });
         
         if (response.ok) {
+            const data = await response.json();
             const pauseBtn = document.getElementById('pauseTrainingBtn');
             
-            if (pauseBtn.innerHTML.includes('暂停')) {
+            if (data.status === 'paused') {
                 pauseBtn.innerHTML = '<i class="bi bi-play-fill"></i> 继续';
                 document.getElementById('trainingStatus').textContent = '已暂停';
                 document.getElementById('trainingStatus').className = 'badge bg-warning';
                 addTrainingLog('warning', '训练已暂停');
-            } else {
+            } else if (data.status === 'resumed') {
                 pauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i> 暂停';
                 document.getElementById('trainingStatus').textContent = '训练中';
                 document.getElementById('trainingStatus').className = 'badge bg-primary';
@@ -582,11 +665,11 @@ async function pauseTraining() {
             }
         } else {
             const data = await response.json();
-            showError(data.error || '暂停训练失败');
+            addTrainingLog('error', data.error || '暂停训练失败');
         }
     } catch (error) {
         console.error('暂停/继续训练出错:', error);
-        showError('暂停/继续训练失败: ' + error.message);
+        addTrainingLog('error', '暂停/继续训练失败: ' + error.message);
     }
 }
 
@@ -602,94 +685,21 @@ async function stopTraining() {
         });
         
         if (response.ok) {
-            finishTraining();
+            document.getElementById('trainingStatus').textContent = '正在停止';
+            document.getElementById('trainingStatus').className = 'badge bg-warning';
+            addTrainingLog('warning', '正在停止训练...');
         } else {
             const data = await response.json();
-            showError(data.error || '停止训练失败');
+            addTrainingLog('error', data.error || '停止训练失败');
         }
     } catch (error) {
         console.error('停止训练出错:', error);
-        showError('停止训练失败: ' + error.message);
+        addTrainingLog('error', '停止训练失败: ' + error.message);
     }
 }
 
 /**
- * 完成训练
- */
-function finishTraining(evalData) {
-    // 清除定时检查
-    clearInterval(trainingInterval);
-    
-    // 关闭WebSocket连接
-    if (trainingSocket) {
-        trainingSocket.close();
-        trainingSocket = null;
-    }
-    
-    // 重置训练状态
-    trainingInProgress = false;
-    
-    // 更新UI
-    document.getElementById('trainingStatus').textContent = '已完成';
-    document.getElementById('trainingStatus').className = 'badge bg-success';
-    document.getElementById('pauseTrainingBtn').innerHTML = '<i class="bi bi-pause-fill"></i> 暂停';
-    toggleFormElements(true);
-    
-    // 添加训练日志
-    addTrainingLog('success', '训练完成！');
-    
-    // 如果有评估数据，显示模型评估
-    if (evalData) {
-        displayModelEvaluation(evalData);
-    }
-}
-
-/**
- * 显示模型评估结果
- */
-function displayModelEvaluation(data) {
-    // 显示评估面板
-    document.getElementById('modelEvaluation').classList.remove('d-none');
-    
-    // 更新指标
-    document.getElementById('testAccuracy').textContent = (data.accuracy * 100).toFixed(2) + '%';
-    document.getElementById('f1Score').textContent = (data.f1_score * 100).toFixed(2) + '%';
-    document.getElementById('recall').textContent = (data.recall * 100).toFixed(2) + '%';
-    document.getElementById('precision').textContent = (data.precision * 100).toFixed(2) + '%';
-    
-    // 更新混淆矩阵
-    if (confusionMatrixChart && data.confusion_matrix) {
-        // 假设二分类问题，混淆矩阵为2x2
-        const cm = data.confusion_matrix;
-        
-        // 数据格式：[行, 列, 值]
-        const matrixData = [
-            [0, 0, cm[0][0]],
-            [0, 1, cm[0][1]],
-            [1, 0, cm[1][0]],
-            [1, 1, cm[1][1]]
-        ];
-        
-        // 计算最大值以设置visualMap范围
-        const maxValue = Math.max(...cm[0], ...cm[1]);
-        
-        confusionMatrixChart.setOption({
-            visualMap: {
-                min: 0,
-                max: maxValue
-            },
-            series: [
-                {
-                    name: '混淆矩阵',
-                    data: matrixData
-                }
-            ]
-        });
-    }
-}
-
-/**
- * 保存训练后的模型
+ * 保存模型
  */
 async function saveModel() {
     try {
@@ -708,14 +718,92 @@ async function saveModel() {
         const data = await response.json();
         
         if (response.ok) {
-            alert(`模型已成功保存为: ${data.filename}`);
-            addTrainingLog('success', `模型已保存为: ${data.filename}`);
+            alert(`模型已成功保存为: ${data.filename || modelName}`);
+            addTrainingLog('success', `模型已保存为: ${data.filename || modelName}`);
         } else {
-            showError(data.error || '保存模型失败');
+            alert('保存模型失败: ' + (data.error || '未知错误'));
+            addTrainingLog('error', '保存模型失败: ' + (data.error || '未知错误'));
         }
     } catch (error) {
         console.error('保存模型出错:', error);
-        showError('保存模型失败: ' + error.message);
+        addTrainingLog('error', '保存模型失败: ' + error.message);
+    }
+}
+
+/**
+ * 完成训练
+ */
+function finishTraining(evalData) {
+    // 清除轮询
+    if (trainingInterval) {
+        clearInterval(trainingInterval);
+        trainingInterval = null;
+    }
+    
+    // 重置训练状态
+    trainingInProgress = false;
+    
+    // 恢复表单
+    toggleFormElements(true);
+    
+    // 更新UI
+    const status = evalData && evalData.status ? evalData.status : 'completed';
+    document.getElementById('trainingStatus').textContent = getStatusText(status);
+    document.getElementById('trainingStatus').className = getStatusClass(status);
+    
+    if (status === 'completed') {
+        addTrainingLog('success', '训练完成！');
+        
+        // 显示评估结果
+        if (evalData && evalData.results) {
+            displayEvaluationResults(evalData.results);
+        }
+    } else if (status === 'failed') {
+        addTrainingLog('error', '训练失败: ' + (evalData.error || '未知错误'));
+    } else {
+        addTrainingLog('warning', '训练已停止');
+    }
+}
+
+/**
+ * 显示评估结果
+ */
+function displayEvaluationResults(results) {
+    const evalSection = document.getElementById('modelEvaluation');
+    if (!evalSection) return;
+    
+    evalSection.classList.remove('d-none');
+    
+    // 更新指标
+    document.getElementById('testAccuracy').textContent = (results.accuracy * 100).toFixed(2) + '%';
+    document.getElementById('f1Score').textContent = (results.f1_score * 100).toFixed(2) + '%';
+    document.getElementById('recall').textContent = (results.recall * 100).toFixed(2) + '%';
+    document.getElementById('precision').textContent = (results.precision * 100).toFixed(2) + '%';
+    
+    // 更新混淆矩阵
+    if (results.confusion_matrix && confusionMatrixChart) {
+        const cm = results.confusion_matrix;
+        const matrixData = [
+            [0, 0, cm[0][0]],
+            [0, 1, cm[0][1]],
+            [1, 0, cm[1][0]],
+            [1, 1, cm[1][1]]
+        ];
+        
+        const maxValue = Math.max(
+            cm[0][0], cm[0][1], 
+            cm[1][0], cm[1][1]
+        );
+        
+        confusionMatrixChart.setOption({
+            visualMap: {
+                min: 0,
+                max: maxValue
+            },
+            series: [{
+                data: matrixData
+            }]
+        });
     }
 }
 
@@ -762,6 +850,18 @@ function toggleFormElements(enabled) {
             startBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 训练中...';
         }
     }
+    
+    // 训练控制按钮
+    const controlBtns = document.querySelectorAll('#trainingControls button');
+    controlBtns.forEach(btn => {
+        if (btn.id === 'saveModelBtn') {
+            // 只有在训练完成后才能保存模型
+            btn.disabled = !enabled;
+        } else {
+            // 暂停和停止按钮在训练中才能使用
+            btn.disabled = enabled;
+        }
+    });
 }
 
 /**
@@ -771,11 +871,4 @@ function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-/**
- * 显示错误消息
- */
-function showError(message) {
-    alert('错误: ' + message);
 }
