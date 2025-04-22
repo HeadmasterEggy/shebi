@@ -128,7 +128,7 @@ async function analyzeText() {
 
     showLoadingAnimation();
     document.getElementById('errorMessage').style.display = 'none';
-    
+
     // 移除直接隐藏结果容器的代码，改为在进行分析前先切换到输入区域
     switchSection('input-section');
 
@@ -196,9 +196,9 @@ function displayResults(data) {
     // 保存分析数据到全局变量，方便视图切换时使用
     window.lastAnalysisData = data;
     window.allSentences = data.sentences;
-    
+
     console.log('收到分析结果数据:', data);
-    
+
     // 检查词频数据并进行预处理
     if (!data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
         console.warn('未检测到词频数据或词频数据为空，创建占位数据');
@@ -209,7 +209,7 @@ function displayResults(data) {
     } else {
         console.log(`检测到词频数据，包含${data.wordFreq.length}个词条`);
     }
-    
+
     // 设置句子数据
     allSentences = data.sentences;
     filteredSentences = [...allSentences];
@@ -225,7 +225,7 @@ function displayResults(data) {
     document.querySelectorAll('.filter-button[data-display]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.display === 'normal');
     });
-    
+
     // 确保所有结果卡片都显示出来
     const resultCards = ['overallResult', 'sentenceResults', 'wordFreq', 'modelMetrics'];
     resultCards.forEach(id => {
@@ -236,7 +236,7 @@ function displayResults(data) {
             element.style.opacity = '1';
         }
     });
-    
+
     // 确保图表容器可见
     const chartContainers = ['chartView', 'wordFreqCharts'];
     chartContainers.forEach(id => {
@@ -247,7 +247,7 @@ function displayResults(data) {
             element.style.opacity = '1';
         }
     });
-    
+
     // 更新分页和句子显示
     updateDisplay();
 
@@ -272,7 +272,7 @@ function displayResults(data) {
         // 初始化混淆矩阵
         try {
             initConfusionMatrix(data);
-        } catch(e) {
+        } catch (e) {
             console.error('初始化混淆矩阵失败:', e);
         }
     }
@@ -280,37 +280,37 @@ function displayResults(data) {
     try {
         // 初始化所有图表，包括词频图表
         initCharts(data);
-        
+
         // 初始化词频标签
         initWordFreqTags(data);
-        
+
         // 设置标签页事件 - 使用ui.js中的函数
         if (typeof setupTabButtonsEvents === 'function') {
             setupTabButtonsEvents();
         } else {
             // 旧版本兼容：直接绑定事件
             document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     switchTab(this.dataset.view);
                 });
             });
         }
-        
+
         if (typeof setupWordFreqTabButtonsEvents === 'function') {
             setupWordFreqTabButtonsEvents();
         } else {
             // 旧版本兼容：直接绑定事件
             document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     switchWordFreqTab(this.dataset.view);
                 });
             });
         }
-        
+
         // 默认显示列表视图
         switchTab('list');
         switchWordFreqTab('tags');
-        
+
         // 自动切换到总体分析区块
         switchSection('overall-section');
     } catch (error) {
@@ -325,7 +325,7 @@ function displayResults(data) {
  */
 document.addEventListener('DOMContentLoaded', function () {
     document.body.classList.add('fade-in');
-    
+
     // 确保认证信息先加载
     if (typeof fetchUserInfo === 'function') {
         fetchUserInfo().then(() => {
@@ -336,14 +336,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // 如果没有认证模块，也设置UI事件
         setupUIEventListeners();
     }
-    
+
     initFileUpload(); // 初始化文件上传功能
     fetchModels(); // 获取可用的模型列表
 
     // 添加模型选择框的事件监听
     document.getElementById('modelSelect').addEventListener('change', updateModelDescription);
     document.getElementById('fileModelSelect').addEventListener('change', updateModelDescription);
-    
+
     // 初始状态下激活第一个菜单项
     switchSection('input-section');
 });

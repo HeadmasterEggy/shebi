@@ -104,7 +104,7 @@ def val_accuracy(model, val_dataloader, device, criterion=nn.CrossEntropyLoss())
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['validation'],
-            #'model': [model_name],
+            # 'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -174,7 +174,7 @@ def test_accuracy(model, test_dataloader, device):
         metrics_df = pd.DataFrame({
             'timestamp': [pd.Timestamp.now()],
             'type': ['test'],
-            #'model': [model_name],
+            # 'model': [model_name],
             'accuracy': [accuracy],
             'f1': [100 * f1],
             'recall': [100 * recall]
@@ -255,7 +255,7 @@ if __name__ == "__main__":
                         choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
                         help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')
     args = parser.parse_args()
-    
+
     model_name = args.model.lower()  # 统一转为小写处理
     logging.info(f"模型名称: {model_name}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     # 使用导入的初始化模型函数，传入设备
     model = initialize_model(model_name, w2vec, device)
     logging.info("模型初始化完成")
-    
+
     # 测试阶段
     logging.info("开始测试模型...")
     test_accuracy(model, test_dataloader, device)

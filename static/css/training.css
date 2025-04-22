@@ -47,19 +47,19 @@
     min-width: 120px;
     padding: 8px 16px;
     font-weight: 500;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
 }
 
 #trainingControls button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* 训练进度样式 */
 #trainingProgress .progress {
     height: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 #trainingProgress .progress-bar {
@@ -109,14 +109,14 @@
 
 /* 图表容器样式 */
 .charts-container .card {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* 训练表单卡片样式 */
 #trainingForm .card {
     margin-bottom: 2rem;
     border: none;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 #trainingForm .card-header,
@@ -151,7 +151,7 @@
     height: 100%;
     border: 1px solid #eaeaea;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     overflow: hidden;
 }
 
@@ -194,7 +194,7 @@
     .charts-row {
         flex-direction: column;
     }
-    
+
     .chart-item {
         width: 100%;
         margin-bottom: 20px;

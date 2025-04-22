@@ -1,10 +1,6 @@
 # coding: UTF-8
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 '''用于句子分类的卷积神经网络'''
-
 
 import torch
 import torch.nn as nn

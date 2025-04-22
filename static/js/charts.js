@@ -9,7 +9,7 @@
 function initCharts(data) {
     console.log('开始初始化图表...');
     window.allSentences = data.sentences; // 确保全局保存句子数据
-    
+
     // 调试日志：检查图表容器
     checkChartContainers();
 
@@ -23,11 +23,11 @@ function initCharts(data) {
             const pieChart = initSentimentPieChart(data);
             const barChart = initSentimentBarChart(data);
             const scatterChart = initSentimentScatterChart(data);
-            
+
             // 词频图表
             const wordFreqBarChart = initWordFreqBarChart(data);
             const wordCloudChart = initWordCloudChart(data);
-            
+
             // 保存图表实例到window对象，以便全局访问
             window.chartInstances = {
                 pieChart,
@@ -36,9 +36,9 @@ function initCharts(data) {
                 wordFreqBarChart,
                 wordCloudChart
             };
-            
+
             console.log('所有图表初始化完成，图表实例:', window.chartInstances);
-            
+
             // 强制重绘所有图表
             setTimeout(resizeAllCharts, 500);
         } catch (error) {
@@ -58,7 +58,7 @@ function checkChartContainers() {
         'wordFreqBarChart',
         'wordCloudChart'
     ];
-    
+
     containers.forEach(id => {
         const container = document.getElementById(id);
         console.log(`图表容器 ${id}: ${container ? '存在' : '不存在'}`);
@@ -67,14 +67,14 @@ function checkChartContainers() {
             console.log(`容器样式: display=${getComputedStyle(container).display}, visibility=${getComputedStyle(container).visibility}`);
         }
     });
-    
+
     // 检查父容器
     const chartView = document.getElementById('chartView');
     console.log(`图表视图容器: ${chartView ? '存在' : '不存在'}`);
     if (chartView) {
         console.log(`图表视图样式: display=${getComputedStyle(chartView).display}, visibility=${getComputedStyle(chartView).visibility}`);
     }
-    
+
     const wordFreqCharts = document.getElementById('wordFreqCharts');
     console.log(`词频图表容器: ${wordFreqCharts ? '存在' : '不存在'}`);
     if (wordFreqCharts) {
@@ -93,17 +93,17 @@ function prepareChartContainers() {
         'wordFreqBarChart',
         'wordCloudChart'
     ];
-    
+
     // 临时显示图表视图容器以便初始化
     const chartView = document.getElementById('chartView');
     const wordFreqCharts = document.getElementById('wordFreqCharts');
     const chartViewOrigDisplay = chartView ? chartView.style.display : 'none';
     const wordFreqChartsOrigDisplay = wordFreqCharts ? wordFreqCharts.style.display : 'none';
-    
+
     // 临时设置为block以便初始化
     if (chartView) chartView.style.display = 'block';
     if (wordFreqCharts) wordFreqCharts.style.display = 'block';
-    
+
     // 确保每个容器有明确的尺寸
     containers.forEach(id => {
         const container = document.getElementById(id);
@@ -115,10 +115,10 @@ function prepareChartContainers() {
             container.style.opacity = '1';
         }
     });
-    
+
     // 打印日志确认容器已准备好
     console.log('图表容器已准备好，将在初始化后恢复原始显示状态');
-    
+
     // 设置延时恢复原始显示状态
     setTimeout(() => {
         if (chartView) chartView.style.display = chartViewOrigDisplay;
@@ -132,7 +132,7 @@ function prepareChartContainers() {
  */
 function resizeAllCharts() {
     if (!window.chartInstances) return;
-    
+
     Object.values(window.chartInstances).forEach(chart => {
         if (chart && typeof chart.resize === 'function') {
             try {
@@ -151,13 +151,13 @@ function resizeAllCharts() {
 function initWordFreqTags(data) {
     const wordFreqTags = document.getElementById('wordFreqTags');
     if (!wordFreqTags) return;
-    
+
     // 简化检查
     if (!data || !data.wordFreq || !data.wordFreq.length) {
         wordFreqTags.innerHTML = '<p class="text-muted text-center py-4">没有词频数据</p>';
         return;
     }
-    
+
     try {
         const maxCount = Math.max(...data.wordFreq.map(item => item.count));
         const minCount = Math.min(...data.wordFreq.map(item => item.count));
@@ -168,10 +168,10 @@ function initWordFreqTags(data) {
             const intensity = (item.count - minCount) / (maxCount - minCount || 1);
             const color = `hsl(210, ${80 - intensity * 40}%, ${85 - intensity * 30}%)`;
             const textColor = intensity > 0.6 ? '#fff' : '#333';
-            
+
             tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: ${color}; color: ${textColor}">${item.word} (${item.count})</span>`;
         });
-        
+
         wordFreqTags.innerHTML = tagsHtml;
     } catch (error) {
         wordFreqTags.innerHTML = '<p class="text-danger text-center py-4">词频标签生成出错</p>';
@@ -453,26 +453,26 @@ function initSentimentScatterChart(data) {
  */
 function initWordFreqBarChart(data) {
     console.log('初始化词频柱状图...');
-    
+
     const container = document.getElementById('wordFreqBarChart');
     if (!container) {
         console.error('找不到词频柱状图容器');
         return null;
     }
-    
+
     // 先确保容器有明确的尺寸
     container.style.width = '100%';
     container.style.height = '350px';
     container.style.minHeight = '300px';
     container.style.visibility = 'visible';
-    
+
     // 确保父容器也是可见的
     const parent = container.closest('.chart-wrapper');
     if (parent) {
         parent.style.display = 'block';
         parent.style.visibility = 'visible';
     }
-    
+
     // 销毁可能存在的旧实例
     try {
         const existingChart = echarts.getInstanceByDom(container);
@@ -480,29 +480,29 @@ function initWordFreqBarChart(data) {
             existingChart.dispose();
             console.log('已销毁旧的词频柱状图实例');
         }
-    } catch (e) { 
+    } catch (e) {
         console.warn('尝试销毁旧图表实例时出错:', e);
     }
-    
+
     // 创建图表前再次检查容器
     console.log(`词频柱状图容器尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
-    
+
     // 确保数据有效
     if (!data.wordFreq || !Array.isArray(data.wordFreq) || data.wordFreq.length === 0) {
         console.warn('词频数据为空');
         container.innerHTML = '<div class="text-center text-muted p-5">无词频数据可显示</div>';
         return null;
     }
-    
+
     const wordFreqData = data.wordFreq.slice(0, 20); // 只显示前20个词
-    
+
     try {
         // 使用echarts.init强制指定大小
         const wordFreqBar = echarts.init(container, null, {
             width: container.offsetWidth || 500,
             height: container.offsetHeight || 350
         });
-        
+
         // 设置选项
         const wordFreqBarOption = {
             title: {
@@ -545,14 +545,14 @@ function initWordFreqBarChart(data) {
                 barWidth: '40%'
             }]
         };
-        
+
         // 应用选项
         wordFreqBar.setOption(wordFreqBarOption);
         console.log('词频柱状图初始化成功');
-        
+
         // 立即调整大小
         wordFreqBar.resize();
-        
+
         return wordFreqBar;
     } catch (e) {
         console.error('初始化词频柱状图出错:', e);
@@ -566,28 +566,28 @@ function initWordFreqBarChart(data) {
 function initWordCloudChart(data) {
     // 类似上面的实现，增强错误处理和日志
     // ...existing code with similar improvements...
-    
+
     console.log('初始化词云图...');
-    
+
     const container = document.getElementById('wordCloudChart');
     if (!container) {
         console.error('找不到词云图容器');
         return null;
     }
-    
+
     // 先确保容器有明确的尺寸
     container.style.width = '100%';
     container.style.height = '350px';
     container.style.minHeight = '300px';
     container.style.visibility = 'visible';
-    
+
     // 确保父容器也是可见的
     const parent = container.closest('.chart-wrapper');
     if (parent) {
         parent.style.display = 'block';
         parent.style.visibility = 'visible';
     }
-    
+
     // 销毁可能存在的旧实例
     try {
         const existingChart = echarts.getInstanceByDom(container);
@@ -595,33 +595,33 @@ function initWordCloudChart(data) {
             existingChart.dispose();
             console.log('已销毁旧的词云图实例');
         }
-    } catch (e) { 
+    } catch (e) {
         console.warn('尝试销毁旧词云图实例时出错:', e);
     }
-    
+
     // 检查wordCloud插件是否可用
     if (!echarts.getMap) {
         console.error('echarts-wordcloud插件未找到，词云图无法初始化');
         container.innerHTML = '<div class="text-center text-danger p-3">无法加载词云图组件</div>';
         return null;
     }
-    
+
     // 创建图表前再次检查容器
     console.log(`词云图容器尺寸: ${container.offsetWidth}x${container.offsetHeight}`);
-    
+
     if (!data.wordFreq || data.wordFreq.length === 0) {
         console.warn('词频数据为空');
         container.innerHTML = '<div class="text-center text-muted p-5">无词频数据可显示</div>';
         return null;
     }
-    
+
     try {
         // 使用echarts.init强制指定大小
         const wordCloud = echarts.init(container, null, {
             width: container.offsetWidth || 500,
             height: container.offsetHeight || 350
         });
-        
+
         const wordCloudOption = {
             title: {
                 text: '词云展示',
@@ -668,14 +668,14 @@ function initWordCloudChart(data) {
                 }))
             }]
         };
-        
+
         // 应用选项
         wordCloud.setOption(wordCloudOption);
         console.log('词云图初始化成功');
-        
+
         // 立即调整大小
         wordCloud.resize();
-        
+
         return wordCloud;
     } catch (e) {
         console.error('初始化词云图出错:', e);

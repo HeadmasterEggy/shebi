@@ -10,140 +10,150 @@
     <link rel="stylesheet" href="/static/css/profile.css">
 </head>
 <body>
-    <!-- 顶部导航栏 -->
-    <nav class="navbar navbar-expand-lg navbar-dark top-navbar">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-graph-up"></i> 情感分析系统
-            </a>
-            
-            <div class="navbar-text system-title d-none d-md-block">
-                智能文本情感分析平台
-            </div>
-            
-            <!-- 用户信息和操作 -->
-            <div class="ms-auto user-navbar-panel">
-                <div class="dropdown">
-                    <button class="btn btn-outline-light dropdown-toggle user-dropdown" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-person-circle"></i>
-                        <span id="navbarUsername">加载中...</span>
-                        <span id="navbarUserRole" class="badge bg-primary ms-1">用户</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                        <li><a class="dropdown-item" href="/profile" id="navbarProfile"><i class="bi bi-person"></i> 个人资料</a></li>
-                        <li><a class="dropdown-item" href="/settings" id="navbarSettings"><i class="bi bi-gear"></i> 设置</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" id="navbarLogoutBtn"><i class="bi bi-box-arrow-right"></i> 注销</a></li>
-                    </ul>
-                </div>
+<!-- 顶部导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark top-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-graph-up"></i> 情感分析系统
+        </a>
+
+        <div class="navbar-text system-title d-none d-md-block">
+            智能文本情感分析平台
+        </div>
+
+        <!-- 用户信息和操作 -->
+        <div class="ms-auto user-navbar-panel">
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle user-dropdown" type="button" id="userDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i>
+                    <span id="navbarUsername">加载中...</span>
+                    <span id="navbarUserRole" class="badge bg-primary ms-1">用户</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="/profile" id="navbarProfile"><i class="bi bi-person"></i> 个人资料</a>
+                    </li>
+                    <li><a class="dropdown-item" href="/settings" id="navbarSettings"><i class="bi bi-gear"></i>
+                        设置</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="#" id="navbarLogoutBtn"><i class="bi bi-box-arrow-right"></i> 注销</a>
+                    </li>
+                </ul>
             </div>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    <div class="profile-container">
-        <div class="container py-5">
-            <div class="row">
-                <div class="col-lg-4">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">个人信息</h5>
+<div class="profile-container">
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">个人信息</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="https://via.placeholder.com/150" alt="用户头像"
+                             class="rounded-circle img-fluid" style="width: 150px;">
+                        <h5 class="my-3" id="profileUsername">加载中...</h5>
+                        <p class="text-muted mb-1" id="profileRole">用户角色</p>
+                        <p class="text-muted mb-4" id="profileEmail">用户邮箱</p>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">账户安全</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>密码强度</span>
+                                <span class="badge bg-success">强</span>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 80%"></div>
+                            </div>
                         </div>
-                        <div class="card-body text-center">
-                            <img src="https://via.placeholder.com/150" alt="用户头像"
-                                class="rounded-circle img-fluid" style="width: 150px;">
-                            <h5 class="my-3" id="profileUsername">加载中...</h5>
-                            <p class="text-muted mb-1" id="profileRole">用户角色</p>
-                            <p class="text-muted mb-4" id="profileEmail">用户邮箱</p>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" data-bs-toggle="modal"
+                                    data-bs-target="#changePasswordModal">
+                                <i class="bi bi-shield-lock"></i> 修改密码
+                            </button>
                         </div>
                     </div>
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">账户安全</h5>
-                        </div>
-                        <div class="card-body">
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">编辑个人资料</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="profileForm">
                             <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span>密码强度</span>
-                                    <span class="badge bg-success">强</span>
-                                </div>
-                                <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 80%"></div>
-                                </div>
+                                <label class="form-label" for="username">用户名</label>
+                                <input type="text" class="form-control" id="username" disabled>
+                                <div class="form-text">用户名不可修改</div>
                             </div>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                                    <i class="bi bi-shield-lock"></i> 修改密码
+                            <div class="mb-3">
+                                <label class="form-label" for="email">电子邮箱</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                            <div id="profileMessage" class="alert d-none" role="alert"></div>
+                            <div class="text-end">
+                                <button type="button" class="btn btn-outline-secondary me-2"
+                                        onclick="window.location.href='/'">返回首页
                                 </button>
+                                <button type="submit" class="btn btn-primary">保存更改</button>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-8">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">编辑个人资料</h5>
-                        </div>
-                        <div class="card-body">
-                            <form id="profileForm">
-                                <div class="mb-3">
-                                    <label class="form-label" for="username">用户名</label>
-                                    <input type="text" class="form-control" id="username" disabled>
-                                    <div class="form-text">用户名不可修改</div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label" for="email">电子邮箱</label>
-                                    <input type="email" class="form-control" id="email" required>
-                                </div>
-                                <div id="profileMessage" class="alert d-none" role="alert"></div>
-                                <div class="text-end">
-                                    <button type="button" class="btn btn-outline-secondary me-2" onclick="window.location.href='/'">返回首页</button>
-                                    <button type="submit" class="btn btn-primary">保存更改</button>
-                                </div>
-                            </form>
-                        </div>
+                        </form>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- 修改密码模态框 -->
-    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="changePasswordModalLabel">修改密码</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="passwordForm">
-                        <div class="mb-3">
-                            <label for="currentPassword" class="form-label">当前密码</label>
-                            <input type="password" class="form-control" id="currentPassword" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="newPassword" class="form-label">新密码</label>
-                            <input type="password" class="form-control" id="newPassword" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirmPassword" class="form-label">确认新密码</label>
-                            <input type="password" class="form-control" id="confirmPassword" required>
-                        </div>
-                        <div id="passwordMessage" class="alert d-none" role="alert"></div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="changePasswordBtn">更新密码</button>
-                </div>
+<!-- 修改密码模态框 -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">修改密码</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="passwordForm">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">当前密码</label>
+                        <input type="password" class="form-control" id="currentPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">新密码</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">确认新密码</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <div id="passwordMessage" class="alert d-none" role="alert"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="changePasswordBtn">更新密码</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- JavaScript files -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/shared.js"></script>
-    <script src="/static/js/auth.js"></script>
-    <script src="/static/js/profile.js"></script>
+<!-- JavaScript files -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/shared.js"></script>
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/profile.js"></script>
 </body>
 </html>

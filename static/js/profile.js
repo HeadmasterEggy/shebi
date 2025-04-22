@@ -2,23 +2,23 @@
  * 个人资料页面功能
  */
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // 加载个人资料信息
     loadProfileData();
-    
+
     // 表单提交处理
     const profileForm = document.getElementById('profileForm');
     if (profileForm) {
-        profileForm.addEventListener('submit', function(e) {
+        profileForm.addEventListener('submit', function (e) {
             e.preventDefault();
             updateProfile();
         });
     }
-    
+
     // 密码更改处理
     const changePasswordBtn = document.getElementById('changePasswordBtn');
     if (changePasswordBtn) {
-        changePasswordBtn.addEventListener('click', function() {
+        changePasswordBtn.addEventListener('click', function () {
             changePassword();
         });
     }
@@ -32,17 +32,17 @@ async function loadProfileData() {
         const response = await fetch('/api/profile');
         if (response.ok) {
             const data = await response.json();
-            
+
             // 更新页面上的用户信息
             document.getElementById('profileUsername').textContent = data.username;
             document.getElementById('username').value = data.username;
             document.getElementById('profileEmail').textContent = data.email;
             document.getElementById('email').value = data.email;
             document.getElementById('profileRole').textContent = data.is_admin ? '管理员' : '普通用户';
-            
+
             // 更新顶部导航栏
             document.getElementById('navbarUsername').textContent = data.username;
-            
+
             const navbarUserRole = document.getElementById('navbarUserRole');
             if (navbarUserRole) {
                 navbarUserRole.textContent = data.is_admin ? '管理员' : '用户';
@@ -62,7 +62,7 @@ async function loadProfileData() {
  */
 async function updateProfile() {
     const email = document.getElementById('email').value;
-    
+
     try {
         const response = await fetch('/api/profile/update', {
             method: 'POST',
@@ -73,9 +73,9 @@ async function updateProfile() {
                 email: email
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             showMessage('profileMessage', '个人资料更新成功', 'success');
             loadProfileData(); // 重新加载数据
@@ -95,13 +95,13 @@ async function changePassword() {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-    
+
     // 检查密码确认是否匹配
     if (newPassword !== confirmPassword) {
         showMessage('passwordMessage', '新密码和确认密码不匹配', 'danger');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/profile/update', {
             method: 'POST',
@@ -113,9 +113,9 @@ async function changePassword() {
                 new_password: newPassword
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             showMessage('passwordMessage', '密码修改成功', 'success');
             setTimeout(() => {
@@ -151,7 +151,7 @@ function showMessage(elementId, message, type) {
         messageElement.textContent = message;
         messageElement.className = `alert alert-${type}`;
         messageElement.classList.remove('d-none');
-        
+
         // 成功消息3秒后自动隐藏
         if (type === 'success') {
             setTimeout(() => {

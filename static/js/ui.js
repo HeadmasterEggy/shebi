@@ -22,7 +22,7 @@ function switchTab(view) {
         console.log('视图切换正在进行中，请稍候...');
         return;
     }
-    
+
     window.switchTabInProgress = true;
     setTimeout(() => {
         window.switchTabInProgress = false;
@@ -37,10 +37,10 @@ function switchTab(view) {
         listView.style.display = 'none';
         chartView.style.display = 'block';
         chartView.style.visibility = 'visible';
-        
+
         console.log('图表视图容器已显示:', chartView);
         console.log(`图表容器尺寸: ${chartView.offsetWidth}x${chartView.offsetHeight}`);
-        
+
         // 给DOM一点时间完成布局
         setTimeout(() => {
             try {
@@ -53,7 +53,7 @@ function switchTab(view) {
                         window.chartInstances.scatterChart
                     ].filter(chart => chart);
                 }
-                
+
                 // 获取图表实例方法2：从DOM元素获取
                 if (charts.length === 0) {
                     charts = [
@@ -62,9 +62,9 @@ function switchTab(view) {
                         echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
                     ].filter(chart => chart);
                 }
-                
+
                 console.log(`找到 ${charts.length} 个图表实例`);
-                
+
                 // 如果找不到图表实例，尝试重新初始化
                 if (charts.length === 0) {
                     console.log('找不到图表实例，尝试重新初始化');
@@ -78,21 +78,21 @@ function switchTab(view) {
                         // 构造数据对象
                         const data = {
                             sentences: window.allSentences,
-                            overall: { 
+                            overall: {
                                 probabilities: {
                                     positive: window.allSentences.filter(s => s.sentiment === '积极').length / window.allSentences.length * 100,
                                     negative: window.allSentences.filter(s => s.sentiment === '消极').length / window.allSentences.length * 100
                                 }
                             }
                         };
-                        
+
                         initSentimentPieChart(data);
                         initSentimentBarChart(data);
                         initSentimentScatterChart(data);
                     } else {
                         console.error('没有分析数据可用于初始化图表');
                     }
-                    
+
                     // 重新获取图表实例
                     charts = [
                         echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
@@ -100,7 +100,7 @@ function switchTab(view) {
                         echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
                     ].filter(chart => chart);
                 }
-                
+
                 // 调整所有图表大小
                 charts.forEach(chart => {
                     if (chart) {
@@ -127,7 +127,7 @@ function switchTab(view) {
             button.classList.remove('active');
         }
     });
-    
+
     // 重新绑定标签按钮事件，确保切换后仍能点击
     setupTabButtonsEvents();
 }
@@ -137,16 +137,16 @@ function switchTab(view) {
  */
 function setupTabButtonsEvents() {
     console.log('设置标签页按钮事件');
-    
+
     // 移除所有现有事件，防止重复绑定
     document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
         const newButton = button.cloneNode(true);
         button.parentNode.replaceChild(newButton, button);
     });
-    
+
     // 重新绑定事件
     document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', function (e) {
             e.stopPropagation(); // 防止事件冒泡
             const view = this.dataset.view;
             console.log(`标签按钮点击: ${view}`);
@@ -166,7 +166,7 @@ function switchWordFreqTab(view) {
     const buttons = document.querySelectorAll('#wordFreq .tab-button');
 
     if (!wordFreqTags || !wordFreqCharts) return;
-    
+
     // 简化状态标志处理
     if (window.switchWordFreqTabInProgress) return;
     window.switchWordFreqTabInProgress = true;
@@ -180,14 +180,14 @@ function switchWordFreqTab(view) {
         wordFreqTags.style.display = 'none';
         wordFreqCharts.style.display = 'flex';
         wordFreqCharts.style.visibility = 'visible';
-        
+
         // 确保图表容器可见
         wordFreqCharts.querySelectorAll('.chart').forEach(container => {
             container.style.width = '100%';
             container.style.height = '350px';
             container.style.visibility = 'visible';
         });
-        
+
         // 延迟渲染图表，给DOM时间更新
         setTimeout(() => {
             if (window.lastAnalysisData) {
@@ -199,12 +199,12 @@ function switchWordFreqTab(view) {
 
     // 更新按钮状态
     buttons.forEach(button => {
-        button.classList.toggle('active', 
+        button.classList.toggle('active',
             (view === 'tags' && button.textContent.includes('标签')) ||
             (view === 'chart' && button.textContent.includes('图表'))
         );
     });
-    
+
     // 重新绑定按钮事件
     setupWordFreqTabButtonsEvents();
 }
@@ -214,17 +214,18 @@ function switchWordFreqTab(view) {
  */
 function createWordFreqCharts(data) {
     if (!data || !data.wordFreq) return;
-    
+
     // 清理旧实例
     ['wordFreqBarChart', 'wordCloudChart'].forEach(id => {
         const container = document.getElementById(id);
         if (!container) return;
-        
+
         try {
             const existing = echarts.getInstanceByDom(container);
             if (existing) existing.dispose();
-        } catch (e) {}
-        
+        } catch (e) {
+        }
+
         // 创建图表
         createSimpleChart(container, data.wordFreq);
     });
@@ -235,38 +236,38 @@ function createWordFreqCharts(data) {
  */
 function createSimpleChart(container, data) {
     if (!container || !data) return null;
-    
+
     // 确保容器尺寸
     container.style.width = '100%';
     container.style.height = '350px';
-    
+
     try {
         const chart = echarts.init(container);
         const isBarChart = container.id === 'wordFreqBarChart';
-        
+
         // 准备图表数据
         const words = data.slice(0, isBarChart ? 15 : 30).map(item => item.word);
         const values = data.slice(0, isBarChart ? 15 : 30).map(item => item.count);
-        
+
         // 设置配置
         const option = isBarChart ?
             {
-                title: { text: '高频词汇统计', left: 'center' },
-                tooltip: { trigger: 'axis' },
-                xAxis: { type: 'category', data: words },
-                yAxis: { type: 'value' },
-                series: [{ data: values, type: 'bar' }]
+                title: {text: '高频词汇统计', left: 'center'},
+                tooltip: {trigger: 'axis'},
+                xAxis: {type: 'category', data: words},
+                yAxis: {type: 'value'},
+                series: [{data: values, type: 'bar'}]
             } :
             {
-                title: { text: '词频分布', left: 'center' },
-                tooltip: { trigger: 'item' },
+                title: {text: '词频分布', left: 'center'},
+                tooltip: {trigger: 'item'},
                 series: [{
                     type: 'pie',
                     radius: '60%',
-                    data: words.map((word, i) => ({ name: word, value: values[i] }))
+                    data: words.map((word, i) => ({name: word, value: values[i]}))
                 }]
             };
-        
+
         chart.setOption(option);
         chart.resize();
         return chart;
@@ -281,16 +282,16 @@ function createSimpleChart(container, data) {
  */
 function setupWordFreqTabButtonsEvents() {
     console.log('设置词频标签页按钮事件');
-    
+
     // 移除所有现有事件，防止重复绑定
     document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
         const newButton = button.cloneNode(true);
         button.parentNode.replaceChild(newButton, button);
     });
-    
+
     // 重新绑定事件
     document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', function (e) {
             e.stopPropagation(); // 防止事件冒泡
             const view = this.dataset.view;
             console.log(`词频标签按钮点击: ${view}`);
@@ -335,7 +336,7 @@ function setSentimentFilter(filter) {
  */
 function switchSection(sectionId) {
     console.log(`切换到区块: ${sectionId}, 是否管理员: ${window.isAdmin}`);
-    
+
     // 首先记录滚动位置，以便切换回来时恢复
     const currentSection = document.querySelector('.content-section.active');
     if (currentSection) {
@@ -346,7 +347,7 @@ function switchSection(sectionId) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
     });
-    
+
     // 特殊处理管理员区域
     if (sectionId === 'admin-section') {
         // 检查用户是否为管理员
@@ -355,7 +356,7 @@ function switchSection(sectionId) {
             if (adminSection) {
                 adminSection.classList.add('active');
                 console.log('管理员区域已激活');
-                
+
                 // 如果已定义fetchUsers函数，调用它获取用户列表
                 if (typeof fetchUsers === 'function') {
                     fetchUsers();
@@ -380,18 +381,18 @@ function switchSection(sectionId) {
             console.error(`找不到目标区块: ${sectionId}`);
         }
     }
-    
+
     // 恢复滚动位置
     const targetSection = document.getElementById(sectionId);
     if (targetSection && targetSection.dataset.scrollPosition) {
         targetSection.scrollTop = parseInt(targetSection.dataset.scrollPosition);
     }
-    
+
     // 更新菜单项状态
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.toggle('active', item.dataset.section === sectionId);
     });
-    
+
     // 如果切换到词频统计区域，重新调整图表大小
     if (sectionId === 'word-freq-section' || sectionId === 'overall-section') {
         // 给DOM一点时间完成布局
@@ -403,7 +404,7 @@ function switchSection(sectionId) {
         setTimeout(() => {
             console.log('调整总体分析区域中的所有图表大小');
             resizeChartsInSection(sectionId);
-            
+
             // 特别处理词频图表
             const wordFreqCharts = document.getElementById('wordFreqCharts');
             if (wordFreqCharts && getComputedStyle(wordFreqCharts).display !== 'none') {
@@ -411,7 +412,7 @@ function switchSection(sectionId) {
                     echarts.getInstanceByDom(document.getElementById('wordFreqBarChart')),
                     echarts.getInstanceByDom(document.getElementById('wordCloudChart'))
                 ].filter(chart => chart);
-                
+
                 charts.forEach(chart => {
                     if (chart) {
                         chart.resize();
@@ -429,14 +430,14 @@ function switchSection(sectionId) {
 function resizeChartsInSection(sectionId) {
     const section = document.getElementById(sectionId);
     if (!section) return;
-    
+
     // 获取区块内的所有图表容器
     const chartContainers = section.querySelectorAll('.chart');
     chartContainers.forEach(container => {
         const chart = echarts.getInstanceByDom(container);
         if (chart) {
             chart.resize();
-            
+
             // 双重保险：使用requestAnimationFrame确保在下一帧渲染时图表尺寸正确
             requestAnimationFrame(() => {
                 chart.resize();
@@ -480,12 +481,12 @@ function setupUIEventListeners() {
     if (modelSelect) {
         modelSelect.addEventListener('change', updateModelDescription);
     }
-    
+
     // 添加侧边栏菜单点击事件 - 优化处理
     document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             const targetSection = item.dataset.section;
-            
+
             // 管理员区域特殊处理
             if (targetSection === 'admin-section') {
                 if (window.isAdmin !== true) {
@@ -494,13 +495,13 @@ function setupUIEventListeners() {
                     return; // 非管理员用户点击无效
                 }
             }
-            
+
             switchSection(targetSection);
         });
     });
-    
+
     // 监听窗口大小变化，重新调整当前活动区块的图表
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
         const activeSection = document.querySelector('.content-section.active');
         if (activeSection) {
             resizeChartsInSection(activeSection.id);
