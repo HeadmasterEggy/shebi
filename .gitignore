@@ -2,3 +2,5 @@
 static/.ipynb_checkpoints
 __pycache__/
 .idea
+config
+log
