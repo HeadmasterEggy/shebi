@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}情感分析系统{% endblock %}</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/training.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark top-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up"></i> 情感分析系统
+            </a>
+
+            <div class="navbar-text system-title d-none d-md-block">
+                智能文本情感分析平台
+            </div>
+
+            <!-- 用户信息和操作 -->
+            <div class="ms-auto user-navbar-panel">
+                <div class="dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle user-dropdown" type="button" id="userDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i>
+                        <span id="navbarUsername">加载中...</span>
+                        <span id="navbarUserRole" class="badge bg-primary ms-1">用户</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" href="#" id="navbarProfile"><i class="bi bi-person"></i> 个人资料</a>
+                        </li>
+                        <li><a class="dropdown-item" href="#" id="navbarSettings"><i class="bi bi-gear"></i> 设置</a></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li><a class="dropdown-item" href="#" id="navbarLogoutBtn"><i class="bi bi-box-arrow-right"></i> 注销</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        {% include 'includes/nav.html' %}
+
+        <!-- 主内容区 -->
+        <div class="main-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">分析中...</span>
+        </div>
+        <p class="mb-0 mt-2">正在分析中<span id="loadingDots">...</span></p>
+    </div>
+
+    <!-- 模态框集合 -->
+    {% include 'includes/modals.html' %}
+
+    <!-- JavaScript依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+    
+    <!-- 应用脚本 -->
+    <script src="/static/js/shared.js"></script>
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/charts.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/pagination.js"></script>
+    <script src="/static/js/fileupload.js"></script>
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/training.js"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -120,8 +120,9 @@ function switchTab(view) {
 
     // 更新标签按钮状态
     buttons.forEach(button => {
-        if ((view === 'list' && button.textContent.includes('列表')) ||
-            (view === 'chart' && button.textContent.includes('图表'))) {
+        // 使用data-view属性而不是textContent
+        if ((view === 'list' && button.dataset.view === 'list') ||
+            (view === 'chart' && button.dataset.view === 'chart')) {
             button.classList.add('active');
         } else {
             button.classList.remove('active');
@@ -148,7 +149,7 @@ function setupTabButtonsEvents() {
     document.querySelectorAll('#sentenceResults .tab-button').forEach(button => {
         button.addEventListener('click', function (e) {
             e.stopPropagation(); // 防止事件冒泡
-            const view = this.dataset.view;
+            const view = this.dataset.view; // 使用data-view属性
             console.log(`标签按钮点击: ${view}`);
             switchTab(view);
         });

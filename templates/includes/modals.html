@@ -1,0 +1,79 @@
+<!-- 创建用户模态框 -->
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createUserModalLabel">创建新用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <!-- 表单内容在JavaScript中动态生成 -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">创建用户</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑用户模态框 -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel">编辑用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId">
+                    <input type="hidden" id="editOriginalData">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="editUsername" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="editEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPassword" class="form-label">新密码（留空表示不修改）</label>
+                        <input type="password" class="form-control" id="editPassword">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsAdmin">
+                        <label class="form-check-label" for="editIsAdmin">管理员权限</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="updateUserBtn">更新用户</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除用户吗？此操作可以通过撤销按钮恢复。</p>
+                <input type="hidden" id="deleteUserId">
+                <input type="hidden" id="deleteUserData">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+</div>

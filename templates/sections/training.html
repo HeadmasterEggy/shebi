@@ -1,0 +1,288 @@
+<div class="content-section" id="training-section">
+    <div class="section-header">
+        <h4>模型训练</h4>
+    </div>
+    <div class="section-body">
+        <form id="trainingForm">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">模型参数配置</h5>
+                </div>
+                <div class="card-body">
+                    <!-- 模型类型和批量大小 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="modelTypeSelect" class="form-label fw-bold">模型类型</label>
+                            <select class="form-select" id="modelTypeSelect" required>
+                                <option value="cnn" selected>TextCNN</option>
+                                <option value="lstm">LSTM</option>
+                                <option value="lstm_attention">LSTM+Attention</option>
+                                <option value="bilstm">Bi-LSTM</option>
+                                <option value="bilstm_attention">Bi-LSTM+Attention</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="batchSizeSelect" class="form-label fw-bold">批量大小</label>
+                            <select class="form-select" id="batchSizeSelect" required>
+                                <option value="16">16</option>
+                                <option value="32" selected>32</option>
+                                <option value="64">64</option>
+                                <option value="128">128</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 训练轮数和学习率 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="epochsInput" class="form-label fw-bold">训练轮数</label>
+                            <input type="number" class="form-control" id="epochsInput" min="1" max="100"
+                                   value="10" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="learningRateInput" class="form-label fw-bold">学习率</label>
+                            <input type="number" class="form-control" id="learningRateInput" min="0.0001"
+                                   max="0.1" step="0.0001" value="0.001" required>
+                        </div>
+                    </div>
+
+                    <!-- Dropout和权重衰减 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="dropoutInput" class="form-label fw-bold">Dropout比率</label>
+                            <input type="number" class="form-control" id="dropoutInput" min="0.1" max="0.9"
+                                   step="0.1" value="0.5" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="weightDecayInput" class="form-label fw-bold">权重衰减</label>
+                            <input type="number" class="form-control" id="weightDecayInput" min="0" max="0.1"
+                                   step="0.0001" value="0.0001">
+                        </div>
+                    </div>
+
+                    <!-- 优化器选择 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="optimizerSelect" class="form-label fw-bold">优化器</label>
+                            <select class="form-select" id="optimizerSelect">
+                                <option value="adam" selected>Adam</option>
+                                <option value="sgd">SGD</option>
+                                <option value="rmsprop">RMSprop</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="earlyStopping">
+                                <label class="form-check-label" for="earlyStopping">
+                                    启用早停机制
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 早停设置 -->
+                    <div class="row mb-3" id="earlyStoppingOptions" style="display:none;">
+                        <div class="col-md-6">
+                            <label for="patienceInput" class="form-label fw-bold">早停耐心值</label>
+                            <input type="number" class="form-control" id="patienceInput" min="1" max="20"
+                                   value="3">
+                            <small class="form-text text-muted">验证集准确率在几轮内没有提高则停止训练</small>
+                        </div>
+                    </div>
+
+                    <!-- 词向量配置参数 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="embeddingDimSelect" class="form-label fw-bold">词向量维度</label>
+                            <select class="form-select" id="embeddingDimSelect">
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="300" selected>300</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="usePretrainedEmbedding">
+                                <label class="form-check-label" for="usePretrainedEmbedding">
+                                    使用预训练词向量
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LSTM特有参数 -->
+                    <div class="row mb-3 lstm-only">
+                        <div class="col-md-6">
+                            <label for="hiddenDimSelect" class="form-label fw-bold">隐藏层维度</label>
+                            <select class="form-select" id="hiddenDimSelect">
+                                <option value="64">64</option>
+                                <option value="128" selected>128</option>
+                                <option value="256">256</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="numLayersSelect" class="form-label fw-bold">LSTM层数</label>
+                            <select class="form-select" id="numLayersSelect">
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Bidirectional LSTM特有参数 -->
+                    <div class="row mb-3 bilstm-only" style="display:none;">
+                        <div class="col-md-6">
+                            <label for="mergeModeSelect" class="form-label fw-bold">方向合并方式</label>
+                            <select class="form-select" id="mergeModeSelect">
+                                <option value="concat" selected>拼接(concat)</option>
+                                <option value="sum">求和(sum)</option>
+                                <option value="mul">相乘(mul)</option>
+                                <option value="avg">平均(avg)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- CNN特有参数 -->
+                    <div class="row mb-3 cnn-only">
+                        <div class="col-md-6">
+                            <label for="numFiltersSelect" class="form-label fw-bold">卷积核数量</label>
+                            <select class="form-select" id="numFiltersSelect">
+                                <option value="64">64</option>
+                                <option value="128" selected>128</option>
+                                <option value="256">256</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="kernelSizeSelect" class="form-label fw-bold">卷积核大小</label>
+                            <div class="d-flex">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" value="2" id="kernelSize2" checked>
+                                    <label class="form-check-label" for="kernelSize2">2</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" value="3" id="kernelSize3" checked>
+                                    <label class="form-check-label" for="kernelSize3">3</label>
+                                </div>
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" value="4" id="kernelSize4" checked>
+                                    <label class="form-check-label" for="kernelSize4">4</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="5" id="kernelSize5" checked>
+                                    <label class="form-check-label" for="kernelSize5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 高级优化器参数 -->
+                    <div class="card mb-3 advanced-params">
+                        <div class="card-header" data-bs-toggle="collapse" data-bs-target="#advancedParams" role="button" aria-expanded="false" aria-controls="advancedParams">
+                            <i class="bi bi-gear"></i> 高级优化器参数
+                            <i class="bi bi-chevron-down float-end"></i>
+                        </div>
+                        <div class="collapse" id="advancedParams">
+                            <div class="card-body">
+                                <!-- Adam优化器参数 -->
+                                <div id="adamParams">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="beta1Input" class="form-label">Beta1</label>
+                                            <input type="number" class="form-control" id="beta1Input" min="0" max="1" step="0.001" value="0.9">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="beta2Input" class="form-label">Beta2</label>
+                                            <input type="number" class="form-control" id="beta2Input" min="0" max="1" step="0.001" value="0.999">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- SGD优化器参数 -->
+                                <div id="sgdParams" style="display:none;">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="momentumInput" class="form-label">动量(Momentum)</label>
+                                            <input type="number" class="form-control" id="momentumInput" min="0" max="1" step="0.01" value="0.9">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check mt-4">
+                                                <input class="form-check-input" type="checkbox" id="nesterov" checked>
+                                                <label class="form-check-label" for="nesterov">
+                                                    使用Nesterov动量
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据处理参数 -->
+                    <div class="card mb-3">
+                        <div class="card-header" data-bs-toggle="collapse" data-bs-target="#dataProcessingParams" role="button" aria-expanded="false" aria-controls="dataProcessingParams">
+                            <i class="bi bi-database"></i> 数据处理参数
+                            <i class="bi bi-chevron-down float-end"></i>
+                        </div>
+                        <div class="collapse" id="dataProcessingParams">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="validationSplitInput" class="form-label">验证集比例</label>
+                                        <input type="number" class="form-control" id="validationSplitInput" min="0.05" max="0.3" step="0.01" value="0.1">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="maxSeqLenInput" class="form-label">最大序列长度</label>
+                                        <input type="number" class="form-control" id="maxSeqLenInput" min="50" max="500" value="100">
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="useStopwords" checked>
+                                            <label class="form-check-label" for="useStopwords">
+                                                使用停用词过滤
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="useDataAugmentation">
+                                            <label class="form-check-label" for="useDataAugmentation">
+                                                启用数据增强
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <button type="button" class="btn btn-primary" id="startTrainingBtn">
+                        <i class="bi bi-play-fill"></i> 开始训练
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- 训练进度区域 -->
+        <div id="trainingProgress" class="mt-4 d-none">
+            <!-- ...训练进度内容略... -->
+        </div>
+
+        <!-- 模型评估结果 -->
+        <div id="modelEvaluation" class="mt-4 d-none">
+            <!-- ...模型评估内容略... -->
+        </div>
+
+        <!-- 占位符 -->
+        <div id="trainingPlaceholder" class="text-center py-5">
+            <i class="bi bi-cpu" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="mt-3 text-muted">选择模型参数并点击"开始训练"按钮开始训练模型</p>
+        </div>
+
+        <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
+    </div>
+</div>

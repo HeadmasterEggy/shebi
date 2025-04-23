@@ -1059,3 +1059,293 @@ function formatTime(seconds) {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
+
+/**
+ * 模型训练相关功能
+ */
+
+document.addEventListener('DOMContentLoaded', function() {
+    initTrainingInterface();
+});
+
+/**
+ * 初始化训练界面
+ */
+function initTrainingInterface() {
+    console.log('初始化模型训练界面');
+
+    // 根据模型类型显示/隐藏特定参数
+    const modelTypeSelect = document.getElementById('modelTypeSelect');
+    if (modelTypeSelect) {
+        modelTypeSelect.addEventListener('change', function() {
+            updateModelSpecificParams(this.value);
+        });
+        // 初始化时触发一次
+        updateModelSpecificParams(modelTypeSelect.value);
+    }
+
+    // 根据优化器类型显示/隐藏特定参数
+    const optimizerSelect = document.getElementById('optimizerSelect');
+    if (optimizerSelect) {
+        optimizerSelect.addEventListener('change', function() {
+            updateOptimizerParams(this.value);
+        });
+        // 初始化时触发一次
+        updateOptimizerParams(optimizerSelect.value);
+    }
+
+    // 处理早停选项显示/隐藏
+    const earlyStoppingCheckbox = document.getElementById('earlyStopping');
+    const earlyStoppingOptions = document.getElementById('earlyStoppingOptions');
+    if (earlyStoppingCheckbox && earlyStoppingOptions) {
+        earlyStoppingCheckbox.addEventListener('change', function() {
+            earlyStoppingOptions.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    // 开始训练按钮
+    const startTrainingBtn = document.getElementById('startTrainingBtn');
+    if (startTrainingBtn) {
+        startTrainingBtn.addEventListener('click', startTraining);
+    }
+
+    // 其他按钮事件绑定
+    bindTrainingControlEvents();
+}
+
+/**
+ * 根据模型类型更新特定参数的显示/隐藏
+ * @param {string} modelType 模型类型
+ */
+function updateModelSpecificParams(modelType) {
+    console.log(`更新模型特定参数: ${modelType}`);
+    
+    // 处理LSTM相关参数
+    const lstmParams = document.querySelectorAll('.lstm-only');
+    lstmParams.forEach(element => {
+        element.style.display = modelType.includes('lstm') ? 'flex' : 'none';
+    });
+
+    // 处理Bi-LSTM特有参数
+    const bilstmParams = document.querySelectorAll('.bilstm-only');
+    bilstmParams.forEach(element => {
+        element.style.display = modelType.includes('bilstm') ? 'flex' : 'none';
+    });
+
+    // 处理CNN相关参数
+    const cnnParams = document.querySelectorAll('.cnn-only');
+    cnnParams.forEach(element => {
+        element.style.display = modelType === 'cnn' ? 'flex' : 'none';
+    });
+}
+
+/**
+ * 根据优化器类型更新特定参数的显示/隐藏
+ * @param {string} optimizer 优化器类型
+ */
+function updateOptimizerParams(optimizer) {
+    console.log(`更新优化器特定参数: ${optimizer}`);
+    
+    // Adam参数
+    const adamParams = document.getElementById('adamParams');
+    if (adamParams) {
+        adamParams.style.display = optimizer === 'adam' ? 'block' : 'none';
+    }
+    
+    // SGD参数
+    const sgdParams = document.getElementById('sgdParams');
+    if (sgdParams) {
+        sgdParams.style.display = optimizer === 'sgd' ? 'block' : 'none';
+    }
+}
+
+/**
+ * 收集所有训练参数
+ * @returns {object} 训练参数对象
+ */
+function collectTrainingParams() {
+    const params = {
+        // 基本参数
+        model_type: document.getElementById('modelTypeSelect').value,
+        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
+        epochs: parseInt(document.getElementById('epochsInput').value),
+        learning_rate: parseFloat(document.getElementById('learningRateInput').value),
+        dropout: parseFloat(document.getElementById('dropoutInput').value),
+        optimizer: document.getElementById('optimizerSelect').value,
+        weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
+        
+        // 词向量参数
+        embedding_dim: parseInt(document.getElementById('embeddingDimSelect').value),
+        use_pretrained: document.getElementById('usePretrainedEmbedding').checked,
+        
+        // 数据处理参数
+        validation_split: parseFloat(document.getElementById('validationSplitInput').value),
+        max_seq_len: parseInt(document.getElementById('maxSeqLenInput').value),
+        use_stopwords: document.getElementById('useStopwords').checked,
+        use_data_augmentation: document.getElementById('useDataAugmentation').checked,
+        
+        // 早停参数
+        early_stopping: document.getElementById('earlyStopping').checked
+    };
+    
+    // 如果启用了早停，添加早停参数
+    if (params.early_stopping) {
+        params.patience = parseInt(document.getElementById('patienceInput').value);
+    }
+    
+    // 模型特定参数
+    if (params.model_type.includes('lstm')) {
+        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
+        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
+        
+        // 双向LSTM特有参数
+        if (params.model_type.includes('bilstm')) {
+            params.merge_mode = document.getElementById('mergeModeSelect').value;
+        }
+    }
+    else if (params.model_type === 'cnn') {
+        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
+        
+        // 卷积核大小
+        params.kernel_sizes = [];
+        for (let i = 2; i <= 5; i++) {
+            const kernelCheckbox = document.getElementById(`kernelSize${i}`);
+            if (kernelCheckbox && kernelCheckbox.checked) {
+                params.kernel_sizes.push(i);
+            }
+        }
+    }
+    
+    // 优化器特定参数
+    if (params.optimizer === 'adam') {
+        params.beta1 = parseFloat(document.getElementById('beta1Input').value);
+        params.beta2 = parseFloat(document.getElementById('beta2Input').value);
+    }
+    else if (params.optimizer === 'sgd') {
+        params.momentum = parseFloat(document.getElementById('momentumInput').value);
+        params.nesterov = document.getElementById('nesterov').checked;
+    }
+    
+    return params;
+}
+
+/**
+ * 开始训练模型
+ */
+async function startTraining() {
+    console.log('开始模型训练');
+    
+    try {
+        // 显示加载指示器
+        showLoading('正在准备训练环境...');
+        
+        // 收集训练参数
+        const params = collectTrainingParams();
+        console.log('训练参数:', params);
+        
+        // 简单验证
+        if (params.model_type === 'cnn' && params.kernel_sizes.length === 0) {
+            showError('至少选择一种卷积核大小');
+            return;
+        }
+        
+        // 发送训练请求
+        const response = await fetch('/api/train/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(params)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            console.log('训练任务已启动:', data);
+            
+            // 隐藏占位符，显示进度区域
+            document.getElementById('trainingPlaceholder').style.display = 'none';
+            document.getElementById('trainingProgress').classList.remove('d-none');
+            
+            // 开始监控训练进度
+            startProgressMonitoring(data.training_id);
+        } else {
+            showError('训练启动失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        console.error('训练启动出错:', error);
+        showError('训练启动出错: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * 绑定训练控制事件
+ */
+function bindTrainingControlEvents() {
+    // 暂停/继续按钮
+    const pauseBtn = document.getElementById('pauseTrainingBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', toggleTrainingPause);
+    }
+    
+    // 停止按钮
+    const stopBtn = document.getElementById('stopTrainingBtn');
+    if (stopBtn) {
+        stopBtn.addEventListener('click', stopTraining);
+    }
+    
+    // 保存模型按钮
+    const saveBtn = document.getElementById('saveModelBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveModel);
+    }
+}
+
+/**
+ * 显示错误消息
+ * @param {string} message 错误消息
+ */
+function showError(message) {
+    const errorEl = document.getElementById('errorMessage');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        
+        // 5秒后自动隐藏
+        setTimeout(() => {
+            errorEl.style.display = 'none';
+        }, 5000);
+    } else {
+        // 后备方案：使用alert
+        alert('错误: ' + message);
+    }
+}
+
+/**
+ * 显示加载指示器
+ */
+function showLoading(message = '处理中...') {
+    const loading = document.getElementById('loading');
+    if (loading) {
+        const loadingText = loading.querySelector('p');
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
+        loading.style.display = 'flex';
+    }
+}
+
+/**
+ * 隐藏加载指示器
+ */
+function hideLoading() {
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+}
+
+// 确保全局可访问
+window.startTraining = startTraining;

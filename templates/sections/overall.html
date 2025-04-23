@@ -1,0 +1,46 @@
+<div class="content-section" id="overall-section">
+    <div class="section-header">
+        <h4>整体分析结果</h4>
+    </div>
+    <div class="section-body">
+        <div id="overallResult" class="result-card show">
+            <div class="overall-sentiment">
+                <h5>情感倾向：<span id="overallSentiment" class="badge bg-primary"></span></h5>
+                <div class="progress">
+                    <div id="overallPositive" class="progress-bar bg-success" role="progressbar"></div>
+                    <div id="overallNegative" class="progress-bar bg-danger" role="progressbar"></div>
+                </div>
+                <div class="text-muted small">
+                    积极：<span id="overallPositiveProb"></span>% |
+                    消极：<span id="overallNegativeProb"></span>%
+                </div>
+            </div>
+            <div class="chart-container">
+                <div id="overallPieChart" class="chart"></div>
+            </div>
+        </div>
+
+        <!-- 添加模型指标到整体分析区域 -->
+        <div id="modelMetrics" class="result-card show">
+            <h5 class="mb-3">模型评估指标</h5>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="small text-muted">准确率</div>
+                    <div class="h4 mb-0 text-primary"><span id="accuracy"></span>%</div>
+                </div>
+                <div class="metric-item">
+                    <div class="small text-muted">F1分数</div>
+                    <div class="h4 mb-0 text-success"><span id="f1Score"></span>%</div>
+                </div>
+                <div class="metric-item">
+                    <div class="small text-muted">召回率</div>
+                    <div class="h4 mb-0 text-info"><span id="recall"></span>%</div>
+                </div>
+            </div>
+            <div class="chart-wrapper mt-4">
+                <h5 class="text-center mb-3">混淆矩阵</h5>
+                <div id="confusionMatrixChart" class="chart"></div>
+            </div>
+        </div>
+    </div>
+</div>

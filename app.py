@@ -307,7 +307,8 @@ with app.app_context():
 def index():
     """主页面路由，检查用户是否已登录"""
     if current_user.is_authenticated:
-        return send_from_directory('static', 'index.html')
+        # 修改为使用templates目录下的模板
+        return render_template('index.html')
     else:
         return render_template('login.html')
 
@@ -769,7 +770,7 @@ def start_training():
         if not data:
             return jsonify({'error': 'Invalid JSON data'}), 400
 
-        # 获取训练参数
+        # 获取基本训练参数
         model_type = data.get('model_type', 'cnn')
         batch_size = data.get('batch_size', 32)
         epochs = data.get('epochs', 10)
@@ -789,6 +790,16 @@ def start_training():
             'weight_decay': weight_decay
         }
 
+        # 词向量参数
+        params['embedding_dim'] = data.get('embedding_dim', 300)
+        params['use_pretrained'] = data.get('use_pretrained', False)
+        
+        # 数据处理参数
+        params['validation_split'] = data.get('validation_split', 0.1)
+        params['max_seq_len'] = data.get('max_seq_len', 100)
+        params['use_stopwords'] = data.get('use_stopwords', True)
+        params['use_data_augmentation'] = data.get('use_data_augmentation', False)
+
         # 确保配置目录存在
         os.makedirs('config', exist_ok=True)
 
@@ -796,8 +807,22 @@ def start_training():
         if model_type.lower() in ['lstm', 'bilstm', 'lstm_attention', 'bilstm_attention']:
             params['hidden_dim'] = data.get('hidden_dim', 128)
             params['num_layers'] = data.get('num_layers', 2)
+            
+            # 双向LSTM特有参数
+            if model_type.lower().startswith('bilstm'):
+                params['merge_mode'] = data.get('merge_mode', 'concat')
+                
         elif model_type.lower() == 'cnn':
             params['num_filters'] = data.get('num_filters', 128)
+            params['kernel_sizes'] = data.get('kernel_sizes', [2, 3, 4, 5])
+        
+        # 优化器特定参数
+        if optimizer == 'adam':
+            params['beta1'] = data.get('beta1', 0.9)
+            params['beta2'] = data.get('beta2', 0.999)
+        elif optimizer == 'sgd':
+            params['momentum'] = data.get('momentum', 0.9)
+            params['nesterov'] = data.get('nesterov', True)
 
         # 早停参数
         if data.get('early_stopping'):

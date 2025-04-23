@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+
+{% block title %}情感分析系统 - 主页{% endblock %}
+
+{% block content %}
+    <!-- 输入区域 -->
+    {% include 'sections/input.html' %}
+
+    <!-- 整体分析结果区域 -->
+    {% include 'sections/overall.html' %}
+
+    <!-- 句子分析区域 -->
+    {% include 'sections/sentences.html' %}
+
+    <!-- 词频统计区域 -->
+    {% include 'sections/word_freq.html' %}
+
+    <!-- 模型训练区域 -->
+    {% include 'sections/training.html' %}
+
+    <!-- 管理员区域 -->
+    {% include 'sections/admin.html' %}
+{% endblock %}
