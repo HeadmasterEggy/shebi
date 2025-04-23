@@ -368,7 +368,7 @@ def analyze():
             return jsonify({'error': '请输入要分析的文本'}), 400
 
         # 验证模型类型
-        if model_type and model_type not in ['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn']:
+        if (model_type and model_type not in ['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn']):
             return jsonify({'error': '不支持的模型类型，请选择有效的模型类型'}), 400
 
         logger.info("=" * 80)
@@ -498,11 +498,16 @@ def update_user(user_id):
     is_admin = data.get('is_admin', False)
     password = data.get('password')  # 可选，如果提供则更新密码
 
-    # 检查用户名是否与其他用户重复
-    if username != user.username:
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            return jsonify({'error': '用户名已被使用'}), 400
+    # 只有在提供了有效的用户名时才检查和更新
+    if username and username.strip():
+        # 检查用户名是否与其他用户重复
+        if username != user.username:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                return jsonify({'error': '用户名已被使用'}), 400
+        
+        # 更新用户名
+        user.username = username
 
     # 检查邮箱是否与其他用户重复
     if email != user.email:
@@ -511,7 +516,6 @@ def update_user(user_id):
             return jsonify({'error': '邮箱已被注册'}), 400
 
     # 更新用户信息
-    user.username = username
     user.email = email
     user.is_admin = is_admin
 

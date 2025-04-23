@@ -699,6 +699,7 @@ async function updateUser() {
 
         // 准备请求体
         const requestBody = {
+            username, // 添加用户名到请求体
             email,
             is_admin: isAdmin
         };
