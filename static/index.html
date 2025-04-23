@@ -673,7 +673,24 @@
             </div>
             <div class="modal-body">
                 <form id="editUserForm">
-                    <!-- 表单内容在JavaScript中动态生成 -->
+                    <input type="hidden" id="editUserId">
+                    <input type="hidden" id="editOriginalData">
+                    <div class="mb-3">
+                        <label for="editUsername" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="editUsername" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="editEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPassword" class="form-label">新密码（留空表示不修改）</label>
+                        <input type="password" class="form-control" id="editPassword">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsAdmin">
+                        <label class="form-check-label" for="editIsAdmin">管理员权限</label>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -685,8 +702,7 @@
 </div>
 
 <!-- 删除确认模态框 -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel"
-     aria-hidden="true">
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -694,8 +710,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>确定要删除用户吗？此操作无法撤销。</p>
+                <p>确定要删除用户吗？此操作可以通过撤销按钮恢复。</p>
                 <input type="hidden" id="deleteUserId">
+                <input type="hidden" id="deleteUserData">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -707,18 +724,16 @@
 
 <!-- JavaScript files -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
 <script src="/static/js/shared.js"></script>
-<script src="/static/js/auth.js"></script>  <!-- 移动到前面 -->
-<script src="/static/js/admin.js"></script>  <!-- 确保在auth.js之后加载 -->
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/admin.js"></script>
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/ui.js"></script>
 <script src="/static/js/pagination.js"></script>
 <script src="/static/js/fileupload.js"></script>
 <script src="/static/js/main.js"></script>
-<!-- 添加训练相关的JavaScript文件 -->
 <script src="/static/js/training.js"></script>
-<!-- 确保ECharts脚本加载在适当位置 -->
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
 </body>
 </html>
