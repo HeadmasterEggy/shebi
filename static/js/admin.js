@@ -2,6 +2,10 @@
  * 管理员功能模块
  */
 
+// 操作历史记录栈 - 用于撤销功能
+let operationHistory = [];
+const MAX_HISTORY_SIZE = 10; // 限制历史记录最大数量
+
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function () {
     console.log('管理员模块已加载');
@@ -48,9 +52,14 @@ function setupUserManagement() {
         userManagementCard.innerHTML = `
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">用户管理</h5>
-                <button class="btn btn-primary btn-sm" id="createUserBtn">
-                    <i class="bi bi-person-plus"></i> 添加用户
-                </button>
+                <div>
+                    <button class="btn btn-outline-secondary btn-sm me-2" id="undoOperationBtn" disabled>
+                        <i class="bi bi-arrow-counterclockwise"></i> 撤销操作
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="createUserBtn">
+                        <i class="bi bi-person-plus"></i> 添加用户
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -107,6 +116,7 @@ function setupUserManagement() {
     if (editUserForm) {
         editUserForm.innerHTML = `
             <input type="hidden" id="editUserId">
+            <input type="hidden" id="editOriginalData">
             <div class="mb-3">
                 <label for="editUsername" class="form-label">用户名</label>
                 <input type="text" class="form-control" id="editUsername" disabled>
@@ -182,6 +192,17 @@ function bindAdminEvents() {
         });
     } else {
         console.error('找不到确认删除按钮');
+    }
+
+    // 绑定撤销操作按钮
+    const undoBtn = document.getElementById('undoOperationBtn');
+    if (undoBtn) {
+        console.log('找到撤销操作按钮，添加点击事件');
+        undoBtn.addEventListener('click', function() {
+            undoLastOperation();
+        });
+    } else {
+        console.error('找不到撤销操作按钮');
     }
 }
 
@@ -354,6 +375,12 @@ async function createUser() {
         const data = await response.json();
 
         if (response.ok) {
+            // 记录操作以便撤销
+            recordOperation('create', {
+                userId: data.user_id,
+                username: username
+            });
+            
             // 关闭模态框
             const modalElement = document.getElementById('createUserModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
@@ -434,6 +461,9 @@ async function editUser(userId) {
             const user = await response.json();
             console.log('获取到用户数据:', user);
 
+            // 存储原始用户数据用于可能的撤销
+            document.getElementById('editOriginalData').value = JSON.stringify(user);
+            
             // 填充表单
             document.getElementById('editUserId').value = user.id;
             document.getElementById('editUsername').value = user.username;
@@ -501,19 +531,34 @@ async function editUser(userId) {
 function confirmDeleteUser(userId, username) {
     console.log('确认删除用户:', userId, username);
 
-    // 设置要删除的用户ID
-    document.getElementById('deleteUserId').value = userId;
+    // 先获取用户完整数据用于可能的恢复
+    fetch(`/api/admin/user/${userId}`)
+        .then(response => response.json())
+        .then(userData => {
+            // 存储用户数据到删除确认框
+            const userData_element = document.getElementById('deleteUserData');
+            if (userData_element) {
+                userData_element.value = JSON.stringify(userData);
+            }
+            
+            // 设置要删除的用户ID
+            document.getElementById('deleteUserId').value = userId;
 
-    // 设置确认消息
-    const confirmMsg = document.querySelector('#deleteConfirmModal .modal-body p');
-    if (confirmMsg) {
-        confirmMsg.textContent = `确定要删除用户 "${username}" 吗？此操作无法撤销。`;
-    }
+            // 设置确认消息
+            const confirmMsg = document.querySelector('#deleteConfirmModal .modal-body p');
+            if (confirmMsg) {
+                confirmMsg.textContent = `确定要删除用户 "${username}" 吗？此操作可以通过撤销按钮恢复。`;
+            }
 
-    // 显示确认对话框
-    const modalElement = document.getElementById('deleteConfirmModal');
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
+            // 显示确认对话框
+            const modalElement = document.getElementById('deleteConfirmModal');
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('获取用户数据失败:', error);
+            alert('获取用户数据失败，无法安全删除');
+        });
 }
 
 /**
@@ -522,6 +567,14 @@ function confirmDeleteUser(userId, username) {
 async function deleteUser() {
     try {
         const userId = document.getElementById('deleteUserId').value;
+        const userDataStr = document.getElementById('deleteUserData').value;
+        let userData = {};
+        
+        try {
+            userData = JSON.parse(userDataStr);
+        } catch (e) {
+            console.error('解析用户数据失败:', e);
+        }
 
         // 尝试多种可能的API端点路径
         const possibleEndpoints = [
@@ -574,6 +627,17 @@ async function deleteUser() {
         console.log('删除用户响应状态:', response.status);
 
         if (response.ok) {
+            // 记录操作用于撤销
+            recordOperation('delete', {
+                userId: userId,
+                userData: {
+                    username: userData.username,
+                    email: userData.email,
+                    password: "tempPassword123", // 临时密码
+                    is_admin: userData.is_admin
+                }
+            });
+            
             // 关闭模态框
             const modalElement = document.getElementById('deleteConfirmModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
@@ -612,9 +676,20 @@ async function deleteUser() {
 async function updateUser() {
     try {
         const userId = document.getElementById('editUserId').value;
+        const username = document.getElementById('editUsername').value;
         const email = document.getElementById('editEmail').value.trim();
         const password = document.getElementById('editPassword').value;
         const isAdmin = document.getElementById('editIsAdmin').checked;
+        
+        // 获取原始数据用于撤销
+        const originalDataStr = document.getElementById('editOriginalData').value;
+        let originalData = {};
+        
+        try {
+            originalData = JSON.parse(originalDataStr);
+        } catch (e) {
+            console.error('解析原始用户数据失败:', e);
+        }
 
         // 表单验证
         if (!email) {
@@ -701,6 +776,16 @@ async function updateUser() {
         }
 
         if (response.ok) {
+            // 记录操作用于撤销
+            recordOperation('update', {
+                userId: userId,
+                username: username,
+                previousData: {
+                    email: originalData.email,
+                    is_admin: originalData.is_admin
+                }
+            });
+            
             // 关闭模态框
             const modalElement = document.getElementById('editUserModal');
             const modal = bootstrap.Modal.getInstance(modalElement);
@@ -726,6 +811,155 @@ async function updateUser() {
     }
 }
 
+/**
+ * 记录操作到历史
+ * @param {string} type - 操作类型 ('create', 'update', 或 'delete')
+ * @param {Object} data - 操作相关数据
+ */
+function recordOperation(type, data) {
+    // 添加到历史记录开头
+    operationHistory.unshift({
+        type: type,
+        data: data,
+        timestamp: new Date().toISOString()
+    });
+    
+    // 限制历史记录大小
+    if (operationHistory.length > MAX_HISTORY_SIZE) {
+        operationHistory.pop();
+    }
+    
+    // 启用撤销按钮
+    const undoBtn = document.getElementById('undoOperationBtn');
+    if (undoBtn) {
+        undoBtn.disabled = false;
+    }
+    
+    console.log(`已记录操作: ${type}`, data);
+    console.log('当前历史记录:', operationHistory);
+}
+
+/**
+ * 撤销最后一次操作
+ */
+async function undoLastOperation() {
+    if (operationHistory.length === 0) {
+        console.log('没有可撤销的操作');
+        return;
+    }
+    
+    try {
+        const operation = operationHistory[0];
+        console.log('正在撤销操作:', operation);
+        
+        switch (operation.type) {
+            case 'create':
+                await undoCreate(operation.data);
+                break;
+                
+            case 'update':
+                await undoUpdate(operation.data);
+                break;
+                
+            case 'delete':
+                await undoDelete(operation.data);
+                break;
+                
+            default:
+                console.error('未知的操作类型:', operation.type);
+                return;
+        }
+        
+        // 从历史中移除已撤销的操作
+        operationHistory.shift();
+        
+        // 如果没有更多操作，禁用撤销按钮
+        if (operationHistory.length === 0) {
+            const undoBtn = document.getElementById('undoOperationBtn');
+            if (undoBtn) {
+                undoBtn.disabled = true;
+            }
+        }
+        
+        // 刷新用户列表
+        fetchUsers();
+        
+    } catch (error) {
+        console.error('撤销操作失败:', error);
+        alert('撤销操作失败: ' + error.message);
+    }
+}
+
+/**
+ * 撤销创建用户操作
+ */
+async function undoCreate(data) {
+    if (!data.userId) {
+        throw new Error('缺少用户ID，无法撤销创建');
+    }
+    
+    const response = await fetch(`/api/admin/delete_user/${data.userId}`, {
+        method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '删除失败');
+    }
+    
+    alert(`已撤销: 创建用户 "${data.username}"`);
+}
+
+/**
+ * 撤销更新用户操作
+ */
+async function undoUpdate(data) {
+    if (!data.previousData || !data.userId) {
+        throw new Error('缺少原始数据，无法撤销修改');
+    }
+    
+    // 使用原始数据恢复用户状态
+    const response = await fetch(`/api/admin/update_user/${data.userId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data.previousData)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '恢复失败');
+    }
+    
+    alert(`已撤销: 修改用户 "${data.username}" 的信息`);
+}
+
+/**
+ * 撤销删除用户操作
+ */
+async function undoDelete(data) {
+    if (!data.userData) {
+        throw new Error('缺少用户数据，无法恢复删除的用户');
+    }
+    
+    // 重新创建已删除的用户
+    const response = await fetch('/api/admin/create_user', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data.userData)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '恢复失败');
+    }
+    
+    alert(`已恢复: 删除的用户 "${data.userData.username}"`);
+}
+
 // 确保全局可访问
 window.fetchUsers = fetchUsers;
 window.editUser = editUser;
@@ -733,3 +967,4 @@ window.confirmDeleteUser = confirmDeleteUser;
 window.createUser = createUser;
 window.updateUser = updateUser;
 window.deleteUser = deleteUser;
+window.undoLastOperation = undoLastOperation;
