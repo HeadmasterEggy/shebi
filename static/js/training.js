@@ -385,31 +385,8 @@ async function startTraining() {
         valAcc: []
     };
 
-    // 收集表单参数
-    const params = {
-        model_type: document.getElementById('modelTypeSelect').value,
-        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
-        epochs: parseInt(document.getElementById('epochsInput').value),
-        learning_rate: parseFloat(document.getElementById('learningRateInput').value),
-        dropout: parseFloat(document.getElementById('dropoutInput').value),
-        optimizer: document.getElementById('optimizerSelect').value,
-        weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
-    };
-
-    // 根据模型类型添加特定参数
-    if (params.model_type.includes('lstm') || params.model_type.includes('bilstm')) {
-        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
-        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
-    } else if (params.model_type === 'cnn') {
-        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
-    }
-
-    // 如果启用了早停
-    const earlyStopping = document.getElementById('earlyStopping');
-    if (earlyStopping && earlyStopping.checked) {
-        params.early_stopping = true;
-        params.patience = parseInt(document.getElementById('patienceInput').value);
-    }
+    // 使用 collectTrainingParams 函数收集参数，而不是直接访问 DOM
+    const params = collectTrainingParams();
 
     try {
         // 隐藏占位符和错误信息
@@ -1169,20 +1146,9 @@ function collectTrainingParams() {
         model_type: document.getElementById('modelTypeSelect').value,
         batch_size: parseInt(document.getElementById('batchSizeSelect').value),
         epochs: parseInt(document.getElementById('epochsInput').value),
-        learning_rate: parseFloat(document.getElementById('learningRateInput').value),
         dropout: parseFloat(document.getElementById('dropoutInput').value),
         optimizer: document.getElementById('optimizerSelect').value,
-        weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
-        
-        // 词向量参数
-        embedding_dim: parseInt(document.getElementById('embeddingDimSelect').value),
-        use_pretrained: document.getElementById('usePretrainedEmbedding').checked,
-        
-        // 数据处理参数
-        validation_split: parseFloat(document.getElementById('validationSplitInput').value),
-        max_seq_len: parseInt(document.getElementById('maxSeqLenInput').value),
-        use_stopwords: document.getElementById('useStopwords').checked,
-        use_data_augmentation: document.getElementById('useDataAugmentation').checked,
+        weight_decay: parseFloat(document.getElementById('weightDecaySelect').value),
         
         // 早停参数
         early_stopping: document.getElementById('earlyStopping').checked
@@ -1214,16 +1180,6 @@ function collectTrainingParams() {
                 params.kernel_sizes.push(i);
             }
         }
-    }
-    
-    // 优化器特定参数
-    if (params.optimizer === 'adam') {
-        params.beta1 = parseFloat(document.getElementById('beta1Input').value);
-        params.beta2 = parseFloat(document.getElementById('beta2Input').value);
-    }
-    else if (params.optimizer === 'sgd') {
-        params.momentum = parseFloat(document.getElementById('momentumInput').value);
-        params.nesterov = document.getElementById('nesterov').checked;
     }
     
     return params;
