@@ -23,7 +23,7 @@ class Config:
     lr = 0.0001  # 学习率；若opt='adadelta'，则不需要定义学习率
     vocab_size = 54848  # 词汇量，与word2id中的词汇量一致
     embedding_dim = 50  # 词向量维度
-    batch_size = 64  # 批处理尺寸
+    batch_size = 256  # 批处理尺寸
     dropout = 0.5  # 随机失活
     patience = 100  # 提前停止训练的耐心值
 

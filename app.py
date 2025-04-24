@@ -774,7 +774,6 @@ def start_training():
         model_type = data.get('model_type', 'cnn')
         batch_size = data.get('batch_size', 32)
         epochs = data.get('epochs', 10)
-        learning_rate = data.get('learning_rate', 0.001)
         dropout = data.get('dropout', 0.5)
         optimizer = data.get('optimizer', 'adam')
         weight_decay = data.get('weight_decay', 0.0001)
@@ -784,21 +783,10 @@ def start_training():
             'model_type': model_type,
             'batch_size': batch_size,
             'epochs': epochs,
-            'learning_rate': learning_rate,
             'dropout': dropout,
             'optimizer': optimizer,
             'weight_decay': weight_decay
         }
-
-        # 词向量参数
-        params['embedding_dim'] = data.get('embedding_dim', 300)
-        params['use_pretrained'] = data.get('use_pretrained', False)
-        
-        # 数据处理参数
-        params['validation_split'] = data.get('validation_split', 0.1)
-        params['max_seq_len'] = data.get('max_seq_len', 100)
-        params['use_stopwords'] = data.get('use_stopwords', True)
-        params['use_data_augmentation'] = data.get('use_data_augmentation', False)
 
         # 确保配置目录存在
         os.makedirs('config', exist_ok=True)
@@ -807,23 +795,11 @@ def start_training():
         if model_type.lower() in ['lstm', 'bilstm', 'lstm_attention', 'bilstm_attention']:
             params['hidden_dim'] = data.get('hidden_dim', 128)
             params['num_layers'] = data.get('num_layers', 2)
-            
-            # 双向LSTM特有参数
-            if model_type.lower().startswith('bilstm'):
-                params['merge_mode'] = data.get('merge_mode', 'concat')
-                
+
         elif model_type.lower() == 'cnn':
             params['num_filters'] = data.get('num_filters', 128)
             params['kernel_sizes'] = data.get('kernel_sizes', [2, 3, 4, 5])
         
-        # 优化器特定参数
-        if optimizer == 'adam':
-            params['beta1'] = data.get('beta1', 0.9)
-            params['beta2'] = data.get('beta2', 0.999)
-        elif optimizer == 'sgd':
-            params['momentum'] = data.get('momentum', 0.9)
-            params['nesterov'] = data.get('nesterov', True)
-
         # 早停参数
         if data.get('early_stopping'):
             params['early_stopping'] = True
@@ -854,11 +830,14 @@ def start_training():
         os.makedirs('log', exist_ok=True)
 
         # 启动训练进程
-        train_process = subprocess.Popen(['python', 'main.py'],
+        train_process = subprocess.Popen(['python', 'main.py', '--model', model_type],
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.STDOUT,
                                          universal_newlines=True)
 
+        # 保存训练进程引用到应用配置
+        app.config['TRAINING_PROCESS'] = train_process
+        
         # 记录训练进程PID
         with open('config/train_pid.txt', 'w') as f:
             f.write(str(train_process.pid))
@@ -1009,23 +988,11 @@ def check_training_progress():
         recent_logs = []
         try:
             if os.path.exists(log_dir):
-                log_files = [f for f in os.listdir(log_dir) if f.startswith('training_') and f.endswith('.log')]
-                if log_files:
-                    latest_log = max(log_files, key=lambda x: os.path.getmtime(os.path.join(log_dir, x)))
-                    log_path = os.path.join(log_dir, latest_log)
-                    logger.info(f"读取最新日志文件: {latest_log}")
-                    print(f"读取最新日志文件: {latest_log}", flush=True)
-
-                    with open(log_path, 'r') as log_file:
-                        # 读取最后10行日志
-                        lines = log_file.readlines()[-10:]
-                        recent_logs = [line.strip() for line in lines]
-
-                        # 在终端实时显示最新日志
-                        print("\n----- 最新训练日志 -----")
-                        for line in recent_logs:
-                            print(line, flush=True)
-                        print("-----------------------\n", flush=True)
+                log_file = os.path.join(log_dir, 'training.log')
+                if os.path.exists(log_file):
+                    with open(log_file, 'r') as f:
+                        lines = f.readlines()
+                        recent_logs = [line.strip() for line in lines[-10:]]
 
             progress['recent_logs'] = recent_logs
         except Exception as e:
@@ -1061,15 +1028,18 @@ def pause_training():
 
         with open(progress_file, 'r+') as f:
             progress = json.load(f)
+            result = {}
 
             if progress['status'] == 'running':
                 progress['status'] = 'paused'
-                result = {'status': 'paused'}
+                result = {'status': 'paused', 'message': '训练已暂停'}
+                
             elif progress['status'] == 'paused':
                 progress['status'] = 'running'
-                result = {'status': 'resumed'}
+                result = {'status': 'resumed', 'message': '训练已继续'}
+                
             else:
-                return jsonify({'error': '训练任务不在可暂停/继续状态'}), 400
+                result = {'status': progress['status'], 'message': '训练状态无法更改'}
 
             f.seek(0)
             json.dump(progress, f)
@@ -1090,7 +1060,7 @@ def stop_training():
         process = app.config.get('TRAINING_PROCESS')
 
         if not process:
-            return jsonify({'error': '没有正在进行的训练任务'}), 404
+            return jsonify({'error': '没有正在进行的训练进程'}), 404
 
         # 尝试终止进程
         process.terminate()
@@ -1101,7 +1071,7 @@ def stop_training():
         if os.path.exists(progress_file):
             with open(progress_file, 'r+') as f:
                 progress = json.load(f)
-                progress['status'] = 'stopped'
+                progress['status'] = 'stopping'
                 f.seek(0)
                 json.dump(progress, f)
                 f.truncate()
@@ -1129,7 +1099,7 @@ def save_model():
         params_file = os.path.join('config', 'params.json')
 
         if not os.path.exists(params_file):
-            return jsonify({'error': '找不到训练参数文件'}), 404
+            return jsonify({'error': '参数文件不存在，无法确定模型类型'}), 404
 
         with open(params_file, 'r') as f:
             params = json.load(f)
@@ -1138,7 +1108,7 @@ def save_model():
         source_path = os.path.join(Config.model_dir, f"{model_type}_model_best.pkl")
 
         if not os.path.exists(source_path):
-            return jsonify({'error': '找不到模型文件'}), 404
+            return jsonify({'error': '模型文件不存在'}), 404
 
         # 保存模型副本
         target_filename = f"{name}.pkl"

@@ -321,7 +321,7 @@ def load_params():
         params_file = '/Users/joey/PycharmProjects/shebi/config/params.json'
         with open(params_file, 'r') as f:
             params = json.load(f)
-        print(f"加载的超参数: {params}")
+            print(f"加载的超参数: {params}")
         return params
     except Exception as e:
         print(f"加载参数文件出错: {str(e)}")
@@ -352,22 +352,17 @@ if __name__ == "__main__":
                             help='选择 dropout (默认: Config.dropout)')
         parser.add_argument('--hidden-dim', type=int, default=params.get('hidden_dim', Config.hidden_dim),
                             help='隐藏层维度 (默认: Config.hidden_dim)')
-        parser.add_argument('--embedding-dim', type=int, default=params.get('embedding_dim', Config.embedding_dim),
-                            help='嵌入层维度 (默认: Config.embedding_dim)')
         parser.add_argument('--num-layers', type=int, default=params.get('num_layers', Config.num_layers),
                             help='LSTM层数 (默认: Config.num_layers)')
         parser.add_argument('--num-filters', type=int, default=params.get('num_filters', Config.num_filters),
                             help='卷积核数量 (默认: Config.num_filters)')
         parser.add_argument('--patience', type=int, default=params.get('patience', Config.patience),
                             help='早停耐心值 (默认: 10)')
-        parser.add_argument('--learning-rate', type=float, default=params.get('learning_rate', Config.lr),
-                            help='学习率 (默认: Config.lr)')
         parser.add_argument('--weight-decay', type=float, default=params.get('weight_decay', 1e-4),
                             help='权重衰减 (默认: 1e-4)')
         parser.add_argument('--epochs', type=int, default=params.get('epochs', Config.n_epoch),
                             help='训练迭代周期 (默认: 10)')
         parser.add_argument('--seed', type=int, default=42, help='随机种子，用于实验的可重复性 (默认: 42)')
-        parser.add_argument('--pad-size', type=int, default=Config.pad_size, help='填充大小 (默认: 32)')
 
         args = parser.parse_args()
 
