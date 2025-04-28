@@ -52,6 +52,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 300);
 
+    // 确保开始训练按钮绑定了事件
+    const startTrainingBtn = document.getElementById('startTrainingBtn');
+    if (startTrainingBtn) {
+        console.log('找到开始训练按钮，添加点击事件');
+        // 移除可能存在的内联onclick属性，避免冲突
+        startTrainingBtn.removeAttribute('onclick');
+        startTrainingBtn.addEventListener('click', function() {
+            console.log('开始训练按钮点击');
+            startTraining();
+        });
+    } else {
+        console.error('找不到开始训练按钮');
+    }
+
     // 显示/隐藏模型特定选项
     const modelTypeSelect = document.getElementById('modelTypeSelect');
     if (modelTypeSelect) {
@@ -102,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
  */
 function initCharts() {
     console.log("正在初始化图表...");
-
+    
     try {
         // 完全延迟初始化，确保DOM已完全加载和渲染
         setTimeout(() => {
@@ -373,9 +387,58 @@ function toggleModelSpecificOptions(modelType) {
 }
 
 /**
+ * 收集训练参数
+ */
+function collectTrainingParams() {
+    const params = {
+        model_type: document.getElementById('modelTypeSelect').value,
+        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
+        epochs: parseInt(document.getElementById('epochsInput').value),
+        dropout: parseFloat(document.getElementById('dropoutInput').value),
+        optimizer: document.getElementById('optimizerSelect').value,
+        weight_decay: document.getElementById('weightDecaySelect') ? 
+                      parseFloat(document.getElementById('weightDecaySelect').value) :
+                      parseFloat(document.getElementById('weightDecayInput').value)
+    };
+    
+    // 根据模型类型添加特定参数
+    if (params.model_type.includes('lstm') || params.model_type.includes('bilstm')) {
+        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
+        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
+    } else if (params.model_type === 'cnn') {
+        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
+        
+        // 添加CNN模型中的卷积核大小
+        params.kernel_sizes = [];
+        for (let i = 2; i <= 5; i++) {
+            const kernelCheckbox = document.getElementById(`kernelSize${i}`);
+            if (kernelCheckbox && kernelCheckbox.checked) {
+                params.kernel_sizes.push(i);
+            }
+        }
+        
+        // 如果没有选择任何卷积核大小，默认使用全部
+        if (params.kernel_sizes.length === 0) {
+            params.kernel_sizes = [2, 3, 4, 5];
+        }
+    }
+
+    // 如果启用了早停
+    const earlyStopping = document.getElementById('earlyStopping');
+    if (earlyStopping && earlyStopping.checked) {
+        params.early_stopping = true;
+        params.patience = parseInt(document.getElementById('patienceInput').value);
+    }
+    
+    return params;
+}
+
+/**
  * 启动训练过程
  */
 async function startTraining() {
+    console.log("startTraining函数被调用");
+    
     // 重置训练数据
     trainingData = {
         epochs: [],
@@ -386,30 +449,8 @@ async function startTraining() {
     };
 
     // 收集表单参数
-    const params = {
-        model_type: document.getElementById('modelTypeSelect').value,
-        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
-        epochs: parseInt(document.getElementById('epochsInput').value),
-        learning_rate: parseFloat(document.getElementById('learningRateInput').value),
-        dropout: parseFloat(document.getElementById('dropoutInput').value),
-        optimizer: document.getElementById('optimizerSelect').value,
-        weight_decay: parseFloat(document.getElementById('weightDecayInput').value),
-    };
-
-    // 根据模型类型添加特定参数
-    if (params.model_type.includes('lstm') || params.model_type.includes('bilstm')) {
-        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
-        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
-    } else if (params.model_type === 'cnn') {
-        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
-    }
-
-    // 如果启用了早停
-    const earlyStopping = document.getElementById('earlyStopping');
-    if (earlyStopping && earlyStopping.checked) {
-        params.early_stopping = true;
-        params.patience = parseInt(document.getElementById('patienceInput').value);
-    }
+    const params = collectTrainingParams();
+    console.log("训练参数:", params);
 
     try {
         // 隐藏占位符和错误信息
@@ -432,9 +473,6 @@ async function startTraining() {
         // 清空训练日志
         const logContent = document.querySelector('.log-content');
         if (logContent) logContent.innerHTML = '';
-
-        // 先显示训练进度区域，然后再初始化/更新图表
-        document.getElementById('trainingProgress').classList.remove('d-none');
 
         // 延迟200毫秒，确保训练进度区域已经显示出来
         setTimeout(() => {
@@ -572,7 +610,6 @@ async function checkTrainingProgress() {
                 return;
             } catch (parseError) {
                 console.error('手动解析JSON失败:', parseError);
-
                 // 显示错误但继续轮询
                 addTrainingLog('error', '获取进度时返回非JSON数据，将继续尝试');
 
@@ -682,7 +719,6 @@ function updateTrainingProgress(data) {
     // 更新图表数据
     if (data.history && data.history.train_loss && data.history.train_loss.length > 0) {
         const epochs = Array.from({length: data.history.train_loss.length}, (_, i) => i + 1);
-
         if (lossChart) {
             try {
                 console.log("更新损失图表，数据长度:", data.history.train_loss.length);
@@ -769,7 +805,6 @@ function updateTrainingProgress(data) {
         const timePerEpoch = elapsedTime / currentEpoch;
         const remainingEpochs = totalEpochs - currentEpoch;
         const remainingSeconds = Math.round(timePerEpoch * remainingEpochs);
-
         document.getElementById('remainingTime').textContent = formatTime(remainingSeconds);
     } else if (currentEpoch >= totalEpochs) {
         document.getElementById('remainingTime').textContent = '00:00';
@@ -838,7 +873,6 @@ async function pauseTraining() {
         if (response.ok) {
             const data = await response.json();
             const pauseBtn = document.getElementById('pauseTrainingBtn');
-
             if (data.status === 'paused') {
                 pauseBtn.innerHTML = '<i class="bi bi-play-fill"></i> 继续';
                 document.getElementById('trainingStatus').textContent = '已暂停';
@@ -976,7 +1010,6 @@ function displayEvaluationResults(results) {
             [1, 0, cm[1][0]],
             [1, 1, cm[1][1]]
         ];
-
         const maxValue = Math.max(
             cm[0][0], cm[0][1],
             cm[1][0], cm[1][1]

@@ -320,6 +320,27 @@ function displayResults(data) {
     }
 }
 
+// 确保训练脚本正确加载
+function checkTrainingScriptLoaded() {
+    if (typeof startTraining !== 'function') {
+        console.error('训练脚本未正确加载，startTraining函数未定义');
+        // 尝试重新加载脚本
+        const scriptElement = document.createElement('script');
+        scriptElement.src = '/static/js/training.js?_=' + new Date().getTime();
+        document.body.appendChild(scriptElement);
+        
+        scriptElement.onload = function() {
+            console.log('训练脚本已重新加载');
+        };
+        
+        scriptElement.onerror = function() {
+            console.error('训练脚本加载失败');
+        };
+    } else {
+        console.log('训练脚本已正确加载');
+    }
+}
+
 /**
  * 页面加载完成时的初始化
  */
@@ -346,4 +367,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 初始状态下激活第一个菜单项
     switchSection('input-section');
+    
+    // 检查训练脚本加载情况
+    setTimeout(checkTrainingScriptLoaded, 2000);
 });
