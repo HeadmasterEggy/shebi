@@ -294,17 +294,22 @@
                 <h4>词频统计</h4>
             </div>
             <div class="section-body">
-                <div id="wordFreq" class="result-card show">
-                    <!-- 移除标签切换按钮，同时显示两种视图 -->
-                    <h5 class="mb-3">词频标签</h5>
-                    <div id="wordFreqTags" class="mt-3 mb-4"></div>
-
-                    <h5 class="mb-3">词频图表</h5>
-                    <div id="wordFreqCharts" class="charts-horizontal-layout">
+                <!-- 词频标签区域 -->
+                <div id="wordFreqTags" class="result-card show mb-4">
+                    <h5 class="mb-3">词频标签云</h5>
+                    <div id="wordFreqTagsContent" class="mt-3"></div>
+                </div>
+                
+                <!-- 词频图表区域 - 移除可能导致不显示的内联样式 -->
+                <div class="result-card show">
+                    <h5 class="mb-3">词频数据可视化</h5>
+                    <div id="wordFreqCharts" class="charts-grid-layout">
                         <div class="chart-wrapper">
+                            <h6 class="chart-title text-center mb-2">高频词汇统计</h6>
                             <div id="wordFreqBarChart" class="chart"></div>
                         </div>
                         <div class="chart-wrapper">
+                            <h6 class="chart-title text-center mb-2">词云展示</h6>
                             <div id="wordCloudChart" class="chart"></div>
                         </div>
                     </div>

@@ -1,8 +1,4 @@
 /**
- * 图表相关功能
- */
-
-/**
  * 初始化所有图表
  * @param {Object} data - 分析结果数据
  */
@@ -98,11 +94,17 @@ function prepareChartContainers() {
     const chartView = document.getElementById('chartView');
     const wordFreqCharts = document.getElementById('wordFreqCharts');
     const chartViewOrigDisplay = chartView ? chartView.style.display : 'none';
-    const wordFreqChartsOrigDisplay = wordFreqCharts ? wordFreqCharts.style.display : 'none';
-
+    
+    // 词频图表不需要恢复隐藏状态，应该始终可见
     // 临时设置为block以便初始化
     if (chartView) chartView.style.display = 'block';
-    if (wordFreqCharts) wordFreqCharts.style.display = 'block';
+    
+    // 确保图表容器可见
+    if (wordFreqCharts) {
+        wordFreqCharts.style.display = 'grid';
+        wordFreqCharts.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+        wordFreqCharts.style.gap = '20px';
+    }
 
     // 确保每个容器有明确的尺寸
     containers.forEach(id => {
@@ -119,10 +121,10 @@ function prepareChartContainers() {
     // 打印日志确认容器已准备好
     console.log('图表容器已准备好，将在初始化后恢复原始显示状态');
 
-    // 设置延时恢复原始显示状态
+    // 设置延时恢复原始显示状态 - 只针对句子分析图表
     setTimeout(() => {
         if (chartView) chartView.style.display = chartViewOrigDisplay;
-        if (wordFreqCharts) wordFreqCharts.style.display = wordFreqChartsOrigDisplay;
+        // 词频图表保持显示状态
         console.log('图表容器已恢复原始显示状态');
     }, 1000);
 }
@@ -149,7 +151,7 @@ function resizeAllCharts() {
  * 初始化词频标签
  */
 function initWordFreqTags(data) {
-    const wordFreqTags = document.getElementById('wordFreqTags');
+    const wordFreqTags = document.getElementById('wordFreqTagsContent');
     if (!wordFreqTags) return;
 
     // 简化检查

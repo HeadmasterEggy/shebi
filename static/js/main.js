@@ -320,6 +320,62 @@ function displayResults(data) {
     }
 }
 
+// 确保词频图表正确显示
+function ensureWordFreqChartsVisible() {
+    console.log('确保词频图表可见...');
+    const wordFreqCharts = document.getElementById('wordFreqCharts');
+    if (wordFreqCharts) {
+        // 确保图表容器可见
+        wordFreqCharts.style.display = 'grid';
+        wordFreqCharts.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+        wordFreqCharts.style.gap = '20px';
+        
+        // 延迟调整图表大小，确保DOM已完全渲染
+        setTimeout(() => {
+            if (window.chartInstances) {
+                if (window.chartInstances.wordFreqBarChart) {
+                    window.chartInstances.wordFreqBarChart.resize();
+                    console.log('词频柱状图已重绘');
+                }
+                
+                if (window.chartInstances.wordCloudChart) {
+                    window.chartInstances.wordCloudChart.resize();
+                    console.log('词云图已重绘');
+                }
+            }
+        }, 300);
+    }
+}
+
+// 修改displayAnalysisResults函数，确保正确显示词频图表
+function displayAnalysisResults(data) {
+    // ...existing code...
+    
+    // 初始化词频标签
+    initWordFreqTags(data);
+    
+    // 确保词频图表容器可见
+    const wordFreqCharts = document.getElementById('wordFreqCharts');
+    if (wordFreqCharts) {
+        wordFreqCharts.style.display = 'grid';
+    }
+    
+    // 初始化词频图表
+    setTimeout(() => {
+        if (data.wordFreq && data.wordFreq.length > 0) {
+            const wordFreqBarChart = initWordFreqBarChart(data);
+            const wordCloudChart = initWordCloudChart(data);
+            
+            // 将图表实例保存到全局变量
+            if (!window.chartInstances) window.chartInstances = {};
+            window.chartInstances.wordFreqBarChart = wordFreqBarChart;
+            window.chartInstances.wordCloudChart = wordCloudChart;
+        }
+    }, 100);
+    
+    // ...existing code...
+}
+
 // 确保训练脚本正确加载
 function checkTrainingScriptLoaded() {
     if (typeof startTraining !== 'function') {
@@ -370,4 +426,16 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // 检查训练脚本加载情况
     setTimeout(checkTrainingScriptLoaded, 2000);
+
+    // 菜单项点击事件
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+            // ...existing code...
+            
+            // 如果切换到词频统计部分，确保图表正确显示
+            if (this.getAttribute('data-section') === 'word-freq-section') {
+                ensureWordFreqChartsVisible();
+            }
+        });
+    });
 });
