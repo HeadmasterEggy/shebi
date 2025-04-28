@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 300);
 
+    // 添加Dropout滑块变更事件
+    initDropoutSlider();
+
     // 确保开始训练按钮绑定了事件
     const startTrainingBtn = document.getElementById('startTrainingBtn');
     if (startTrainingBtn) {
@@ -109,7 +112,58 @@ document.addEventListener('DOMContentLoaded', function () {
     if (saveModelBtn) {
         saveModelBtn.addEventListener('click', saveModel);
     }
+
+    // 初始化模型选择卡片和同步选择框
+    initModelTypeSelection();
+    
+    // 初始化权重衰减范围滑块
+    initWeightDecayRange();
+    
+    // 初始化Bootstrap工具提示
+    initTooltips();
+    
+    // 初始化模型类型卡片选择器
+    initModelTypeCards();
 });
+
+/**
+ * 初始化模型类型卡片选择器
+ */
+function initModelTypeCards() {
+    const modelCards = document.querySelectorAll('.model-type-card');
+    const modelTypeSelect = document.getElementById('modelTypeSelect');
+    
+    if (modelCards.length && modelTypeSelect) {
+        // 设置初始选中状态
+        const initialValue = modelTypeSelect.value;
+        modelCards.forEach(card => {
+            const radioInput = card.querySelector('input[type="radio"]');
+            if (radioInput && radioInput.value === initialValue) {
+                card.classList.add('selected');
+                radioInput.checked = true;
+            }
+            
+            // 添加点击事件
+            card.addEventListener('click', function() {
+                // 移除所有卡片的选中状态
+                modelCards.forEach(c => c.classList.remove('selected'));
+                
+                // 设置当前卡片为选中状态
+                this.classList.add('selected');
+                
+                // 选中单选按钮
+                const radio = this.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    
+                    // 更新隐藏的select值并触发change事件
+                    modelTypeSelect.value = radio.value;
+                    modelTypeSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+    }
+}
 
 /**
  * 初始化图表
@@ -181,12 +235,28 @@ function initLossChart() {
                 {
                     name: '训练损失',
                     type: 'line',
-                    data: [0.5, 0.4, 0.3]
+                    data: [0.5, 0.4, 0.3],
+                    lineStyle: {
+                        width: 3,
+                        color: '#4e73df'
+                    },
+                    itemStyle: {
+                        color: '#4e73df'
+                    },
+                    symbolSize: 6
                 },
                 {
                     name: '验证损失',
                     type: 'line',
-                    data: [0.6, 0.5, 0.4]
+                    data: [0.6, 0.5, 0.4],
+                    lineStyle: {
+                        width: 3,
+                        color: '#e74a3b'
+                    },
+                    itemStyle: {
+                        color: '#e74a3b'
+                    },
+                    symbolSize: 6
                 }
             ]
         };
@@ -201,15 +271,35 @@ function initLossChart() {
                 text: '训练/验证损失',
                 left: 'center',
                 textStyle: {
-                    fontSize: 14
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    color: '#495057'
                 }
             },
             tooltip: {
-                trigger: 'axis'
+                trigger: 'axis',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderColor: '#e0e0e0',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#333'
+                },
+                axisPointer: {
+                    type: 'cross',
+                    lineStyle: {
+                        color: '#aaa'
+                    }
+                }
             },
             legend: {
                 data: ['训练损失', '验证损失'],
-                bottom: 10
+                bottom: 10,
+                icon: 'circle',
+                itemWidth: 10,
+                itemHeight: 10,
+                textStyle: {
+                    color: '#666'
+                }
             }
         };
 
@@ -271,12 +361,28 @@ function initAccuracyChart() {
                 {
                     name: '训练准确率',
                     type: 'line',
-                    data: [80, 85, 90]
+                    data: [80, 85, 90],
+                    lineStyle: {
+                        width: 3,
+                        color: '#1cc88a'
+                    },
+                    itemStyle: {
+                        color: '#1cc88a'
+                    },
+                    symbolSize: 6
                 },
                 {
                     name: '验证准确率',
                     type: 'line',
-                    data: [75, 80, 85]
+                    data: [75, 80, 85],
+                    lineStyle: {
+                        width: 3,
+                        color: '#36b9cc'
+                    },
+                    itemStyle: {
+                        color: '#36b9cc'
+                    },
+                    symbolSize: 6
                 }
             ]
         };
@@ -291,20 +397,43 @@ function initAccuracyChart() {
                 text: '训练/验证准确率',
                 left: 'center',
                 textStyle: {
-                    fontSize: 14
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    color: '#495057'
                 }
             },
             tooltip: {
-                trigger: 'axis'
+                trigger: 'axis',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderColor: '#e0e0e0',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#333'
+                },
+                axisPointer: {
+                    type: 'cross',
+                    lineStyle: {
+                        color: '#aaa'
+                    }
+                }
             },
             legend: {
                 data: ['训练准确率', '验证准确率'],
-                bottom: 10
+                bottom: 10,
+                icon: 'circle',
+                itemWidth: 10,
+                itemHeight: 10,
+                textStyle: {
+                    color: '#666'
+                }
             },
             yAxis: {
                 min: 0,
                 max: 100,
-                name: '准确率 (%)'
+                name: '准确率 (%)',
+                axisLabel: {
+                    formatter: '{value}%'
+                }
             }
         };
 
@@ -375,11 +504,111 @@ function toggleModelSpecificOptions(modelType) {
     const cnnOptions = document.querySelectorAll('.cnn-only');
 
     if (modelType.includes('lstm') || modelType.includes('bilstm')) {
-        lstmOptions.forEach(el => el.style.display = 'flex');
-        cnnOptions.forEach(el => el.style.display = 'none');
+        // 显示LSTM选项并添加动画
+        lstmOptions.forEach(el => {
+            el.style.display = 'block';
+            // 使用setTimeout确保CSS过渡生效
+            setTimeout(() => {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 50);
+        });
+        
+        // 隐藏CNN选项
+        cnnOptions.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(10px)';
+            // 使用setTimeout确保CSS过渡完成后再隐藏
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 300);
+        });
+        
+        // 更新隐藏层维度的badge显示
+        const hiddenDimSelect = document.getElementById('hiddenDimSelect');
+        if (hiddenDimSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.lstm-param-grid')) {
+                    badge.textContent = hiddenDimSelect.value + '维向量';
+                }
+            });
+            
+            // 添加变更事件
+            hiddenDimSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.lstm-param-grid')) {
+                        badge.textContent = this.value + '维向量';
+                    }
+                });
+            });
+        }
+        
+        // 更新LSTM层数的badge显示
+        const numLayersSelect = document.getElementById('numLayersSelect');
+        if (numLayersSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.lstm-param-grid') && badge.previousElementSibling.querySelector('small').textContent.includes('网络深度')) {
+                    badge.textContent = numLayersSelect.value + '层LSTM';
+                }
+            });
+            
+            // 添加变更事件
+            numLayersSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.lstm-param-grid') && badge.previousElementSibling.querySelector('small').textContent.includes('网络深度')) {
+                        badge.textContent = this.value + '层LSTM';
+                    }
+                });
+            });
+        }
     } else if (modelType === 'cnn') {
-        lstmOptions.forEach(el => el.style.display = 'none');
-        cnnOptions.forEach(el => el.style.display = 'flex');
+        // 显示CNN选项并添加动画
+        cnnOptions.forEach(el => {
+            el.style.display = 'block';
+            // 使用setTimeout确保CSS过渡生效
+            setTimeout(() => {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 50);
+        });
+        
+        // 隐藏LSTM选项
+        lstmOptions.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(10px)';
+            // 使用setTimeout确保CSS过渡完成后再隐藏
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 300);
+        });
+        
+        // 更新卷积核数量的badge显示
+        const numFiltersSelect = document.getElementById('numFiltersSelect');
+        if (numFiltersSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.cnn-only')) {
+                    badge.textContent = numFiltersSelect.value + '个卷积核';
+                }
+            });
+            
+            // 添加变更事件
+            numFiltersSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.cnn-only')) {
+                        badge.textContent = this.value + '个卷积核';
+                    }
+                });
+            });
+        }
+        
+        // 初始化卷积核尺寸选择
+        initKernelSizeSelectors();
     } else {
         lstmOptions.forEach(el => el.style.display = 'none');
         cnnOptions.forEach(el => el.style.display = 'none');
@@ -464,11 +693,12 @@ async function startTraining() {
 
         // 更新UI
         document.getElementById('trainingStatus').textContent = '初始化中';
-        document.getElementById('trainingStatus').className = 'badge bg-secondary';
+        document.getElementById('trainingStatus').className = 'training-status-badge bg-secondary';
         document.getElementById('currentEpoch').textContent = `0/${params.epochs}`;
         document.getElementById('remainingTime').textContent = '计算中...';
-        document.getElementById('totalProgressBar').style.width = '0%';
-        document.getElementById('totalProgressBar').textContent = '0%';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressLabel').textContent = '0%';
+        document.getElementById('progressPercentage').textContent = '0%';
 
         // 清空训练日志
         const logContent = document.querySelector('.log-content');
@@ -516,49 +746,54 @@ async function startTraining() {
 
         // 添加训练日志
         addTrainingLog('info', '准备启动训练任务...');
+        
+        try {
+            // 发送训练请求 - 增强错误处理
+            const response = await fetch('/api/train/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'  // 确保服务器返回JSON而不是HTML
+                },
+                body: JSON.stringify(params)
+            });
 
-        // 发送训练请求 - 增强错误处理
-        const response = await fetch('/api/train/start', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'  // 确保服务器返回JSON而不是HTML
-            },
-            body: JSON.stringify(params)
-        });
+            // 检查响应类型，如果不是JSON，则进行特殊处理
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
 
-        // 检查响应类型，如果不是JSON，则进行特殊处理
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '启动训练失败');
+                }
 
-            if (!response.ok) {
-                throw new Error(data.error || '启动训练失败');
-            }
+                // 成功启动训练
+                const trainingId = data.training_id || "default";
 
-            // 成功启动训练
-            const trainingId = data.training_id || "default";
+                document.getElementById('trainingStatus').textContent = '训练中';
+                document.getElementById('trainingStatus').className = 'training-status-badge bg-primary';
+                addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
 
-            document.getElementById('trainingStatus').textContent = '训练中';
-            document.getElementById('trainingStatus').className = 'badge bg-primary';
-            addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
-
-            // 设置轮询获取训练进度
-            trainingInterval = setInterval(() => {
-                // 使用AJAX检查训练状态和进度
-                checkTrainingProgress();
-            }, 3000);
-        } else {
-            // 如果响应不是JSON，先尝试获取文本
-            const textResponse = await response.text();
-            console.error('服务器响应非JSON数据:', textResponse);
-
-            // 检查是否是HTML错误页面
-            if (textResponse.includes('<!DOCTYPE html>') || textResponse.includes('<html>')) {
-                throw new Error('服务器返回了HTML错误页面，可能是服务器内部错误或API端点不存在');
+                // 设置轮询获取训练进度
+                trainingInterval = setInterval(() => {
+                    // 使用AJAX检查训练状态和进度
+                    checkTrainingProgress();
+                }, 3000);
             } else {
-                throw new Error(`服务器响应无效: ${textResponse.substring(0, 100)}...`);
+                // 如果响应不是JSON，先尝试获取文本
+                const textResponse = await response.text();
+                console.error('服务器响应非JSON数据:', textResponse);
+
+                // 检查是否是HTML错误页面
+                if (textResponse.includes('<!DOCTYPE html>') || textResponse.includes('<html>')) {
+                    throw new Error('服务器返回了HTML错误页面，可能是服务器内部错误或API端点不存在');
+                } else {
+                    throw new Error(`服务器响应无效: ${textResponse.substring(0, 100)}...`);
+                }
             }
+        } catch (fetchError) {
+            console.error('API请求失败:', fetchError);
+            throw new Error('API请求失败: ' + fetchError.message);
         }
 
     } catch (error) {
@@ -569,7 +804,7 @@ async function startTraining() {
         // 恢复训练占位符
         document.getElementById('trainingPlaceholder').classList.remove('d-none');
         document.getElementById('trainingProgress').classList.add('d-none');
-        document.getElementById('trainingControls').classList.add('d-none');
+        document.getElementById('trainingControls').classList.remove('d-none');
 
         addTrainingLog('error', '启动训练失败: ' + error.message);
 
@@ -696,11 +931,15 @@ function updateTrainingProgress(data) {
 
         // 更新进度条
         const progress = Math.round((currentEpoch / totalEpochs) * 100);
-        const progressBar = document.getElementById('totalProgressBar');
+        const progressBar = document.getElementById('progressBar');
         if (progressBar) {
             progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `${progress}%`;
-            progressBar.setAttribute('aria-valuenow', progress);
+            
+            // 更新进度百分比显示
+            const progressLabel = document.getElementById('progressLabel');
+            if (progressLabel) {
+                progressLabel.textContent = `${progress}%`;
+            }
         }
     }
 
@@ -795,7 +1034,7 @@ function updateTrainingProgress(data) {
         const statusEl = document.getElementById('trainingStatus');
         if (statusEl) {
             statusEl.textContent = getStatusText(data.status);
-            statusEl.className = getStatusClass(data.status);
+            statusEl.className = `training-status-badge ${getStatusClass(data.status)}`;
         }
     }
 
@@ -837,16 +1076,16 @@ function getStatusText(status) {
  */
 function getStatusClass(status) {
     const classMap = {
-        'initializing': 'badge bg-secondary',
-        'preparing': 'badge bg-info',
-        'running': 'badge bg-primary',
-        'paused': 'badge bg-warning',
-        'stopping': 'badge bg-warning',
-        'stopped': 'badge bg-secondary',
-        'completed': 'badge bg-success',
-        'failed': 'badge bg-danger'
+        'initializing': 'bg-secondary',
+        'preparing': 'bg-info',
+        'running': 'bg-primary',
+        'paused': 'bg-warning',
+        'stopping': 'bg-warning',
+        'stopped': 'bg-secondary',
+        'completed': 'bg-success',
+        'failed': 'bg-danger'
     };
-    return classMap[status] || 'badge bg-secondary';
+    return classMap[status] || 'bg-secondary';
 }
 
 /**
@@ -1091,4 +1330,181 @@ function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * 初始化模型类型选择
+ */
+function initModelTypeSelection() {
+    // 获取所有模型选择单选按钮和实际的select元素
+    const modelRadios = document.querySelectorAll('input[name="modelType"]');
+    const modelSelect = document.getElementById('modelTypeSelect');
+    
+    if (!modelRadios.length || !modelSelect) return;
+    
+    // 初始化单选按钮状态
+    const currentValue = modelSelect.value;
+    modelRadios.forEach(radio => {
+        if (radio.value === currentValue) {
+            radio.checked = true;
+        }
+        
+        // 添加变更事件
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                console.log(`模型类型更改为: ${this.value}`);
+                // 更新隐藏的select值
+                modelSelect.value = this.value;
+                // 触发select的change事件，以触发现有的toggleModelSpecificOptions逻辑
+                modelSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+}
+
+/**
+ * 初始化权重衰减范围滑块
+ */
+function initWeightDecayRange() {
+    const rangeInput = document.getElementById('weightDecayRange');
+    const selectInput = document.getElementById('weightDecaySelect');
+    
+    if (!rangeInput || !selectInput) return;
+    
+    // 设置初始值
+    const initialValue = Math.log10(parseFloat(selectInput.value));
+    rangeInput.value = initialValue;
+    
+    // 范围滑块变更事件
+    rangeInput.addEventListener('input', function() {
+        const value = Math.pow(10, parseInt(this.value));
+        // 找到最接近的选项
+        let closestIndex = 0;
+        let minDiff = Number.MAX_VALUE;
+        
+        for (let i = 0; i < selectInput.options.length; i++) {
+            const diff = Math.abs(parseFloat(selectInput.options[i].value) - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIndex = i;
+            }
+        }
+        
+        selectInput.selectedIndex = closestIndex;
+    });
+    
+    // 选择框变更事件
+    selectInput.addEventListener('change', function() {
+        const value = Math.log10(parseFloat(this.value));
+        rangeInput.value = value;
+    });
+}
+
+/**
+ * 初始化Bootstrap工具提示
+ */
+function initTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus'
+        });
+    });
+}
+
+/**
+ * 初始化Dropout滑块
+ */
+function initDropoutSlider() {
+    const dropoutRange = document.getElementById('dropoutRange');
+    const dropoutDisplay = document.getElementById('dropoutDisplay');
+    const dropoutInput = document.getElementById('dropoutInput');
+    
+    if (dropoutRange && dropoutDisplay && dropoutInput) {
+        // 更新显示值
+        function updateDropoutValue() {
+            const value = (parseInt(dropoutRange.value) + 1) / 10;
+            dropoutDisplay.textContent = value.toFixed(1);
+            dropoutInput.value = value.toFixed(1);
+        }
+        
+        // 初始设置
+        updateDropoutValue();
+        
+        // 监听滑块变化
+        dropoutRange.addEventListener('input', updateDropoutValue);
+    }
+}
+
+/**
+ * 初始化卷积核尺寸选择器
+ */
+function initKernelSizeSelectors() {
+    // 获取所有卷积核选项
+    const kernelCheckboxes = document.querySelectorAll('.kernel-checkbox');
+    
+    // 确保至少有一个被选中
+    kernelCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // 检查是否至少有一个被选中
+            const anyChecked = Array.from(kernelCheckboxes).some(cb => cb.checked);
+            
+            // 如果没有任何一个被选中，则强制选中当前这个
+            if (!anyChecked) {
+                this.checked = true;
+                
+                // 显示提示
+                const tipElement = document.createElement('div');
+                tipElement.className = 'alert alert-warning alert-dismissible fade show mt-2';
+                tipElement.innerHTML = `
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    至少需要选择一种卷积核尺寸
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // 将提示添加到卷积核选择器容器中
+                const containerEl = document.querySelector('.kernel-size-container');
+                if (containerEl) {
+                    containerEl.appendChild(tipElement);
+                    
+                    // 3秒后自动隐藏
+                    setTimeout(() => {
+                        tipElement.classList.remove('show');
+                        setTimeout(() => {
+                            containerEl.removeChild(tipElement);
+                        }, 150);
+                    }, 3000);
+                }
+            }
+            
+            // 设置选中的样式
+            updateKernelVisual();
+        });
+    });
+    
+    // 初始更新可视化
+    updateKernelVisual();
+}
+
+/**
+ * 更新卷积核可视化
+ */
+function updateKernelVisual() {
+    const kernels = document.querySelectorAll('.cnn-kernel');
+    const checkboxes = document.querySelectorAll('.kernel-checkbox');
+    
+    kernels.forEach((kernel, index) => {
+        // 获取对应的checkbox
+        const checkbox = checkboxes[index];
+        if (checkbox) {
+            // 根据checkbox的选中状态设置卷积核的样式
+            if (checkbox.checked) {
+                kernel.style.opacity = '1';
+                kernel.style.transform = 'scale(1)';
+            } else {
+                kernel.style.opacity = '0.4';
+                kernel.style.transform = 'scale(0.9)';
+            }
+        }
+    });
 }
