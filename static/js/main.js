@@ -278,10 +278,10 @@ function displayResults(data) {
     }
 
     try {
-        // 初始化所有图表，包括词频图表
+        // 初始化所有图表，包括新添加的词频图表
         initCharts(data);
 
-        // 初始化词频标签
+        // 只初始化词频标签
         initWordFreqTags(data);
 
         // 设置标签页事件 - 使用ui.js中的函数
@@ -320,60 +320,10 @@ function displayResults(data) {
     }
 }
 
-// 确保词频图表正确显示
+// 删除不再需要的词频图表相关函数
 function ensureWordFreqChartsVisible() {
-    console.log('确保词频图表可见...');
-    const wordFreqCharts = document.getElementById('wordFreqCharts');
-    if (wordFreqCharts) {
-        // 确保图表容器可见
-        wordFreqCharts.style.display = 'grid';
-        wordFreqCharts.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
-        wordFreqCharts.style.gap = '20px';
-        
-        // 延迟调整图表大小，确保DOM已完全渲染
-        setTimeout(() => {
-            if (window.chartInstances) {
-                if (window.chartInstances.wordFreqBarChart) {
-                    window.chartInstances.wordFreqBarChart.resize();
-                    console.log('词频柱状图已重绘');
-                }
-                
-                if (window.chartInstances.wordCloudChart) {
-                    window.chartInstances.wordCloudChart.resize();
-                    console.log('词云图已重绘');
-                }
-            }
-        }, 300);
-    }
-}
-
-// 修改displayAnalysisResults函数，确保正确显示词频图表
-function displayAnalysisResults(data) {
-    // ...existing code...
-    
-    // 初始化词频标签
-    initWordFreqTags(data);
-    
-    // 确保词频图表容器可见
-    const wordFreqCharts = document.getElementById('wordFreqCharts');
-    if (wordFreqCharts) {
-        wordFreqCharts.style.display = 'grid';
-    }
-    
-    // 初始化词频图表
-    setTimeout(() => {
-        if (data.wordFreq && data.wordFreq.length > 0) {
-            const wordFreqBarChart = initWordFreqBarChart(data);
-            const wordCloudChart = initWordCloudChart(data);
-            
-            // 将图表实例保存到全局变量
-            if (!window.chartInstances) window.chartInstances = {};
-            window.chartInstances.wordFreqBarChart = wordFreqBarChart;
-            window.chartInstances.wordCloudChart = wordCloudChart;
-        }
-    }, 100);
-    
-    // ...existing code...
+    // 此函数不再需要，因为我们已经删除了词频图表
+    console.log('词频图表区域已被移除');
 }
 
 // 确保训练脚本正确加载
@@ -432,10 +382,10 @@ document.addEventListener('DOMContentLoaded', function () {
         item.addEventListener('click', function() {
             // ...existing code...
             
-            // 如果切换到词频统计部分，确保图表正确显示
-            if (this.getAttribute('data-section') === 'word-freq-section') {
-                ensureWordFreqChartsVisible();
-            }
+            // 移除这个条件，因为我们不再需要处理词频图表
+            // if (this.getAttribute('data-section') === 'word-freq-section') {
+            //     ensureWordFreqChartsVisible();
+            // }
         });
     });
 });

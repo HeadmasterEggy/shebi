@@ -160,48 +160,96 @@ function setupTabButtonsEvents() {
  * @param {string} view - 视图类型 ('tags' 或 'chart')
  */
 function switchWordFreqTab(view) {
-    // 去掉不必要的详细日志
     const wordFreqTags = document.getElementById('wordFreqTags');
     const wordFreqCharts = document.getElementById('wordFreqCharts');
     const buttons = document.querySelectorAll('#wordFreq .tab-button');
 
-    if (!wordFreqTags || !wordFreqCharts) return;
+    if (!wordFreqTags || !wordFreqCharts) {
+        console.error('找不到词频视图容器');
+        return;
+    }
 
-    // 简化状态标志处理
+    // 防止重复切换
     if (window.switchWordFreqTabInProgress) return;
     window.switchWordFreqTabInProgress = true;
     setTimeout(() => window.switchWordFreqTabInProgress = false, 300);
+
+    console.log(`切换词频视图到: ${view}`);
 
     if (view === 'tags') {
         wordFreqTags.style.display = 'block';
         wordFreqCharts.style.display = 'none';
     } else {
-        // 图表视图 - 简化代码
+        // 图表视图
         wordFreqTags.style.display = 'none';
-        wordFreqCharts.style.display = 'flex';
+        
+        // 确保样式正确
+        wordFreqCharts.style.display = 'grid';
+        wordFreqCharts.style.gridTemplateColumns = 'repeat(2, 1fr)'; // 强制两列布局
+        wordFreqCharts.style.gap = '20px';
+        wordFreqCharts.style.width = '100%';
         wordFreqCharts.style.visibility = 'visible';
-
-        // 确保图表容器可见
-        wordFreqCharts.querySelectorAll('.chart').forEach(container => {
+        
+        // 确保容器显示正确
+        const chartWrappers = wordFreqCharts.querySelectorAll('.chart-wrapper');
+        chartWrappers.forEach(wrapper => {
+            wrapper.style.width = '100%';
+            wrapper.style.height = '400px';
+        });
+        
+        // 确保图表容器有明确的尺寸
+        const chartContainers = wordFreqCharts.querySelectorAll('.chart');
+        chartContainers.forEach(container => {
             container.style.width = '100%';
-            container.style.height = '350px';
+            container.style.height = '400px';
+            container.style.minHeight = '350px';
             container.style.visibility = 'visible';
+            container.style.opacity = '1';
+            console.log(`设置图表容器 ${container.id} 尺寸: ${container.style.width}x${container.style.height}`);
         });
 
-        // 延迟渲染图表，给DOM时间更新
+        // 延迟处理图表渲染，确保DOM完全更新
         setTimeout(() => {
-            if (window.lastAnalysisData) {
-                // 简化为使用一个函数创建简单图表
-                createWordFreqCharts(window.lastAnalysisData);
+            console.log('开始重新渲染词频图表...');
+            
+            // 特殊处理词云图
+            if (window.chartInstances && window.chartInstances.wordCloudChart) {
+                try {
+                    window.chartInstances.wordCloudChart.resize();
+                    console.log('已调整词云图大小');
+                } catch (e) {
+                    console.error('调整词云图大小失败:', e);
+                }
+            } else if (window.lastAnalysisData) {
+                console.log('词云图实例不存在，尝试重新创建');
+                initWordCloudChart(window.lastAnalysisData);
             }
-        }, 300);
+            
+            // 处理柱状图
+            if (window.chartInstances && window.chartInstances.wordFreqBarChart) {
+                try {
+                    window.chartInstances.wordFreqBarChart.resize();
+                    console.log('已调整词频柱状图大小');
+                } catch (e) {
+                    console.error('调整词频柱状图大小失败:', e);
+                }
+            } else if (window.lastAnalysisData) {
+                console.log('词频柱状图实例不存在，尝试重新创建');
+                initWordFreqBarChart(window.lastAnalysisData);
+            }
+            
+            // 如果有专门的词云图渲染函数，调用它
+            if (typeof window.renderWordCloud === 'function') {
+                setTimeout(window.renderWordCloud, 500);
+            }
+        }, 600); // 增加延迟确保DOM已完全更新
     }
 
     // 更新按钮状态
     buttons.forEach(button => {
         button.classList.toggle('active',
-            (view === 'tags' && button.textContent.includes('标签')) ||
-            (view === 'chart' && button.textContent.includes('图表'))
+            (view === 'tags' && button.dataset.view === 'tags') ||
+            (view === 'chart' && button.dataset.view === 'chart')
         );
     });
 
