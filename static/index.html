@@ -392,10 +392,13 @@
                                            value="10" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="learningRateInput" class="form-label fw-bold">学习率</label>
-                                    <input type="number" class="form-control" id="learningRateInput" min="0.0001"
-                                           max="0.1" step="0.0001" value="0.001" required>
-                                </div>
+                                    <label for="optimizerSelect" class="form-label fw-bold">优化器</label>
+                                    <select class="form-select" id="optimizerSelect">
+                                        <option value="adam" selected>Adam</option>
+                                        <option value="sgd">SGD</option>
+                                        <option value="rmsprop">RMSprop</option>
+                                    </select>
+                                </div>                                
                             </div>
 
                             <!-- Dropout和权重衰减 -->
@@ -412,16 +415,6 @@
                                 </div>
                             </div>
 
-                            <!-- 优化器选择 -->
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="optimizerSelect" class="form-label fw-bold">优化器</label>
-                                    <select class="form-select" id="optimizerSelect">
-                                        <option value="adam" selected>Adam</option>
-                                        <option value="sgd">SGD</option>
-                                        <option value="rmsprop">RMSprop</option>
-                                    </select>
-                                </div>
                                 <div class="col-md-6">
                                     <div class="form-check mt-4">
                                         <input class="form-check-input" type="checkbox" id="earlyStopping">
