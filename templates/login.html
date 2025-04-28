@@ -13,38 +13,52 @@
 <div class="login-container">
     <div class="login-card">
         <div class="card-header text-center">
+            <div class="brand-icon">
+                <i class="bi bi-graph-up"></i>
+            </div>
             <h2>情感分析系统</h2>
-            <p class="text-muted">请登录以继续</p>
+            <p class="text-muted">使用您的账号登录</p>
         </div>
         <div class="card-body">
             {% with messages = get_flashed_messages() %}
             {% if messages %}
             <div class="alert alert-danger">
+                <i class="bi bi-exclamation-circle me-2"></i>
                 {{ messages[0] }}
             </div>
             {% endif %}
             {% endwith %}
 
             <form method="POST" action="{{ url_for('auth.login') }}">
-                <div class="form-group mb-3">
-                    <label for="username" class="form-label">用户名</label>
-                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                <div class="form-group mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent">
+                            <i class="bi bi-person text-primary"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 ps-2" id="username" name="username" placeholder="请输入用户名" required autofocus>
+                    </div>
                 </div>
-                <div class="form-group mb-3">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
+                <div class="form-group mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent">
+                            <i class="bi bi-lock text-primary"></i>
+                        </span>
+                        <input type="password" class="form-control border-start-0 ps-2" id="password" name="password" placeholder="请输入密码" required>
+                    </div>
                 </div>
-                <div class="form-check mb-3">
+                <div class="form-check mb-4">
                     <input type="checkbox" class="form-check-input" id="remember" name="remember">
                     <label class="form-check-label" for="remember">记住我</label>
                 </div>
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary">登录</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>登录
+                    </button>
                 </div>
             </form>
         </div>
         <div class="card-footer text-center">
-            <p>还没有账号？<a href="{{ url_for('auth.register') }}">注册</a></p>
+            <p class="mb-0">还没有账号？<a href="{{ url_for('auth.register') }}" class="fw-bold">立即注册</a></p>
         </div>
     </div>
 </div>
