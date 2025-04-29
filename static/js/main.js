@@ -281,7 +281,7 @@ function displayResults(data) {
         // 初始化所有图表，包括新添加的词频图表
         initCharts(data);
 
-        // 只初始化词频标签
+        // 初始化词频标签
         initWordFreqTags(data);
 
         // 设置标签页事件 - 使用ui.js中的函数
@@ -296,20 +296,13 @@ function displayResults(data) {
             });
         }
 
-        if (typeof setupWordFreqTabButtonsEvents === 'function') {
-            setupWordFreqTabButtonsEvents();
-        } else {
-            // 旧版本兼容：直接绑定事件
-            document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-                button.addEventListener('click', function () {
-                    switchWordFreqTab(this.dataset.view);
-                });
-            });
+        // 初始化词频展示区域，确保词频图表和标签都显示
+        if (typeof initWordFreqDisplay === 'function') {
+            initWordFreqDisplay();
         }
 
         // 默认显示列表视图
         switchTab('list');
-        switchWordFreqTab('tags');
 
         // 自动切换到总体分析区块
         switchSection('overall-section');

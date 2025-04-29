@@ -156,105 +156,83 @@ function setupTabButtonsEvents() {
 }
 
 /**
- * 切换词频视图
- * @param {string} view - 视图类型 ('tags' 或 'chart')
+ * 初始化词频展示区域
+ * 将原来的切换函数改为初始化函数，确保两个区域都正确显示
  */
-function switchWordFreqTab(view) {
-    const wordFreqTags = document.getElementById('wordFreqTags');
+function initWordFreqDisplay() {
+    const wordFreqTags = document.getElementById('wordFreqTagsContent');
     const wordFreqCharts = document.getElementById('wordFreqCharts');
-    const buttons = document.querySelectorAll('#wordFreq .tab-button');
-
+    
     if (!wordFreqTags || !wordFreqCharts) {
         console.error('找不到词频视图容器');
         return;
     }
 
-    // 防止重复切换
-    if (window.switchWordFreqTabInProgress) return;
-    window.switchWordFreqTabInProgress = true;
-    setTimeout(() => window.switchWordFreqTabInProgress = false, 300);
-
-    console.log(`切换词频视图到: ${view}`);
-
-    if (view === 'tags') {
-        wordFreqTags.style.display = 'block';
-        wordFreqCharts.style.display = 'none';
-    } else {
-        // 图表视图
-        wordFreqTags.style.display = 'none';
-        
-        // 确保样式正确
-        wordFreqCharts.style.display = 'grid';
-        wordFreqCharts.style.gridTemplateColumns = 'repeat(2, 1fr)'; // 强制两列布局
-        wordFreqCharts.style.gap = '20px';
-        wordFreqCharts.style.width = '100%';
-        wordFreqCharts.style.visibility = 'visible';
-        
-        // 确保容器显示正确
-        const chartWrappers = wordFreqCharts.querySelectorAll('.chart-wrapper');
-        chartWrappers.forEach(wrapper => {
-            wrapper.style.width = '100%';
-            wrapper.style.height = '400px';
-        });
-        
-        // 确保图表容器有明确的尺寸
-        const chartContainers = wordFreqCharts.querySelectorAll('.chart');
-        chartContainers.forEach(container => {
-            container.style.width = '100%';
-            container.style.height = '400px';
-            container.style.minHeight = '350px';
-            container.style.visibility = 'visible';
-            container.style.opacity = '1';
-            console.log(`设置图表容器 ${container.id} 尺寸: ${container.style.width}x${container.style.height}`);
-        });
-
-        // 延迟处理图表渲染，确保DOM完全更新
-        setTimeout(() => {
-            console.log('开始重新渲染词频图表...');
-            
-            // 特殊处理词云图
-            if (window.chartInstances && window.chartInstances.wordCloudChart) {
-                try {
-                    window.chartInstances.wordCloudChart.resize();
-                    console.log('已调整词云图大小');
-                } catch (e) {
-                    console.error('调整词云图大小失败:', e);
-                }
-            } else if (window.lastAnalysisData) {
-                console.log('词云图实例不存在，尝试重新创建');
-                initWordCloudChart(window.lastAnalysisData);
-            }
-            
-            // 处理柱状图
-            if (window.chartInstances && window.chartInstances.wordFreqBarChart) {
-                try {
-                    window.chartInstances.wordFreqBarChart.resize();
-                    console.log('已调整词频柱状图大小');
-                } catch (e) {
-                    console.error('调整词频柱状图大小失败:', e);
-                }
-            } else if (window.lastAnalysisData) {
-                console.log('词频柱状图实例不存在，尝试重新创建');
-                initWordFreqBarChart(window.lastAnalysisData);
-            }
-            
-            // 如果有专门的词云图渲染函数，调用它
-            if (typeof window.renderWordCloud === 'function') {
-                setTimeout(window.renderWordCloud, 500);
-            }
-        }, 600); // 增加延迟确保DOM已完全更新
-    }
-
-    // 更新按钮状态
-    buttons.forEach(button => {
-        button.classList.toggle('active',
-            (view === 'tags' && button.dataset.view === 'tags') ||
-            (view === 'chart' && button.dataset.view === 'chart')
-        );
+    console.log('初始化词频展示区域');
+    
+    // 确保词频标签区域正确显示
+    wordFreqTags.style.display = 'block';
+    
+    // 确保图表区域样式正确
+    wordFreqCharts.style.display = 'grid';
+    wordFreqCharts.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+    wordFreqCharts.style.gap = '20px';
+    wordFreqCharts.style.width = '100%';
+    wordFreqCharts.style.visibility = 'visible';
+    
+    // 确保图表容器显示正确
+    const chartWrappers = wordFreqCharts.querySelectorAll('.chart-wrapper');
+    chartWrappers.forEach(wrapper => {
+        wrapper.style.width = '100%';
+        wrapper.style.height = '300px';
+    });
+    
+    // 确保图表容器有明确的尺寸
+    const chartContainers = wordFreqCharts.querySelectorAll('.chart');
+    chartContainers.forEach(container => {
+        container.style.width = '100%';
+        container.style.height = '300px';
+        container.style.minHeight = '250px';
+        container.style.visibility = 'visible';
+        container.style.opacity = '1';
+        console.log(`设置图表容器 ${container.id} 尺寸: ${container.style.width}x${container.style.height}`);
     });
 
-    // 重新绑定按钮事件
-    setupWordFreqTabButtonsEvents();
+    // 延迟处理图表渲染，确保DOM完全更新
+    setTimeout(() => {
+        console.log('重新渲染词频图表...');
+        
+        // 特殊处理词云图
+        if (window.chartInstances && window.chartInstances.wordCloudChart) {
+            try {
+                window.chartInstances.wordCloudChart.resize();
+                console.log('已调整词云图大小');
+            } catch (e) {
+                console.error('调整词云图大小失败:', e);
+            }
+        } else if (window.lastAnalysisData) {
+            console.log('词云图实例不存在，尝试重新创建');
+            initWordCloudChart(window.lastAnalysisData);
+        }
+        
+        // 处理柱状图
+        if (window.chartInstances && window.chartInstances.wordFreqBarChart) {
+            try {
+                window.chartInstances.wordFreqBarChart.resize();
+                console.log('已调整词频柱状图大小');
+            } catch (e) {
+                console.error('调整词频柱状图大小失败:', e);
+            }
+        } else if (window.lastAnalysisData) {
+            console.log('词频柱状图实例不存在，尝试重新创建');
+            initWordFreqBarChart(window.lastAnalysisData);
+        }
+        
+        // 如果有专门的词云图渲染函数，调用它
+        if (typeof window.renderWordCloud === 'function') {
+            setTimeout(window.renderWordCloud, 500);
+        }
+    }, 600); // 增加延迟确保DOM已完全更新
 }
 
 /**
@@ -323,29 +301,6 @@ function createSimpleChart(container, data) {
         console.error(`图表创建失败: ${e.message}`);
         return null;
     }
-}
-
-/**
- * 设置词频标签页按钮事件
- */
-function setupWordFreqTabButtonsEvents() {
-    console.log('设置词频标签页按钮事件');
-
-    // 移除所有现有事件，防止重复绑定
-    document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-    });
-
-    // 重新绑定事件
-    document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-        button.addEventListener('click', function (e) {
-            e.stopPropagation(); // 防止事件冒泡
-            const view = this.dataset.view;
-            console.log(`词频标签按钮点击: ${view}`);
-            switchWordFreqTab(view);
-        });
-    });
 }
 
 /**
@@ -469,6 +424,13 @@ function switchSection(sectionId) {
             }
         }, 300);
     }
+
+    // 当切换到词频统计区域时，确保图表正确显示
+    if (sectionId === 'word-freq-section') {
+        setTimeout(() => {
+            initWordFreqDisplay();
+        }, 300);
+    }
 }
 
 /**
@@ -558,5 +520,4 @@ function setupUIEventListeners() {
 
     // 设置标签页事件
     setupTabButtonsEvents();
-    setupWordFreqTabButtonsEvents();
 }
