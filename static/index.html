@@ -790,7 +790,6 @@
                                                 <div class="cnn-kernel-cell"></div>
                                                 <div class="cnn-kernel-cell"></div>
                                                 <div class="cnn-kernel-cell"></div>
-                                                <div class="cnn-kernel-cell"></div>
                                             </div>
                                             <div class="cnn-kernel-label">4-gram</div>
                                         </div>
@@ -921,17 +920,6 @@
                     </div>
                 </div>
 
-                <!-- 占位符 -->
-                <div id="trainingPlaceholder" class="text-center py-5">
-                    <div class="placeholder-icon">
-                        <i class="bi bi-cpu" style="font-size: 3.5rem; color: #6c757d; opacity: 0.6;"></i>
-                    </div>
-                    <h5 class="mt-4 mb-3 text-secondary">准备训练您的模型</h5>
-                    <p class="text-muted px-4">
-                        在上方选择适合您的模型类型和参数，然后点击"开始训练"按钮启动训练过程
-                    </p>
-                </div>
-
                 <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
             </div>
         </div>
@@ -939,7 +927,7 @@
 </div>
 
 <div id="loading" class="loading">
-    <div class="spinner-border text-primary" role="status"></div>
+    <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">分析中...</span>
     </div>
     <p class="mb-0 mt-2">正在分析中<span id="loadingDots">...</span></p>
