@@ -1588,3 +1588,141 @@ body {
         margin-bottom: 20px;
     }
 }
+
+/* 历史记录相关样式 */
+.history-modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.history-item {
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.history-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: #dae0e5;
+}
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 8px;
+}
+
+.history-item-title {
+    font-weight: 600;
+    color: #212529;
+    font-size: 1.05rem;
+    margin-right: 8px;
+}
+
+.history-item-title-wrapper {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.history-item-date {
+    color: #6c757d;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.history-item-preview {
+    font-size: 0.9rem;
+    color: #495057;
+    margin-bottom: 12px;
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 6px;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-line;
+}
+
+.history-item-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.result-history-item .badge {
+    font-weight: normal;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+/* 淡出动画 */
+.fade-out {
+    animation: fadeOut 0.3s forwards;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* 保存结果按钮和结果操作区域 */
+.result-actions {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+/* 文件和文本控制区域 */
+.file-controls,
+.text-controls {
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+/* Toast通知容器 */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+.toast {
+    min-width: 250px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 6px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: toastFadeIn 0.3s forwards;
+}
+
+@keyframes toastFadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 确保结果区域样式 */
+#results-area {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}

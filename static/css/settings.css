@@ -1,0 +1,205 @@
+/* 设置页面增强样式 */
+
+:root {
+    --base-font-size: 14px;
+}
+
+body {
+    font-size: var(--base-font-size);
+}
+
+/* 设置页面切换动画 */
+.tab-pane {
+    transition: all 0.3s ease-in-out;
+}
+
+.tab-pane.fade {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.tab-pane.fade.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 保存按钮效果 */
+.btn-save {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-save::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: left 0.5s ease;
+    z-index: 1;
+}
+
+.btn-save:hover::after {
+    left: 100%;
+}
+
+/* 切换开关额外效果 */
+.form-switch .form-check-input:checked {
+    background-image: linear-gradient(to right, #4e73df, #36b9cc);
+    box-shadow: 0 2px 4px rgba(78, 115, 223, 0.3);
+}
+
+.form-switch .form-check-input:checked:focus {
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+/* 模型选择卡动画增强 */
+.model-option .form-check-label {
+    transform-style: preserve-3d;
+    perspective: 800px;
+    transition: transform 0.3s ease;
+}
+
+.model-option .form-check-input:checked + .form-check-label {
+    transform: translateZ(10px);
+}
+
+.model-icon {
+    transition: transform 0.3s ease;
+}
+
+.model-option:hover .model-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* 主题预览增强 */
+.theme-option .form-check-label {
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-option .form-check-label::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(78, 115, 223, 0.05);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.theme-option:hover .form-check-label::after {
+    opacity: 1;
+}
+
+.theme-preview {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* 设置卡片悬停效果 */
+.settings-content-card {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.settings-content-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.settings-icon-bubble {
+    transition: transform 0.3s ease;
+}
+
+.settings-content-card:hover .settings-icon-bubble {
+    transform: scale(1.2);
+}
+
+/* 表单控件焦点效果 */
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.2);
+    border-color: #4e73df;
+}
+
+/* 通知预览动画 */
+@keyframes notification-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.notification-item {
+    animation: notification-pulse 2s infinite;
+}
+
+/* 高级选项警告效果 */
+.advanced-warning-box {
+    animation: warning-glow 3s infinite alternate;
+}
+
+@keyframes warning-glow {
+    from {
+        box-shadow: 0 0 5px rgba(231, 74, 59, 0);
+    }
+    to {
+        box-shadow: 0 0 15px rgba(231, 74, 59, 0.5);
+    }
+}
+
+/* 确认重置按钮颤动效果 */
+#confirmResetBtn:hover {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+/* 设置导航项增强 */
+.settings-tabs .list-group-item {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.settings-tabs .list-group-item::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, rgba(78, 115, 223, 0.1), rgba(78, 115, 223, 0));
+    transition: left 0.4s ease;
+    z-index: -1;
+}
+
+.settings-tabs .list-group-item:hover::after {
+    left: 0;
+}
+
+/* 设置字体大小预览增强 */
+.font-size-preview {
+    transition: all 0.3s ease;
+}
+
+.font-size-preview:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
