@@ -52,6 +52,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 300);
 
+    // 添加Dropout滑块变更事件
+    initDropoutSlider();
+
+    // 确保开始训练按钮绑定了事件
+    const startTrainingBtn = document.getElementById('startTrainingBtn');
+    if (startTrainingBtn) {
+        console.log('找到开始训练按钮，添加点击事件');
+        // 移除可能存在的内联onclick属性，避免冲突
+        startTrainingBtn.removeAttribute('onclick');
+        startTrainingBtn.addEventListener('click', function() {
+            console.log('开始训练按钮点击');
+            startTraining();
+        });
+    } else {
+        console.error('找不到开始训练按钮');
+    }
+
     // 显示/隐藏模型特定选项
     const modelTypeSelect = document.getElementById('modelTypeSelect');
     if (modelTypeSelect) {
@@ -95,14 +112,65 @@ document.addEventListener('DOMContentLoaded', function () {
     if (saveModelBtn) {
         saveModelBtn.addEventListener('click', saveModel);
     }
+
+    // 初始化模型选择卡片和同步选择框
+    initModelTypeSelection();
+    
+    // 初始化权重衰减范围滑块
+    initWeightDecayRange();
+    
+    // 初始化Bootstrap工具提示
+    initTooltips();
+    
+    // 初始化模型类型卡片选择器
+    initModelTypeCards();
 });
+
+/**
+ * 初始化模型类型卡片选择器
+ */
+function initModelTypeCards() {
+    const modelCards = document.querySelectorAll('.model-type-card');
+    const modelTypeSelect = document.getElementById('modelTypeSelect');
+    
+    if (modelCards.length && modelTypeSelect) {
+        // 设置初始选中状态
+        const initialValue = modelTypeSelect.value;
+        modelCards.forEach(card => {
+            const radioInput = card.querySelector('input[type="radio"]');
+            if (radioInput && radioInput.value === initialValue) {
+                card.classList.add('selected');
+                radioInput.checked = true;
+            }
+            
+            // 添加点击事件
+            card.addEventListener('click', function() {
+                // 移除所有卡片的选中状态
+                modelCards.forEach(c => c.classList.remove('selected'));
+                
+                // 设置当前卡片为选中状态
+                this.classList.add('selected');
+                
+                // 选中单选按钮
+                const radio = this.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    
+                    // 更新隐藏的select值并触发change事件
+                    modelTypeSelect.value = radio.value;
+                    modelTypeSelect.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+    }
+}
 
 /**
  * 初始化图表
  */
 function initCharts() {
     console.log("正在初始化图表...");
-
+    
     try {
         // 完全延迟初始化，确保DOM已完全加载和渲染
         setTimeout(() => {
@@ -167,12 +235,28 @@ function initLossChart() {
                 {
                     name: '训练损失',
                     type: 'line',
-                    data: [0.5, 0.4, 0.3]
+                    data: [0.5, 0.4, 0.3],
+                    lineStyle: {
+                        width: 3,
+                        color: '#4e73df'
+                    },
+                    itemStyle: {
+                        color: '#4e73df'
+                    },
+                    symbolSize: 6
                 },
                 {
                     name: '验证损失',
                     type: 'line',
-                    data: [0.6, 0.5, 0.4]
+                    data: [0.6, 0.5, 0.4],
+                    lineStyle: {
+                        width: 3,
+                        color: '#e74a3b'
+                    },
+                    itemStyle: {
+                        color: '#e74a3b'
+                    },
+                    symbolSize: 6
                 }
             ]
         };
@@ -187,15 +271,35 @@ function initLossChart() {
                 text: '训练/验证损失',
                 left: 'center',
                 textStyle: {
-                    fontSize: 14
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    color: '#495057'
                 }
             },
             tooltip: {
-                trigger: 'axis'
+                trigger: 'axis',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderColor: '#e0e0e0',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#333'
+                },
+                axisPointer: {
+                    type: 'cross',
+                    lineStyle: {
+                        color: '#aaa'
+                    }
+                }
             },
             legend: {
                 data: ['训练损失', '验证损失'],
-                bottom: 10
+                bottom: 10,
+                icon: 'circle',
+                itemWidth: 10,
+                itemHeight: 10,
+                textStyle: {
+                    color: '#666'
+                }
             }
         };
 
@@ -257,12 +361,28 @@ function initAccuracyChart() {
                 {
                     name: '训练准确率',
                     type: 'line',
-                    data: [80, 85, 90]
+                    data: [80, 85, 90],
+                    lineStyle: {
+                        width: 3,
+                        color: '#1cc88a'
+                    },
+                    itemStyle: {
+                        color: '#1cc88a'
+                    },
+                    symbolSize: 6
                 },
                 {
                     name: '验证准确率',
                     type: 'line',
-                    data: [75, 80, 85]
+                    data: [75, 80, 85],
+                    lineStyle: {
+                        width: 3,
+                        color: '#36b9cc'
+                    },
+                    itemStyle: {
+                        color: '#36b9cc'
+                    },
+                    symbolSize: 6
                 }
             ]
         };
@@ -277,20 +397,43 @@ function initAccuracyChart() {
                 text: '训练/验证准确率',
                 left: 'center',
                 textStyle: {
-                    fontSize: 14
+                    fontSize: 14,
+                    fontWeight: 'normal',
+                    color: '#495057'
                 }
             },
             tooltip: {
-                trigger: 'axis'
+                trigger: 'axis',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderColor: '#e0e0e0',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#333'
+                },
+                axisPointer: {
+                    type: 'cross',
+                    lineStyle: {
+                        color: '#aaa'
+                    }
+                }
             },
             legend: {
                 data: ['训练准确率', '验证准确率'],
-                bottom: 10
+                bottom: 10,
+                icon: 'circle',
+                itemWidth: 10,
+                itemHeight: 10,
+                textStyle: {
+                    color: '#666'
+                }
             },
             yAxis: {
                 min: 0,
                 max: 100,
-                name: '准确率 (%)'
+                name: '准确率 (%)',
+                axisLabel: {
+                    formatter: '{value}%'
+                }
             }
         };
 
@@ -361,11 +504,111 @@ function toggleModelSpecificOptions(modelType) {
     const cnnOptions = document.querySelectorAll('.cnn-only');
 
     if (modelType.includes('lstm') || modelType.includes('bilstm')) {
-        lstmOptions.forEach(el => el.style.display = 'flex');
-        cnnOptions.forEach(el => el.style.display = 'none');
+        // 显示LSTM选项并添加动画
+        lstmOptions.forEach(el => {
+            el.style.display = 'block';
+            // 使用setTimeout确保CSS过渡生效
+            setTimeout(() => {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 50);
+        });
+        
+        // 隐藏CNN选项
+        cnnOptions.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(10px)';
+            // 使用setTimeout确保CSS过渡完成后再隐藏
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 300);
+        });
+        
+        // 更新隐藏层维度的badge显示
+        const hiddenDimSelect = document.getElementById('hiddenDimSelect');
+        if (hiddenDimSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.lstm-param-grid')) {
+                    badge.textContent = hiddenDimSelect.value + '维向量';
+                }
+            });
+            
+            // 添加变更事件
+            hiddenDimSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.lstm-param-grid')) {
+                        badge.textContent = this.value + '维向量';
+                    }
+                });
+            });
+        }
+        
+        // 更新LSTM层数的badge显示
+        const numLayersSelect = document.getElementById('numLayersSelect');
+        if (numLayersSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.lstm-param-grid') && badge.previousElementSibling.querySelector('small').textContent.includes('网络深度')) {
+                    badge.textContent = numLayersSelect.value + '层LSTM';
+                }
+            });
+            
+            // 添加变更事件
+            numLayersSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.lstm-param-grid') && badge.previousElementSibling.querySelector('small').textContent.includes('网络深度')) {
+                        badge.textContent = this.value + '层LSTM';
+                    }
+                });
+            });
+        }
     } else if (modelType === 'cnn') {
-        lstmOptions.forEach(el => el.style.display = 'none');
-        cnnOptions.forEach(el => el.style.display = 'flex');
+        // 显示CNN选项并添加动画
+        cnnOptions.forEach(el => {
+            el.style.display = 'block';
+            // 使用setTimeout确保CSS过渡生效
+            setTimeout(() => {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 50);
+        });
+        
+        // 隐藏LSTM选项
+        lstmOptions.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(10px)';
+            // 使用setTimeout确保CSS过渡完成后再隐藏
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 300);
+        });
+        
+        // 更新卷积核数量的badge显示
+        const numFiltersSelect = document.getElementById('numFiltersSelect');
+        if (numFiltersSelect) {
+            const badges = document.querySelectorAll('.dimension-indicator .badge');
+            badges.forEach(badge => {
+                if (badge.closest('.cnn-only')) {
+                    badge.textContent = numFiltersSelect.value + '个卷积核';
+                }
+            });
+            
+            // 添加变更事件
+            numFiltersSelect.addEventListener('change', function() {
+                const badges = document.querySelectorAll('.dimension-indicator .badge');
+                badges.forEach(badge => {
+                    if (badge.closest('.cnn-only')) {
+                        badge.textContent = this.value + '个卷积核';
+                    }
+                });
+            });
+        }
+        
+        // 初始化卷积核尺寸选择
+        initKernelSizeSelectors();
     } else {
         lstmOptions.forEach(el => el.style.display = 'none');
         cnnOptions.forEach(el => el.style.display = 'none');
@@ -373,9 +616,58 @@ function toggleModelSpecificOptions(modelType) {
 }
 
 /**
+ * 收集训练参数
+ */
+function collectTrainingParams() {
+    const params = {
+        model_type: document.getElementById('modelTypeSelect').value,
+        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
+        epochs: parseInt(document.getElementById('epochsInput').value),
+        dropout: parseFloat(document.getElementById('dropoutInput').value),
+        optimizer: document.getElementById('optimizerSelect').value,
+        weight_decay: document.getElementById('weightDecaySelect') ? 
+                      parseFloat(document.getElementById('weightDecaySelect').value) :
+                      parseFloat(document.getElementById('weightDecayInput').value)
+    };
+    
+    // 根据模型类型添加特定参数
+    if (params.model_type.includes('lstm') || params.model_type.includes('bilstm')) {
+        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
+        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
+    } else if (params.model_type === 'cnn') {
+        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
+        
+        // 添加CNN模型中的卷积核大小
+        params.kernel_sizes = [];
+        for (let i = 2; i <= 5; i++) {
+            const kernelCheckbox = document.getElementById(`kernelSize${i}`);
+            if (kernelCheckbox && kernelCheckbox.checked) {
+                params.kernel_sizes.push(i);
+            }
+        }
+        
+        // 如果没有选择任何卷积核大小，默认使用全部
+        if (params.kernel_sizes.length === 0) {
+            params.kernel_sizes = [2, 3, 4, 5];
+        }
+    }
+
+    // 如果启用了早停
+    const earlyStopping = document.getElementById('earlyStopping');
+    if (earlyStopping && earlyStopping.checked) {
+        params.early_stopping = true;
+        params.patience = parseInt(document.getElementById('patienceInput').value);
+    }
+    
+    return params;
+}
+
+/**
  * 启动训练过程
  */
 async function startTraining() {
+    console.log("startTraining函数被调用");
+    
     // 重置训练数据
     trainingData = {
         epochs: [],
@@ -385,8 +677,14 @@ async function startTraining() {
         valAcc: []
     };
 
+<<<<<<< HEAD
     // 使用 collectTrainingParams 函数收集参数，而不是直接访问 DOM
     const params = collectTrainingParams();
+=======
+    // 收集表单参数
+    const params = collectTrainingParams();
+    console.log("训练参数:", params);
+>>>>>>> front-1
 
     try {
         // 隐藏占位符和错误信息
@@ -400,18 +698,16 @@ async function startTraining() {
 
         // 更新UI
         document.getElementById('trainingStatus').textContent = '初始化中';
-        document.getElementById('trainingStatus').className = 'badge bg-secondary';
+        document.getElementById('trainingStatus').className = 'training-status-badge bg-secondary';
         document.getElementById('currentEpoch').textContent = `0/${params.epochs}`;
         document.getElementById('remainingTime').textContent = '计算中...';
-        document.getElementById('totalProgressBar').style.width = '0%';
-        document.getElementById('totalProgressBar').textContent = '0%';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressLabel').textContent = '0%';
+        document.getElementById('progressPercentage').textContent = '0%';
 
         // 清空训练日志
         const logContent = document.querySelector('.log-content');
         if (logContent) logContent.innerHTML = '';
-
-        // 先显示训练进度区域，然后再初始化/更新图表
-        document.getElementById('trainingProgress').classList.remove('d-none');
 
         // 延迟200毫秒，确保训练进度区域已经显示出来
         setTimeout(() => {
@@ -455,49 +751,54 @@ async function startTraining() {
 
         // 添加训练日志
         addTrainingLog('info', '准备启动训练任务...');
+        
+        try {
+            // 发送训练请求 - 增强错误处理
+            const response = await fetch('/api/train/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'  // 确保服务器返回JSON而不是HTML
+                },
+                body: JSON.stringify(params)
+            });
 
-        // 发送训练请求 - 增强错误处理
-        const response = await fetch('/api/train/start', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'  // 确保服务器返回JSON而不是HTML
-            },
-            body: JSON.stringify(params)
-        });
+            // 检查响应类型，如果不是JSON，则进行特殊处理
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
 
-        // 检查响应类型，如果不是JSON，则进行特殊处理
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '启动训练失败');
+                }
 
-            if (!response.ok) {
-                throw new Error(data.error || '启动训练失败');
-            }
+                // 成功启动训练
+                const trainingId = data.training_id || "default";
 
-            // 成功启动训练
-            const trainingId = data.training_id || "default";
+                document.getElementById('trainingStatus').textContent = '训练中';
+                document.getElementById('trainingStatus').className = 'training-status-badge bg-primary';
+                addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
 
-            document.getElementById('trainingStatus').textContent = '训练中';
-            document.getElementById('trainingStatus').className = 'badge bg-primary';
-            addTrainingLog('success', `训练任务已启动 (PID: ${data.pid || 'N/A'})`);
-
-            // 设置轮询获取训练进度
-            trainingInterval = setInterval(() => {
-                // 使用AJAX检查训练状态和进度
-                checkTrainingProgress();
-            }, 3000);
-        } else {
-            // 如果响应不是JSON，先尝试获取文本
-            const textResponse = await response.text();
-            console.error('服务器响应非JSON数据:', textResponse);
-
-            // 检查是否是HTML错误页面
-            if (textResponse.includes('<!DOCTYPE html>') || textResponse.includes('<html>')) {
-                throw new Error('服务器返回了HTML错误页面，可能是服务器内部错误或API端点不存在');
+                // 设置轮询获取训练进度
+                trainingInterval = setInterval(() => {
+                    // 使用AJAX检查训练状态和进度
+                    checkTrainingProgress();
+                }, 3000);
             } else {
-                throw new Error(`服务器响应无效: ${textResponse.substring(0, 100)}...`);
+                // 如果响应不是JSON，先尝试获取文本
+                const textResponse = await response.text();
+                console.error('服务器响应非JSON数据:', textResponse);
+
+                // 检查是否是HTML错误页面
+                if (textResponse.includes('<!DOCTYPE html>') || textResponse.includes('<html>')) {
+                    throw new Error('服务器返回了HTML错误页面，可能是服务器内部错误或API端点不存在');
+                } else {
+                    throw new Error(`服务器响应无效: ${textResponse.substring(0, 100)}...`);
+                }
             }
+        } catch (fetchError) {
+            console.error('API请求失败:', fetchError);
+            throw new Error('API请求失败: ' + fetchError.message);
         }
 
     } catch (error) {
@@ -508,7 +809,7 @@ async function startTraining() {
         // 恢复训练占位符
         document.getElementById('trainingPlaceholder').classList.remove('d-none');
         document.getElementById('trainingProgress').classList.add('d-none');
-        document.getElementById('trainingControls').classList.add('d-none');
+        document.getElementById('trainingControls').classList.remove('d-none');
 
         addTrainingLog('error', '启动训练失败: ' + error.message);
 
@@ -549,7 +850,6 @@ async function checkTrainingProgress() {
                 return;
             } catch (parseError) {
                 console.error('手动解析JSON失败:', parseError);
-
                 // 显示错误但继续轮询
                 addTrainingLog('error', '获取进度时返回非JSON数据，将继续尝试');
 
@@ -636,11 +936,15 @@ function updateTrainingProgress(data) {
 
         // 更新进度条
         const progress = Math.round((currentEpoch / totalEpochs) * 100);
-        const progressBar = document.getElementById('totalProgressBar');
+        const progressBar = document.getElementById('progressBar');
         if (progressBar) {
             progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `${progress}%`;
-            progressBar.setAttribute('aria-valuenow', progress);
+            
+            // 更新进度百分比显示
+            const progressLabel = document.getElementById('progressLabel');
+            if (progressLabel) {
+                progressLabel.textContent = `${progress}%`;
+            }
         }
     }
 
@@ -659,7 +963,6 @@ function updateTrainingProgress(data) {
     // 更新图表数据
     if (data.history && data.history.train_loss && data.history.train_loss.length > 0) {
         const epochs = Array.from({length: data.history.train_loss.length}, (_, i) => i + 1);
-
         if (lossChart) {
             try {
                 console.log("更新损失图表，数据长度:", data.history.train_loss.length);
@@ -736,7 +1039,7 @@ function updateTrainingProgress(data) {
         const statusEl = document.getElementById('trainingStatus');
         if (statusEl) {
             statusEl.textContent = getStatusText(data.status);
-            statusEl.className = getStatusClass(data.status);
+            statusEl.className = `training-status-badge ${getStatusClass(data.status)}`;
         }
     }
 
@@ -746,7 +1049,6 @@ function updateTrainingProgress(data) {
         const timePerEpoch = elapsedTime / currentEpoch;
         const remainingEpochs = totalEpochs - currentEpoch;
         const remainingSeconds = Math.round(timePerEpoch * remainingEpochs);
-
         document.getElementById('remainingTime').textContent = formatTime(remainingSeconds);
     } else if (currentEpoch >= totalEpochs) {
         document.getElementById('remainingTime').textContent = '00:00';
@@ -779,16 +1081,16 @@ function getStatusText(status) {
  */
 function getStatusClass(status) {
     const classMap = {
-        'initializing': 'badge bg-secondary',
-        'preparing': 'badge bg-info',
-        'running': 'badge bg-primary',
-        'paused': 'badge bg-warning',
-        'stopping': 'badge bg-warning',
-        'stopped': 'badge bg-secondary',
-        'completed': 'badge bg-success',
-        'failed': 'badge bg-danger'
+        'initializing': 'bg-secondary',
+        'preparing': 'bg-info',
+        'running': 'bg-primary',
+        'paused': 'bg-warning',
+        'stopping': 'bg-warning',
+        'stopped': 'bg-secondary',
+        'completed': 'bg-success',
+        'failed': 'bg-danger'
     };
-    return classMap[status] || 'badge bg-secondary';
+    return classMap[status] || 'bg-secondary';
 }
 
 /**
@@ -815,7 +1117,6 @@ async function pauseTraining() {
         if (response.ok) {
             const data = await response.json();
             const pauseBtn = document.getElementById('pauseTrainingBtn');
-
             if (data.status === 'paused') {
                 pauseBtn.innerHTML = '<i class="bi bi-play-fill"></i> 继续';
                 document.getElementById('trainingStatus').textContent = '已暂停';
@@ -953,7 +1254,6 @@ function displayEvaluationResults(results) {
             [1, 0, cm[1][0]],
             [1, 1, cm[1][1]]
         ];
-
         const maxValue = Math.max(
             cm[0][0], cm[0][1],
             cm[1][0], cm[1][1]
@@ -1038,270 +1338,178 @@ function formatTime(seconds) {
 }
 
 /**
- * 模型训练相关功能
+ * 初始化模型类型选择
  */
-
-document.addEventListener('DOMContentLoaded', function() {
-    initTrainingInterface();
-});
-
-/**
- * 初始化训练界面
- */
-function initTrainingInterface() {
-    console.log('初始化模型训练界面');
-
-    // 根据模型类型显示/隐藏特定参数
-    const modelTypeSelect = document.getElementById('modelTypeSelect');
-    if (modelTypeSelect) {
-        modelTypeSelect.addEventListener('change', function() {
-            updateModelSpecificParams(this.value);
-        });
-        // 初始化时触发一次
-        updateModelSpecificParams(modelTypeSelect.value);
-    }
-
-    // 根据优化器类型显示/隐藏特定参数
-    const optimizerSelect = document.getElementById('optimizerSelect');
-    if (optimizerSelect) {
-        optimizerSelect.addEventListener('change', function() {
-            updateOptimizerParams(this.value);
-        });
-        // 初始化时触发一次
-        updateOptimizerParams(optimizerSelect.value);
-    }
-
-    // 处理早停选项显示/隐藏
-    const earlyStoppingCheckbox = document.getElementById('earlyStopping');
-    const earlyStoppingOptions = document.getElementById('earlyStoppingOptions');
-    if (earlyStoppingCheckbox && earlyStoppingOptions) {
-        earlyStoppingCheckbox.addEventListener('change', function() {
-            earlyStoppingOptions.style.display = this.checked ? 'block' : 'none';
-        });
-    }
-
-    // 开始训练按钮
-    const startTrainingBtn = document.getElementById('startTrainingBtn');
-    if (startTrainingBtn) {
-        startTrainingBtn.addEventListener('click', startTraining);
-    }
-
-    // 其他按钮事件绑定
-    bindTrainingControlEvents();
-}
-
-/**
- * 根据模型类型更新特定参数的显示/隐藏
- * @param {string} modelType 模型类型
- */
-function updateModelSpecificParams(modelType) {
-    console.log(`更新模型特定参数: ${modelType}`);
+function initModelTypeSelection() {
+    // 获取所有模型选择单选按钮和实际的select元素
+    const modelRadios = document.querySelectorAll('input[name="modelType"]');
+    const modelSelect = document.getElementById('modelTypeSelect');
     
-    // 处理LSTM相关参数
-    const lstmParams = document.querySelectorAll('.lstm-only');
-    lstmParams.forEach(element => {
-        element.style.display = modelType.includes('lstm') ? 'flex' : 'none';
-    });
-
-    // 处理Bi-LSTM特有参数
-    const bilstmParams = document.querySelectorAll('.bilstm-only');
-    bilstmParams.forEach(element => {
-        element.style.display = modelType.includes('bilstm') ? 'flex' : 'none';
-    });
-
-    // 处理CNN相关参数
-    const cnnParams = document.querySelectorAll('.cnn-only');
-    cnnParams.forEach(element => {
-        element.style.display = modelType === 'cnn' ? 'flex' : 'none';
-    });
-}
-
-/**
- * 根据优化器类型更新特定参数的显示/隐藏
- * @param {string} optimizer 优化器类型
- */
-function updateOptimizerParams(optimizer) {
-    console.log(`更新优化器特定参数: ${optimizer}`);
+    if (!modelRadios.length || !modelSelect) return;
     
-    // Adam参数
-    const adamParams = document.getElementById('adamParams');
-    if (adamParams) {
-        adamParams.style.display = optimizer === 'adam' ? 'block' : 'none';
-    }
-    
-    // SGD参数
-    const sgdParams = document.getElementById('sgdParams');
-    if (sgdParams) {
-        sgdParams.style.display = optimizer === 'sgd' ? 'block' : 'none';
-    }
-}
-
-/**
- * 收集所有训练参数
- * @returns {object} 训练参数对象
- */
-function collectTrainingParams() {
-    const params = {
-        // 基本参数
-        model_type: document.getElementById('modelTypeSelect').value,
-        batch_size: parseInt(document.getElementById('batchSizeSelect').value),
-        epochs: parseInt(document.getElementById('epochsInput').value),
-        dropout: parseFloat(document.getElementById('dropoutInput').value),
-        optimizer: document.getElementById('optimizerSelect').value,
-        weight_decay: parseFloat(document.getElementById('weightDecaySelect').value),
-        
-        // 早停参数
-        early_stopping: document.getElementById('earlyStopping').checked
-    };
-    
-    // 如果启用了早停，添加早停参数
-    if (params.early_stopping) {
-        params.patience = parseInt(document.getElementById('patienceInput').value);
-    }
-    
-    // 模型特定参数
-    if (params.model_type.includes('lstm')) {
-        params.hidden_dim = parseInt(document.getElementById('hiddenDimSelect').value);
-        params.num_layers = parseInt(document.getElementById('numLayersSelect').value);
-        
-        // 双向LSTM特有参数
-        if (params.model_type.includes('bilstm')) {
-            params.merge_mode = document.getElementById('mergeModeSelect').value;
+    // 初始化单选按钮状态
+    const currentValue = modelSelect.value;
+    modelRadios.forEach(radio => {
+        if (radio.value === currentValue) {
+            radio.checked = true;
         }
-    }
-    else if (params.model_type === 'cnn') {
-        params.num_filters = parseInt(document.getElementById('numFiltersSelect').value);
         
-        // 卷积核大小
-        params.kernel_sizes = [];
-        for (let i = 2; i <= 5; i++) {
-            const kernelCheckbox = document.getElementById(`kernelSize${i}`);
-            if (kernelCheckbox && kernelCheckbox.checked) {
-                params.kernel_sizes.push(i);
+        // 添加变更事件
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                console.log(`模型类型更改为: ${this.value}`);
+                // 更新隐藏的select值
+                modelSelect.value = this.value;
+                // 触发select的change事件，以触发现有的toggleModelSpecificOptions逻辑
+                modelSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+}
+
+/**
+ * 初始化权重衰减范围滑块
+ */
+function initWeightDecayRange() {
+    const rangeInput = document.getElementById('weightDecayRange');
+    const selectInput = document.getElementById('weightDecaySelect');
+    
+    if (!rangeInput || !selectInput) return;
+    
+    // 设置初始值
+    const initialValue = Math.log10(parseFloat(selectInput.value));
+    rangeInput.value = initialValue;
+    
+    // 范围滑块变更事件
+    rangeInput.addEventListener('input', function() {
+        const value = Math.pow(10, parseInt(this.value));
+        // 找到最接近的选项
+        let closestIndex = 0;
+        let minDiff = Number.MAX_VALUE;
+        
+        for (let i = 0; i < selectInput.options.length; i++) {
+            const diff = Math.abs(parseFloat(selectInput.options[i].value) - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIndex = i;
             }
         }
-    }
+        
+        selectInput.selectedIndex = closestIndex;
+    });
     
-    return params;
+    // 选择框变更事件
+    selectInput.addEventListener('change', function() {
+        const value = Math.log10(parseFloat(this.value));
+        rangeInput.value = value;
+    });
 }
 
 /**
- * 开始训练模型
+ * 初始化Bootstrap工具提示
  */
-async function startTraining() {
-    console.log('开始模型训练');
-    
-    try {
-        // 显示加载指示器
-        showLoading('正在准备训练环境...');
-        
-        // 收集训练参数
-        const params = collectTrainingParams();
-        console.log('训练参数:', params);
-        
-        // 简单验证
-        if (params.model_type === 'cnn' && params.kernel_sizes.length === 0) {
-            showError('至少选择一种卷积核大小');
-            return;
-        }
-        
-        // 发送训练请求
-        const response = await fetch('/api/train/start', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(params)
+function initTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus'
         });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            console.log('训练任务已启动:', data);
-            
-            // 隐藏占位符，显示进度区域
-            document.getElementById('trainingPlaceholder').style.display = 'none';
-            document.getElementById('trainingProgress').classList.remove('d-none');
-            
-            // 开始监控训练进度
-            startProgressMonitoring(data.training_id);
-        } else {
-            showError('训练启动失败: ' + (data.error || '未知错误'));
-        }
-    } catch (error) {
-        console.error('训练启动出错:', error);
-        showError('训练启动出错: ' + error.message);
-    } finally {
-        hideLoading();
-    }
+    });
 }
 
 /**
- * 绑定训练控制事件
+ * 初始化Dropout滑块
  */
-function bindTrainingControlEvents() {
-    // 暂停/继续按钮
-    const pauseBtn = document.getElementById('pauseTrainingBtn');
-    if (pauseBtn) {
-        pauseBtn.addEventListener('click', toggleTrainingPause);
-    }
+function initDropoutSlider() {
+    const dropoutRange = document.getElementById('dropoutRange');
+    const dropoutDisplay = document.getElementById('dropoutDisplay');
+    const dropoutInput = document.getElementById('dropoutInput');
     
-    // 停止按钮
-    const stopBtn = document.getElementById('stopTrainingBtn');
-    if (stopBtn) {
-        stopBtn.addEventListener('click', stopTraining);
-    }
-    
-    // 保存模型按钮
-    const saveBtn = document.getElementById('saveModelBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveModel);
-    }
-}
-
-/**
- * 显示错误消息
- * @param {string} message 错误消息
- */
-function showError(message) {
-    const errorEl = document.getElementById('errorMessage');
-    if (errorEl) {
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-        
-        // 5秒后自动隐藏
-        setTimeout(() => {
-            errorEl.style.display = 'none';
-        }, 5000);
-    } else {
-        // 后备方案：使用alert
-        alert('错误: ' + message);
-    }
-}
-
-/**
- * 显示加载指示器
- */
-function showLoading(message = '处理中...') {
-    const loading = document.getElementById('loading');
-    if (loading) {
-        const loadingText = loading.querySelector('p');
-        if (loadingText) {
-            loadingText.textContent = message;
+    if (dropoutRange && dropoutDisplay && dropoutInput) {
+        // 更新显示值
+        function updateDropoutValue() {
+            const value = (parseInt(dropoutRange.value) + 1) / 10;
+            dropoutDisplay.textContent = value.toFixed(1);
+            dropoutInput.value = value.toFixed(1);
         }
-        loading.style.display = 'flex';
+        
+        // 初始设置
+        updateDropoutValue();
+        
+        // 监听滑块变化
+        dropoutRange.addEventListener('input', updateDropoutValue);
     }
 }
 
 /**
- * 隐藏加载指示器
+ * 初始化卷积核尺寸选择器
  */
-function hideLoading() {
-    const loading = document.getElementById('loading');
-    if (loading) {
-        loading.style.display = 'none';
-    }
+function initKernelSizeSelectors() {
+    // 获取所有卷积核选项
+    const kernelCheckboxes = document.querySelectorAll('.kernel-checkbox');
+    
+    // 确保至少有一个被选中
+    kernelCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // 检查是否至少有一个被选中
+            const anyChecked = Array.from(kernelCheckboxes).some(cb => cb.checked);
+            
+            // 如果没有任何一个被选中，则强制选中当前这个
+            if (!anyChecked) {
+                this.checked = true;
+                
+                // 显示提示
+                const tipElement = document.createElement('div');
+                tipElement.className = 'alert alert-warning alert-dismissible fade show mt-2';
+                tipElement.innerHTML = `
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    至少需要选择一种卷积核尺寸
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // 将提示添加到卷积核选择器容器中
+                const containerEl = document.querySelector('.kernel-size-container');
+                if (containerEl) {
+                    containerEl.appendChild(tipElement);
+                    
+                    // 3秒后自动隐藏
+                    setTimeout(() => {
+                        tipElement.classList.remove('show');
+                        setTimeout(() => {
+                            containerEl.removeChild(tipElement);
+                        }, 150);
+                    }, 3000);
+                }
+            }
+            
+            // 设置选中的样式
+            updateKernelVisual();
+        });
+    });
+    
+    // 初始更新可视化
+    updateKernelVisual();
 }
 
-// 确保全局可访问
-window.startTraining = startTraining;
+/**
+ * 更新卷积核可视化
+ */
+function updateKernelVisual() {
+    const kernels = document.querySelectorAll('.cnn-kernel');
+    const checkboxes = document.querySelectorAll('.kernel-checkbox');
+    
+    kernels.forEach((kernel, index) => {
+        // 获取对应的checkbox
+        const checkbox = checkboxes[index];
+        if (checkbox) {
+            // 根据checkbox的选中状态设置卷积核的样式
+            if (checkbox.checked) {
+                kernel.style.opacity = '1';
+                kernel.style.transform = 'scale(1)';
+            } else {
+                kernel.style.opacity = '0.4';
+                kernel.style.transform = 'scale(0.9)';
+            }
+        }
+    });
+}

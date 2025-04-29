@@ -3,39 +3,35 @@
 /* 日志项样式 */
 .log-content {
     font-family: monospace;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     line-height: 1.5;
 }
 
 .log-entry {
-    padding: 4px 8px;
-    margin-bottom: 4px;
-    border-radius: 4px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
 .log-entry.info {
-    background-color: #f8f9fa;
-    color: #333;
+    color: #2c7be5;
 }
 
 .log-entry.success {
-    background-color: #d4edda;
-    color: #155724;
+    color: #00b74a;
 }
 
 .log-entry.warning {
-    background-color: #fff3cd;
-    color: #856404;
+    color: #ff9f43;
 }
 
 .log-entry.error {
-    background-color: #f8d7da;
-    color: #721c24;
+    color: #f93154;
 }
 
 /* 模型特定选项样式 */
 .lstm-only, .cnn-only {
     display: none; /* 默认隐藏 */
+    transition: all 0.3s ease;
 }
 
 /* 训练控制按钮样式 */
@@ -140,11 +136,13 @@
     gap: 20px;
     margin-bottom: 20px;
     width: 100%;
+    flex-wrap: wrap;
 }
 
 .chart-item {
     width: 50%;
     min-width: 300px;
+    flex: 1 1 calc(50% - 10px);
 }
 
 .chart-card {
@@ -153,6 +151,9 @@
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
 }
 
 .chart-header {
@@ -163,12 +164,18 @@
     font-size: 0.95rem;
     color: #333;
     text-align: center;
+    background-color: #f8f9fc;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #e3e6f0;
+    font-weight: bold;
 }
 
 .chart-body {
     padding: 8px;
     height: calc(100% - 50px); /* 50px是标题高度 */
     min-height: 250px;
+    padding: 1.25rem;
+    flex: 1;
 }
 
 /* 确保Echarts图表占满容器 */
@@ -199,4 +206,1199 @@
         width: 100%;
         margin-bottom: 20px;
     }
+}
+
+/* 训练模块样式 */
+
+/* 卡片样式 */
+#training-section .card {
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+#training-section .card-header {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
+}
+
+/* 参数配置表单 */
+#training-section label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+#training-section .form-text {
+    color: #6c757d;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+#training-section .form-select,
+#training-section .form-control {
+    border-radius: 0.25rem;
+}
+
+/* 模型特定参数卡片 */
+.lstm-only, .cnn-only {
+    transition: all 0.3s ease;
+}
+
+/* 大型按钮样式 */
+#training-section .btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 0.3rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+#training-section .btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* 图表区域 */
+.charts-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.chart-item {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 300px;
+}
+
+.chart-card {
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+}
+
+.chart-header {
+    background-color: #f8f9fc;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #e3e6f0;
+    font-weight: bold;
+}
+
+.chart-body {
+    padding: 1.25rem;
+    flex: 1;
+}
+
+/* 训练日志样式 */
+.log-content {
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.log-entry.info {
+    color: #2c7be5;
+}
+
+.log-entry.success {
+    color: #00b74a;
+}
+
+.log-entry.warning {
+    color: #ff9f43;
+}
+
+.log-entry.error {
+    color: #f93154;
+}
+
+/* 指标卡片样式 */
+.metric-icon {
+    margin-bottom: 10px;
+}
+
+/* 占位符样式 */
+.placeholder-content {
+    background-color: rgba(250,250,250,0.7);
+    border-radius: 0.5rem;
+    padding: 3rem;
+    max-width: 500px;
+    margin: 0 auto;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.06);
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#training-section .card,
+#training-section .charts-row,
+#training-section .log-content {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .chart-item {
+        flex: 1 1 100%;
+    }
+    
+    #training-section .btn-lg {
+        width: 100%;
+    }
+}
+
+/* 参数配置模块样式美化 */
+.param-section {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 1.5rem;
+}
+
+.param-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #3a3b45;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.param-section-title i {
+    margin-right: 0.5rem;
+    color: #4e73df;
+}
+
+.param-section-body {
+    padding: 0 0.5rem;
+}
+
+/* 模型选择卡片样式 */
+.model-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 1rem;
+}
+
+.model-card {
+    position: relative;
+    flex: 1;
+    min-width: 150px;
+    max-width: 200px;
+    border: 2px solid #e3e6f0;
+    border-radius: 10px;
+    padding: 1.2rem 0.8rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.model-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(78, 115, 223, 0.1);
+    border-color: #d1d3e2;
+}
+
+.btn-check:checked + .model-card {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.05);
+    box-shadow: 0 0 0 0.25rem rgb(78 115 223 / 25%);
+}
+
+.model-icon {
+    font-size: 2rem;
+    margin-bottom: 0.8rem;
+    color: #4e73df;
+}
+
+.model-card h6 {
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+}
+
+.model-card small {
+    display: block;
+    color: #858796;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.model-card .badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+}
+
+/* 参数卡片样式 */
+.param-card {
+    position: relative;
+    height: 100%;
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid #e3e6f0;
+    background-color: white;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.param-card:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    border-color: #d1d3e2;
+}
+
+.param-card label {
+    display: block;
+    font-weight: 600;
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-wrapper i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #4e73df;
+    z-index: 2;
+    font-size: 1rem;
+}
+
+.input-wrapper .form-control,
+.input-wrapper .form-select {
+    padding-left: 35px;
+    height: 42px;
+    font-size: 0.95rem;
+}
+
+.unit-label {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #858796;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* 范围输入组样式 */
+.range-input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.range-input-group .form-range {
+    height: 42px;
+    padding: 0.5rem 0;
+}
+
+/* 特定模型参数样式 */
+.param-header {
+    padding: 0.8rem 1rem;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    margin: -1rem -1rem 1rem -1rem;
+}
+
+.param-body {
+    padding: 0 0.5rem;
+}
+
+/* 卷积核大小选择器 */
+.kernel-size-selector {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.kernel-size-selector .btn {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    font-size: 0.95rem;
+    padding: 0.375rem 0.5rem;
+    line-height: 1.4;
+}
+
+.kernel-size-selector .btn-check:checked + .btn {
+    box-shadow: none;
+    background-color: #4e73df;
+    border-color: #4e73df;
+    color: white;
+}
+
+/* 早停卡片样式 */
+.early-stop-card {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+
+.early-stop-card .form-check-input {
+    margin-top: 0.2rem;
+    cursor: pointer;
+}
+
+.early-stop-card small {
+    margin-top: 0.3rem;
+}
+
+/* 工具提示自定义样式 */
+.tooltip {
+    --bs-tooltip-bg: #4e73df;
+    --bs-tooltip-color: white;
+}
+
+/* 折叠面板美化 */
+.accordion-button:not(.collapsed) {
+    background-color: rgba(78, 115, 223, 0.1);
+    color: #4e73df;
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: #e3e6f0;
+}
+
+/* 用于指示必填字段的标记 */
+.required-field::after {
+    content: '*';
+    color: #e74a3b;
+    margin-left: 4px;
+    font-weight: bold;
+}
+
+/* 动画和过渡效果 */
+.model-card, .param-card, .btn {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.accordion-body {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .model-selector {
+        justify-content: center;
+    }
+    
+    .model-card {
+        min-width: 120px;
+    }
+    
+    .param-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* 优化表单文本说明 */
+.form-text {
+    color: #6c757d;
+    margin-top: 0.3rem;
+    font-size: 0.8rem;
+    line-height: 1.3;
+}
+
+/* 轻量级徽章样式 */
+.fs-7 {
+    font-size: 0.75rem;
+}
+
+/* 确保模型特定参数与其他表单项保持一致 */
+.model-specific-params .param-body {
+    padding: 0.5rem;
+}
+
+/* 确保隐藏层和LSTM层数选择框样式一致 */
+#hiddenDimSelect, #numLayersSelect, #numFiltersSelect {
+    display: block;
+    width: 100%;
+}
+
+/* 相对单位设置，确保响应式 */
+html {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    html {
+        font-size: 14px;
+    }
+    
+    .input-wrapper .form-control,
+    .input-wrapper .form-select {
+        height: 38px;
+        font-size: 0.9rem;
+    }
+}
+
+/* 模型训练页面样式 */
+.model-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.model-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.model-card.selected {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.05);
+    box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.25);
+}
+
+.model-icon {
+    font-size: 36px;
+    margin-bottom: 15px;
+    color: #4e73df;
+}
+
+.model-name {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.model-description {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+}
+
+/* 参数分组样式 */
+.param-group {
+    background: #f8f9fc;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 25px;
+    border-left: 5px solid #4e73df;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.param-group:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.param-group-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #4e73df;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+    display: flex;
+    align-items: center;
+}
+
+.param-group-title i {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+/* 增强特有参数区域 */
+.lstm-only, .cnn-only {
+    background: linear-gradient(to right, rgba(78, 115, 223, 0.05), rgba(255, 255, 255, 0));
+    padding: 5px;
+    border-radius: 10px;
+    margin-top: 15px;
+    transition: all 0.4s ease;
+}
+
+.lstm-only, .cnn-only {
+    background: linear-gradient(to right, rgba(78, 115, 223, 0.05), rgba(255, 255, 255, 0));
+    border-radius: 12px;
+    margin-top: 25px;
+    transition: all 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.lstm-only::before, .cnn-only::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #4e73df, #224abe);
+    border-radius: 4px 0 0 4px;
+}
+
+/* 模型参数卡片增强 */
+.model-param-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    padding: 18px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    border: 1px solid #f0f0f0;
+}
+
+.model-param-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.model-param-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.model-param-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(78, 115, 223, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    color: #4e73df;
+    font-size: 1.2rem;
+}
+
+.model-param-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #333;
+    margin: 0;
+}
+
+.model-param-subtitle {
+    color: #666;
+    font-size: 0.85rem;
+    margin: 5px 0 0 0;
+}
+
+/* LSTM特有参数样式增强 */
+.lstm-param-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.lstm-cell-diagram {
+    background: linear-gradient(135deg, #f8f9fc 0%, #eaecf4 100%);
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    margin-bottom: 15px;
+    position: relative;
+    overflow: hidden;
+}
+
+.lstm-cell-diagram::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 40%;
+    height: 40%;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%234e73df30"><path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-7-2h.01M12 16h.01"></path></svg>') no-repeat center center;
+    opacity: 0.1;
+}
+
+/* CNN特有参数样式增强 */
+.kernel-size-container {
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fc 0%, #eaecf4 100%);
+    border-radius: 10px;
+}
+
+.kernel-size-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.kernel-option {
+    flex: 1;
+    min-width: 70px;
+    position: relative;
+}
+
+.kernel-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.kernel-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background: white;
+    border: 2px solid #e3e6f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.kernel-option .kernel-size {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.kernel-option .kernel-desc {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.kernel-option input[type="checkbox"]:checked + label {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.08);
+    box-shadow: 0 2px 8px rgba(78, 115, 223, 0.15);
+}
+
+.kernel-option input[type="checkbox"]:focus + label {
+    box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.25);
+}
+
+/* 更新维度指示器样式 */
+.dimension-indicator {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px 15px;
+    background: linear-gradient(to right, rgba(78, 115, 223, 0.08), rgba(78, 115, 223, 0.02));
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.dimension-indicator .badge {
+    margin-left: auto;
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    font-weight: 500;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.param-badge {
+    background-color: #eaecf4;
+    color: #5a5c69;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.param-badge.recommended {
+    background-color: rgba(28, 200, 138, 0.1);
+    color: #1cc88a;
+}
+
+/* 参数提示框增强 */
+.param-tip {
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin: 15px 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.param-tip i {
+    margin-right: 10px;
+    font-size: 1rem;
+    margin-top: 2px;
+}
+
+.param-tip.tip-info {
+    background-color: rgba(78, 115, 223, 0.08);
+    color: #4e73df;
+}
+
+.param-tip.tip-warning {
+    background-color: rgba(246, 194, 62, 0.08);
+    color: #f6c23e;
+}
+
+.param-tip.tip-success {
+    background-color: rgba(28, 200, 138, 0.08);
+    color: #1cc88a;
+}
+
+/* 参数组标题增强 */
+.param-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4e73df;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(78, 115, 223, 0.2);
+    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.param-section-title i {
+    margin-right: 8px;
+}
+
+/* 可视化参数影响区域 */
+.param-impact {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f8f9fc;
+    border-radius: 8px;
+}
+
+.impact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.impact-item {
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    background-color: white;
+}
+
+.impact-label {
+    font-size: 0.8rem;
+    color: #5a5c69;
+    margin-bottom: 5px;
+}
+
+.impact-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.impact-low {
+    color: #1cc88a;
+}
+
+.impact-medium {
+    color: #4e73df;
+}
+
+.impact-high {
+    color: #e74a3b;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: #858796;
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+    .lstm-param-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .kernel-size-selector {
+        justify-content: center;
+    }
+    
+    .kernel-option {
+        min-width: 70px;
+        max-width: 100px;
+    }
+}
+
+/* 增强型参数容器 */
+.enhanced-param-container {
+    background-color: white;
+    border-radius: 12px;
+    border: 1px solid #f0f0f0;
+    padding: 20px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
+    margin-top: 25px;
+}
+
+/* 参数形象化展示 */
+.param-visual {
+    background: linear-gradient(135deg, #f8f9fc 0%, #eaecf4 100%);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 15px 0;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+}
+
+.cnn-visual {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+}
+
+.cnn-kernel {
+    background-color: rgba(78, 115, 223, 0.2);
+    border: 2px solid rgba(78, 115, 223, 0.4);
+    border-radius: 6px;
+    padding: 3px;
+    margin: 0 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.cnn-kernel-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--kernel-size, 3), 8px);
+    grid-template-rows: repeat(var(--kernel-size, 3), 8px);
+    gap: 2px;
+    margin-bottom: 5px;
+}
+
+.cnn-kernel-cell {
+    background-color: rgba(78, 115, 223, 0.6);
+    border-radius: 2px;
+}
+
+.cnn-kernel-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* 训练控制按钮样式 */
+.training-action-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    min-width: 120px;
+}
+
+.training-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.training-action-btn:active {
+    transform: translateY(0);
+}
+
+/* 训练进度区域样式 */
+.training-status-badge {
+    font-size: 0.9rem;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+}
+
+.training-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* 进度条样式 */
+.enhanced-progress-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: #e9ecef;
+    margin: 20px 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.enhanced-progress-bar .bar {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #4e73df, #36b9cc);
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.enhanced-progress-bar .progress-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+/* 图表区域样式 */
+.chart-container {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.chart-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+}
+
+@media (max-width: 768px) {
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 日志样式 */
+.training-log {
+    background: #272822;
+    color: #f8f8f2;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    height: 200px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    padding: 3px 5px;
+    margin-bottom: 3px;
+    border-left: 3px solid transparent;
+    line-height: 1.4;
+}
+
+.log-entry.info {
+    border-left-color: #4e73df;
+}
+
+.log-entry.success {
+    border-left-color: #1cc88a;
+    color: #1cc88a;
+}
+
+.log-entry.warning {
+    border-left-color: #f6c23e;
+    color: #f6c23e;
+}
+
+.log-entry.error {
+    border-left-color: #e74a3b;
+    color: #e74a3b;
+}
+
+/* 模型评估结果样式 */
+.evaluation-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.evaluation-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.evaluation-metric {
+    text-align: center;
+    padding: 15px 10px;
+    background: #f8f9fc;
+    border-radius: 8px;
+}
+
+.eval-metric-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.eval-metric-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+/* 参数选择器样式 */
+.parameter-slider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.parameter-slider .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.parameter-slider input[type="range"] {
+    flex-grow: 1;
+}
+
+.parameter-slider .value-display {
+    min-width: 50px;
+    text-align: center;
+    padding: 3px 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* 帮助提示样式 */
+.param-help {
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.model-type-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.model-type-card {
+    flex: 1 0 calc(33.333% - 15px);
+    min-width: 150px;
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.model-type-card:hover {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+.model-type-card.selected {
+    border-color: #4e73df;
+    background-color: rgba(78, 115, 223, 0.1);
+}
+
+.model-type-card .model-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.model-type-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.model-type-card .model-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #adb5bd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+}
+
+.model-type-card.selected .model-check {
+    visibility: visible;
+    border-color: #4e73df;
+    background: #4e73df;
+    color: white;
 }

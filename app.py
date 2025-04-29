@@ -772,7 +772,7 @@ def start_training():
 
         # 获取基本训练参数
         model_type = data.get('model_type', 'cnn')
-        batch_size = data.get('batch_size', 32)
+        batch_size = data.get('batch_size', 256)
         epochs = data.get('epochs', 10)
         dropout = data.get('dropout', 0.5)
         optimizer = data.get('optimizer', 'adam')
@@ -895,8 +895,8 @@ def get_training_progress():
         # 添加日志
         progress_data['recent_logs'] = get_recent_training_logs()
 
-        # 添加时间戳
-        progress_data['timestamp'] = datetime.now().isoformat()
+        # 添加时间戳 - 修复 datetime 使用问题
+        progress_data['timestamp'] = datetime.datetime.now().isoformat()
 
         # 添加内容类型头
         response = jsonify(progress_data)

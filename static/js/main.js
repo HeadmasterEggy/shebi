@@ -278,7 +278,7 @@ function displayResults(data) {
     }
 
     try {
-        // 初始化所有图表，包括词频图表
+        // 初始化所有图表，包括新添加的词频图表
         initCharts(data);
 
         // 初始化词频标签
@@ -296,20 +296,13 @@ function displayResults(data) {
             });
         }
 
-        if (typeof setupWordFreqTabButtonsEvents === 'function') {
-            setupWordFreqTabButtonsEvents();
-        } else {
-            // 旧版本兼容：直接绑定事件
-            document.querySelectorAll('#wordFreq .tab-button').forEach(button => {
-                button.addEventListener('click', function () {
-                    switchWordFreqTab(this.dataset.view);
-                });
-            });
+        // 初始化词频展示区域，确保词频图表和标签都显示
+        if (typeof initWordFreqDisplay === 'function') {
+            initWordFreqDisplay();
         }
 
         // 默认显示列表视图
         switchTab('list');
-        switchWordFreqTab('tags');
 
         // 自动切换到总体分析区块
         switchSection('overall-section');
@@ -317,6 +310,33 @@ function displayResults(data) {
         console.error('初始化图表失败:', error);
         console.error(error.stack);
         showError('图表初始化失败: ' + error.message);
+    }
+}
+
+// 删除不再需要的词频图表相关函数
+function ensureWordFreqChartsVisible() {
+    // 此函数不再需要，因为我们已经删除了词频图表
+    console.log('词频图表区域已被移除');
+}
+
+// 确保训练脚本正确加载
+function checkTrainingScriptLoaded() {
+    if (typeof startTraining !== 'function') {
+        console.error('训练脚本未正确加载，startTraining函数未定义');
+        // 尝试重新加载脚本
+        const scriptElement = document.createElement('script');
+        scriptElement.src = '/static/js/training.js?_=' + new Date().getTime();
+        document.body.appendChild(scriptElement);
+        
+        scriptElement.onload = function() {
+            console.log('训练脚本已重新加载');
+        };
+        
+        scriptElement.onerror = function() {
+            console.error('训练脚本加载失败');
+        };
+    } else {
+        console.log('训练脚本已正确加载');
     }
 }
 
@@ -346,4 +366,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 初始状态下激活第一个菜单项
     switchSection('input-section');
+    
+    // 检查训练脚本加载情况
+    setTimeout(checkTrainingScriptLoaded, 2000);
+
+    // 菜单项点击事件
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function() {
+            // ...existing code...
+            
+            // 移除这个条件，因为我们不再需要处理词频图表
+            // if (this.getAttribute('data-section') === 'word-freq-section') {
+            //     ensureWordFreqChartsVisible();
+            // }
+        });
+    });
 });
