@@ -440,20 +440,73 @@ function initTextHistory() {
     const textInput = document.getElementById('textInput');
     if (!textInput) return;
     
-    // 创建历史文本按钮
-    const textHistoryBtn = document.createElement('button');
-    textHistoryBtn.type = 'button';
-    textHistoryBtn.className = 'btn btn-outline-secondary ms-2';
-    textHistoryBtn.innerHTML = '<i class="bi bi-clock-history me-1"></i> 历史文本';
-    textHistoryBtn.addEventListener('click', showTextHistory);
+    // 添加文本输入指南
+    const textGuideDiv = document.createElement('div');
+    textGuideDiv.className = 'text-guide mt-3';
+    textGuideDiv.innerHTML = `
+        <div class="card guide-card">
+            <div class="card-header guide-header">
+                <i class="bi bi-lightbulb-fill text-warning me-2"></i>
+                <span>文本输入指南</span>
+            </div>
+            <div class="card-body guide-content">
+                <ul class="guide-tips">
+                    <li>文本长度建议在 50-500 字之间，过短的文本可能导致分析不准确</li>
+                    <li>输入完整的句子，避免使用过多缩写或网络用语</li>
+                    <li>每段文本应该包含明确的情感表达，以获得更准确的结果</li>
+                    <li>可以输入多个段落，系统会对每个句子进行单独分析</li>
+                </ul>
+                <div class="guide-examples">
+                    <p><strong>示例:</strong> "这款产品使用起来非常方便，比我之前用的好多了，但是价格有点贵。"</p>
+                </div>
+            </div>
+        </div>
+    `;
     
-    // 添加到界面
-    const textControlsDiv = document.createElement('div');
-    textControlsDiv.className = 'text-controls d-flex mt-2';
-    textControlsDiv.appendChild(textHistoryBtn);
+    // 将指南添加到文本输入区域的后面
+    textInput.parentElement.insertBefore(textGuideDiv, textInput.nextSibling);
     
-    // 插入到文本输入框后
-    textInput.parentElement.insertBefore(textControlsDiv, textInput.nextSibling);
+    // 创建历史文本容器
+    const textHistoryContainer = document.createElement('div');
+    textHistoryContainer.className = 'text-history-container mt-3';
+    textHistoryContainer.innerHTML = `
+        <div class="history-header">
+            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>历史文本</h6>
+        </div>
+        <div class="history-content" id="textHistoryContent">
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <span class="ms-2">正在加载历史文本...</span>
+            </div>
+        </div>
+    `;
+    
+    // 找到文本输入标签页内的最后一个元素，将历史文本添加到最后
+    const textTab = document.getElementById('textInput-tab');
+    if (textTab) {
+        // 添加到标签页的最后
+        textTab.appendChild(textHistoryContainer);
+    } else {
+        // 回退方案：添加到文本输入框的父元素末尾
+        textInput.parentElement.appendChild(textHistoryContainer);
+    }
+    
+    // 添加指南收起/展开功能
+    const guideToggle = textGuideDiv.querySelector('.guide-toggle');
+    const guideContent = textGuideDiv.querySelector('.guide-content');
+    if (guideToggle && guideContent) {
+        guideToggle.addEventListener('click', function() {
+            if (guideContent.style.display === 'none') {
+                guideContent.style.display = 'block';
+                guideToggle.setAttribute('aria-label', '收起');
+            } else {
+                guideContent.style.display = 'none';
+                guideToggle.setAttribute('aria-label', '展开');
+            }
+        });
+    }
     
     // 监听文本输入变化，自动保存到历史记录
     textInput.addEventListener('blur', function() {
@@ -462,6 +515,133 @@ function initTextHistory() {
             saveTextToHistory(text);
         }
     });
+    
+    // 立即加载历史文本列表
+    setTimeout(() => {
+        loadTextHistoryInline();
+    }, 100);
+}
+
+/**
+ * 加载文本历史记录并内联显示在页面中
+ */
+function loadTextHistoryInline() {
+    try {
+        // 获取当前用户名，用于构建存储键
+        const username = getCurrentUsername();
+        const storageKey = `textHistory_${username}`;
+        
+        // 获取历史记录
+        const textHistory = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        // 获取历史内容容器
+        const historyContent = document.getElementById('textHistoryContent');
+        if (!historyContent) return;
+        
+        // 如果没有历史记录
+        if (textHistory.length === 0) {
+            historyContent.innerHTML = `
+                <div class="empty-history-message">
+                    <i class="bi bi-inbox text-muted"></i>
+                    <p>暂无历史文本记录</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 创建历史记录内容
+        let historyHtml = '';
+        textHistory.forEach((item, index) => {
+            const date = new Date(item.timestamp);
+            const formattedDate = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            
+            historyHtml += `
+                <div class="inline-history-item" data-index="${index}">
+                    <div class="inline-history-item-header">
+                        <div class="inline-history-item-title">${item.title || '未命名文本'}</div>
+                        <div class="inline-history-item-date">${formattedDate}</div>
+                    </div>
+                    <div class="inline-history-item-preview">${item.text.substring(0, 50)}${item.text.length > 50 ? '...' : ''}</div>
+                    <div class="inline-history-item-actions">
+                        <button type="button" class="btn btn-sm btn-primary load-history-text" data-index="${index}">
+                            <i class="bi bi-upload"></i> 加载
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-history-text" data-index="${index}">
+                            <i class="bi bi-trash"></i> 删除
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // 更新历史记录容器
+        historyContent.innerHTML = historyHtml;
+        
+        // 添加事件监听
+        historyContent.querySelectorAll('.load-history-text').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+                const textItem = textHistory[index];
+                
+                // 加载历史文本
+                const textInput = document.getElementById('textInput');
+                if (textInput) {
+                    textInput.value = textItem.text;
+                    
+                    // 激活文本输入标签页
+                    const textTab = document.getElementById('text-tab');
+                    if (textTab && bootstrap.Tab) {
+                        const tab = new bootstrap.Tab(textTab);
+                        tab.show();
+                    }
+                }
+                
+                // 显示成功消息
+                showToast('已加载历史文本', 'success');
+            });
+        });
+        
+        historyContent.querySelectorAll('.delete-history-text').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+                
+                // 删除历史记录
+                textHistory.splice(index, 1);
+                localStorage.setItem(storageKey, JSON.stringify(textHistory));
+                
+                // 从界面中移除
+                const historyItem = this.closest('.inline-history-item');
+                historyItem.classList.add('fade-out');
+                setTimeout(() => {
+                    historyItem.remove();
+                    
+                    // 如果没有更多历史记录，显示空历史消息
+                    if (historyContent.querySelectorAll('.inline-history-item').length === 0) {
+                        historyContent.innerHTML = `
+                            <div class="empty-history-message">
+                                <i class="bi bi-inbox text-muted"></i>
+                                <p>暂无历史文本记录</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // 显示消息
+                    showToast('已删除历史文本', 'info');
+                }, 300);
+            });
+        });
+    } catch (error) {
+        console.error('加载文本历史记录失败:', error);
+        const historyContent = document.getElementById('textHistoryContent');
+        if (historyContent) {
+            historyContent.innerHTML = `
+                <div class="error-message">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p>加载历史记录失败</p>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
@@ -498,6 +678,9 @@ function saveTextToHistory(text) {
         
         // 保存到本地存储
         localStorage.setItem(storageKey, JSON.stringify(textHistory));
+        
+        // 重新加载内联显示的历史记录
+        loadTextHistoryInline();
     } catch (error) {
         console.error('保存文本历史记录失败:', error);
     }

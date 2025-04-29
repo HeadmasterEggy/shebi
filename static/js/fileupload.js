@@ -20,26 +20,58 @@ function initFileUpload() {
     const fileContent = document.getElementById('fileContent');
     const closePreview = document.getElementById('closePreview');
     
-    // 添加历史文件按钮
-    const fileHistoryBtn = document.createElement('button');
-    fileHistoryBtn.type = 'button';
-    fileHistoryBtn.className = 'btn btn-outline-secondary ms-2';
-    fileHistoryBtn.innerHTML = '<i class="bi bi-clock-history me-1"></i> 历史文件';
-    fileHistoryBtn.addEventListener('click', showFileHistory);
+    // 移除创建历史文件按钮的代码，改为创建历史文件容器
+    const fileHistoryContainer = document.createElement('div');
+    fileHistoryContainer.className = 'file-history-container mt-3';
+    fileHistoryContainer.innerHTML = `
+        <div class="history-header">
+            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>历史文件</h6>
+        </div>
+        <div class="history-content" id="fileHistoryContent">
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <span class="ms-2">正在加载历史文件...</span>
+            </div>
+        </div>
+    `;
     
-    // 将历史文件按钮添加到界面
-    const fileControls = document.querySelector('.file-controls');
-    if (fileControls) {
-        fileControls.appendChild(fileHistoryBtn);
-    } else {
-        const fileInputGroup = fileInput.parentElement;
-        if (fileInputGroup && fileInputGroup.parentElement) {
-            // 创建控制按钮区域
-            const controlsDiv = document.createElement('div');
-            controlsDiv.className = 'file-controls d-flex mt-2';
-            controlsDiv.appendChild(fileHistoryBtn);
-            fileInputGroup.parentElement.appendChild(controlsDiv);
-        }
+    // 将历史文件容器添加到界面
+    const fileInputGroup = fileInput.parentElement;
+    if (fileInputGroup && fileInputGroup.parentElement) {
+        fileInputGroup.parentElement.appendChild(fileHistoryContainer);
+    }
+
+    // 添加文件上传指南
+    const fileGuideDiv = document.createElement('div');
+    fileGuideDiv.className = 'file-guide mt-3';
+    fileGuideDiv.innerHTML = `
+        <div class="card guide-card">
+            <div class="card-header guide-header">
+                <i class="bi bi-file-text text-primary me-2"></i>
+                <span>文件上传指南</span>
+            </div>
+            <div class="card-body guide-content">
+                <ul class="guide-tips">
+                    <li>仅支持 <strong>.txt</strong> 格式的纯文本文件，推荐使用 UTF-8 编码</li>
+                    <li>推荐将每个句子放在单独的一行，便于系统分析</li>
+                    <li>文件大小建议不超过 2MB</li>
+                    <li>句子长度建议在 5-100 个字符之间，过长或过短可能影响分析效果</li>
+                </ul>
+                <div class="guide-examples">
+                    <p><strong>文件内容示例:</strong></p>
+                    <pre>这款产品的屏幕显示效果很好，色彩饱满。
+电池续航时间短，经常需要充电。
+包装很精美，物流也很快。</pre>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 插入到文件上传区域
+    if (fileInputGroup && fileInputGroup.parentElement) {
+        fileInputGroup.parentElement.insertBefore(fileGuideDiv, fileHistoryContainer);
     }
 
     // 监听文件选择事件
@@ -92,6 +124,141 @@ function initFileUpload() {
     closePreview.addEventListener('click', function () {
         filePreview.classList.add('d-none');
     });
+    
+    // 立即加载历史文件列表
+    setTimeout(() => {
+        loadFileHistoryInline();
+    }, 100);
+}
+
+/**
+ * 加载文件历史记录并内联显示在页面中
+ */
+function loadFileHistoryInline() {
+    try {
+        // 获取当前用户名，用于构建存储键
+        const username = getCurrentUsername();
+        const storageKey = `fileHistory_${username}`;
+        
+        // 获取历史记录
+        const fileHistory = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        
+        // 获取历史内容容器
+        const historyContent = document.getElementById('fileHistoryContent');
+        if (!historyContent) return;
+        
+        // 如果没有历史记录
+        if (fileHistory.length === 0) {
+            historyContent.innerHTML = `
+                <div class="empty-history-message">
+                    <i class="bi bi-inbox text-muted"></i>
+                    <p>暂无历史文件记录</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 创建历史记录内容
+        let historyHtml = '';
+        fileHistory.forEach((file, index) => {
+            const date = new Date(file.timestamp);
+            const formattedDate = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            
+            historyHtml += `
+                <div class="inline-history-item" data-index="${index}">
+                    <div class="inline-history-item-header">
+                        <div class="inline-history-item-title">${file.name}</div>
+                        <div class="inline-history-item-date">${formattedDate}</div>
+                    </div>
+                    <div class="inline-history-item-preview">${file.content.substring(0, 50)}${file.content.length > 50 ? '...' : ''}</div>
+                    <div class="inline-history-item-actions">
+                        <button type="button" class="btn btn-sm btn-primary load-history-file" data-index="${index}">
+                            <i class="bi bi-upload"></i> 加载
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-history-file" data-index="${index}">
+                            <i class="bi bi-trash"></i> 删除
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // 更新历史记录容器
+        historyContent.innerHTML = historyHtml;
+        
+        // 添加事件监听
+        historyContent.querySelectorAll('.load-history-file').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+                const file = fileHistory[index];
+                
+                // 加载历史文件
+                currentFileContent = file.content;
+                currentFileName = file.name;
+                
+                // 更新界面
+                const fileInfo = document.getElementById('fileInfo');
+                if (fileInfo) {
+                    fileInfo.textContent = `已选择: ${file.name}`;
+                }
+                
+                const fileViewBtn = document.getElementById('fileViewBtn');
+                if (fileViewBtn) {
+                    fileViewBtn.disabled = false;
+                }
+                
+                // 显示成功消息
+                showToast('已加载历史文件', 'success');
+                
+                // 清除文件输入框的值，以便可以再次选择同一个文件
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+            });
+        });
+        
+        historyContent.querySelectorAll('.delete-history-file').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const index = this.getAttribute('data-index');
+                
+                // 删除历史记录
+                fileHistory.splice(index, 1);
+                localStorage.setItem(storageKey, JSON.stringify(fileHistory));
+                
+                // 从界面中移除
+                const historyItem = this.closest('.inline-history-item');
+                historyItem.classList.add('fade-out');
+                setTimeout(() => {
+                    historyItem.remove();
+                    
+                    // 如果没有更多历史记录，显示空历史消息
+                    if (historyContent.querySelectorAll('.inline-history-item').length === 0) {
+                        historyContent.innerHTML = `
+                            <div class="empty-history-message">
+                                <i class="bi bi-inbox text-muted"></i>
+                                <p>暂无历史文件记录</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // 显示消息
+                    showToast('已删除历史文件', 'info');
+                }, 300);
+            });
+        });
+    } catch (error) {
+        console.error('加载文件历史记录失败:', error);
+        const historyContent = document.getElementById('fileHistoryContent');
+        if (historyContent) {
+            historyContent.innerHTML = `
+                <div class="error-message">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p>加载历史记录失败</p>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
@@ -163,6 +330,9 @@ function saveFileToHistory(fileName, fileContent) {
         
         // 保存到本地存储
         localStorage.setItem(storageKey, JSON.stringify(fileHistory));
+        
+        // 重新加载内联显示的历史记录
+        loadFileHistoryInline();
     } catch (error) {
         console.error('保存文件历史记录失败:', error);
     }
@@ -357,6 +527,6 @@ window.fileUploadModule = {
     parseSentencesFromFile,
     getCurrentFileName: () => currentFileName,
     getCurrentFileContent: () => currentFileContent,
-    showFileHistory,
+    loadFileHistoryInline,
     getCurrentUsername   // 导出获取用户名的函数供其他模块使用
 };

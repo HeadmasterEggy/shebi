@@ -1289,7 +1289,7 @@ body {
     width: 100% !important;
     height: 100% !important;
     min-height: 300px !important;
-    visibility: visible !important;
+    visibility: visible !重要;
     opacity: 1 !important;
     position: relative !important; /* 确保定位正确 */
     z-index: 1; /* 确保在顶层 */
@@ -1725,4 +1725,182 @@ body {
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* 文本输入指南样式 */
+.text-guide {
+    margin-bottom: 15px;
+}
+
+.guide-card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.guide-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.guide-header {
+    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+    cursor: pointer;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+}
+
+.guide-toggle {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.guide-toggle:hover {
+    opacity: 1;
+}
+
+.guide-content {
+    background-color: #fff;
+    font-size: 0.95rem;
+    padding: 15px;
+}
+
+.guide-title {
+    color: #495057;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.guide-tips {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.guide-tips li {
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.guide-examples {
+    background-color: #f8f9fa;
+    border-left: 4px solid #dee2e6;
+    padding: 10px 15px;
+    border-radius: 0 6px 6px 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.guide-examples p {
+    margin-bottom: 5px;
+}
+
+/* 内联文件历史记录样式 */
+.file-history-container {
+    margin-top: 1.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.history-header {
+    padding: 10px 15px;
+    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.history-content {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background-color: #fff;
+}
+
+.inline-history-item {
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    background-color: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.inline-history-item:hover {
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    border-color: #dee2e6;
+}
+
+.inline-history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.inline-history-item-title {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70%;
+}
+
+.inline-history-item-date {
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+.inline-history-item-preview {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 8px;
+    background-color: #f8f9fa;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inline-history-item-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.empty-history-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    color: #6c757d;
+}
+
+.empty-history-message i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.empty-history-message p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* 确保文本历史记录容器的样式与文件历史记录容器一致 */
+.text-history-container {
+    margin-top: 1.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
 }
