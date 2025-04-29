@@ -1252,8 +1252,11 @@ body {
 
 /* 修复图表容器样式 */
 #chartView {
-    display: none; /* 初始隐藏，切换时显示 */
-    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 15px 0;
+    width: 100%;
 }
 
 #wordFreqCharts {
@@ -1541,5 +1544,47 @@ body {
 @media (max-width: 992px) {
     .word-freq-charts-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* 横向排列图表的容器 */
+.charts-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* 半宽度图表容器 */
+.chart-half {
+    flex: 1;
+    min-width: calc(50% - 10px);
+    background-color: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    min-height: 350px;
+}
+
+/* 图表标题样式 */
+.chart-title {
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: 500;
+    color: #495057;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* 响应式设计 - 小屏幕上垂直堆叠 */
+@media (max-width: 992px) {
+    .charts-row {
+        flex-direction: column;
+    }
+    
+    .chart-half {
+        width: 100%;
+        margin-bottom: 20px;
     }
 }

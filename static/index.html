@@ -268,15 +268,26 @@
                         </div>
                     </div>
                     <div id="chartView" style="display: none;">
-                        <!-- 修改为更灵活的布局结构 -->
-                        <div class="charts-grid-layout">
-                            <div class="chart-wrapper chart-wide">
+                        <!-- 第一行：整体情感分布和情感多维分析 -->
+                        <div class="charts-row">
+                            <div class="chart-wrapper chart-half">
+                                <h6 class="chart-title">整体情感分布</h6>
                                 <div id="sentimentPieChart" class="chart"></div>
                             </div>
-                            <div class="chart-wrapper">
+                            <div class="chart-wrapper chart-half">
+                                <h6 class="chart-title">情感多维分析</h6>
+                                <div id="sentimentRadarChart" class="chart"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 第二行：句子情感分布和情感分析散点图 -->
+                        <div class="charts-row">
+                            <div class="chart-wrapper chart-half">
+                                <h6 class="chart-title">句子情感分布</h6>
                                 <div id="sentimentBarChart" class="chart"></div>
                             </div>
-                            <div class="chart-wrapper">
+                            <div class="chart-wrapper chart-half">
+                                <h6 class="chart-title">情感分析散点图</h6>
                                 <div id="sentimentScatterChart" class="chart"></div>
                             </div>
                         </div>

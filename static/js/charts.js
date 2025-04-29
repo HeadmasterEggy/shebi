@@ -19,6 +19,8 @@ function initCharts(data) {
             const pieChart = initSentimentPieChart(data);
             const barChart = initSentimentBarChart(data);
             const scatterChart = initSentimentScatterChart(data);
+            // 新增雷达图初始化
+            const radarChart = initSentimentRadarChart(data);
             
             // 添加词频图表初始化 - 确保按顺序进行初始化
             const wordFreqBarChart = initWordFreqBarChart(data);
@@ -37,6 +39,7 @@ function initCharts(data) {
                 pieChart,
                 barChart,
                 scatterChart,
+                radarChart,  // 添加雷达图实例
                 wordFreqBarChart,
                 wordCloudChart: null // 先设置为null，后面更新
             };
@@ -59,6 +62,7 @@ function checkChartContainers() {
         'sentimentPieChart',
         'sentimentBarChart',
         'sentimentScatterChart',
+        'sentimentRadarChart',  // 添加雷达图容器检查
         'wordFreqBarChart',  // 添加词频图表容器
         'wordCloudChart'     // 添加词云图容器
     ];
@@ -89,7 +93,8 @@ function prepareChartContainers() {
     const containers = [
         'sentimentPieChart',
         'sentimentBarChart',
-        'sentimentScatterChart'
+        'sentimentScatterChart',
+        'sentimentRadarChart'  // 添加雷达图容器
     ];
 
     // 临时显示图表视图容器以便初始化
@@ -237,11 +242,7 @@ function initOverallPieChart(data) {
 function initSentimentPieChart(data) {
     const pieChart = echarts.init(document.getElementById('sentimentPieChart'));
     const pieOption = {
-        title: {
-            text: '整体情感分布',
-            left: 'center',
-            top: 20
-        },
+        // 移除标题，因为已在HTML中添加
         tooltip: {
             trigger: 'item',
             formatter: '{b}: {c}% ({d}%)'
@@ -297,11 +298,7 @@ function initSentimentBarChart(data) {
     }));
 
     const barOption = {
-        title: {
-            text: '句子情感分布',
-            left: 'center',
-            top: 20
-        },
+        // 移除标题，已在HTML中添加
         tooltip: {
             trigger: 'axis',
             axisPointer: {
@@ -315,14 +312,14 @@ function initSentimentBarChart(data) {
         },
         legend: {
             data: ['积极', '消极'],
-            top: 50
+            top: 10
         },
         grid: {
             left: '3%',
             right: '4%',
             bottom: '3%',
             containLabel: true,
-            top: 100
+            top: 50  // 减少顶部空间以适应同行显示
         },
         xAxis: {
             type: 'value',
@@ -333,7 +330,14 @@ function initSentimentBarChart(data) {
         },
         yAxis: {
             type: 'category',
-            data: sentenceData.map(d => d.index)
+            data: sentenceData.map(d => d.index),
+            // 当句子数量过多时只显示部分标签
+            axisLabel: {
+                interval: function(index, value) {
+                    // 当句子数量大于20时，只显示部分标签
+                    return data.sentences.length <= 20 || index % Math.ceil(data.sentences.length / 20) === 0;
+                }
+            }
         },
         series: [
             {
@@ -351,6 +355,7 @@ function initSentimentBarChart(data) {
         ]
     };
     barChart.setOption(barOption);
+    return barChart;
 }
 
 /**
@@ -366,11 +371,7 @@ function initSentimentScatterChart(data) {
     ]));
 
     const scatterOption = {
-        title: {
-            text: '情感分析散点图',
-            left: 'center',
-            top: 20
-        },
+        // 移除标题，已在HTML中添加
         tooltip: {
             trigger: 'item',
             formatter: function (params) {
@@ -383,20 +384,20 @@ function initSentimentScatterChart(data) {
         },
         legend: {
             data: ['积极', '消极'],
-            top: 50
+            top: 10
         },
         grid: {
             left: '3%',
             right: '4%',
             bottom: '3%',
             containLabel: true,
-            top: 100
+            top: 50  // 减少顶部空间以适应同行显示
         },
         xAxis: {
             type: 'value',
             name: '积极情绪概率',
             nameLocation: 'middle',
-            nameGap: 30,
+            nameGap: 25,  // 减小名称间隔
             min: 0,
             max: 100,
             axisLabel: {
@@ -407,7 +408,7 @@ function initSentimentScatterChart(data) {
             type: 'value',
             name: '置信度',
             nameLocation: 'middle',
-            nameGap: 30,
+            nameGap: 25,  // 减小名称间隔
             min: 0,
             max: 100,
             axisLabel: {
@@ -418,7 +419,7 @@ function initSentimentScatterChart(data) {
             {
                 name: '积极',
                 type: 'scatter',
-                symbolSize: 12,
+                symbolSize: 10,  // 稍微缩小点的大小
                 data: scatterData.filter(item => item[3] === 0),
                 itemStyle: {
                     color: '#28a745'
@@ -433,7 +434,7 @@ function initSentimentScatterChart(data) {
             {
                 name: '消极',
                 type: 'scatter',
-                symbolSize: 12,
+                symbolSize: 10,  // 稍微缩小点的大小
                 data: scatterData.filter(item => item[3] === 1),
                 itemStyle: {
                     color: '#dc3545'
@@ -448,6 +449,7 @@ function initSentimentScatterChart(data) {
         ]
     };
     scatterChart.setOption(scatterOption);
+    return scatterChart;
 }
 
 /**
@@ -951,6 +953,130 @@ function createFallbackPieChart(container, wordFreq) {
         return chart;
     } catch (e) {
         console.error('创建备用饼图失败:', e);
+        return null;
+    }
+}
+
+/**
+ * 初始化情感雷达图
+ * @param {Object} data - 分析结果数据 
+ */
+function initSentimentRadarChart(data) {
+    const container = document.getElementById('sentimentRadarChart');
+    if (!container) {
+        console.error('初始化情感雷达图失败: 找不到容器 #sentimentRadarChart');
+        return null;
+    }
+    
+    try {
+        // 清理已有实例
+        const existing = echarts.getInstanceByDom(container);
+        if (existing) existing.dispose();
+        
+        // 分析句子并提取情感维度
+        // 这里我们从数据中提取或生成情感维度值
+        let sentimentDimensions = {};
+        
+        // 检查是否已有多维情感数据
+        if (data.sentimentDimensions) {
+            // 使用API提供的多维情感数据
+            sentimentDimensions = data.sentimentDimensions;
+        } else {
+            // 模拟情感维度数据，实际应用中应从API获取
+            // 分析句子积极/消极比例生成模拟数据
+            const positiveRatio = data.sentences.filter(s => s.sentiment === '积极').length / data.sentences.length;
+            
+            sentimentDimensions = {
+                '愉悦程度': Math.round(positiveRatio * 70 + Math.random() * 30),
+                '愤怒程度': Math.round((1 - positiveRatio) * 50 + Math.random() * 20),
+                '悲伤程度': Math.round((1 - positiveRatio) * 40 + Math.random() * 30),
+                '恐惧程度': Math.round((1 - positiveRatio) * 30 + Math.random() * 20),
+                '惊奇程度': Math.round(Math.random() * 60 + 10),
+                '厌恶程度': Math.round((1 - positiveRatio) * 40 + Math.random() * 20)
+            };
+        }
+        
+        // 准备雷达图数据
+        const indicator = Object.keys(sentimentDimensions).map(key => ({
+            name: key,
+            max: 100
+        }));
+        
+        const seriesData = [{
+            value: Object.values(sentimentDimensions),
+            name: '情感维度'
+        }];
+        
+        // 创建雷达图
+        const chart = echarts.init(container);
+        const option = {
+            // 移除标题，因为已在HTML中添加
+            tooltip: {
+                trigger: 'item'
+            },
+            legend: {
+                data: ['情感维度'],
+                bottom: 5
+            },
+            radar: {
+                indicator: indicator,
+                radius: '65%',
+                center: ['50%', '50%'],
+                splitNumber: 5,
+                name: {
+                    textStyle: {
+                        color: '#333',
+                        fontSize: 14
+                    }
+                },
+                splitArea: {
+                    show: true,
+                    areaStyle: {
+                        color: ['rgba(250, 250, 250, 0.3)', 'rgba(200, 200, 200, 0.3)']
+                    }
+                },
+                axisLine: {
+                    lineStyle: {
+                        color: 'rgba(0, 0, 0, 0.3)'
+                    }
+                },
+                splitLine: {
+                    lineStyle: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                }
+            },
+            series: [{
+                name: '情感维度',
+                type: 'radar',
+                data: seriesData,
+                symbol: 'circle',
+                symbolSize: 8,
+                itemStyle: {
+                    color: '#4e7beb'
+                },
+                lineStyle: {
+                    width: 2
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        {
+                            offset: 0,
+                            color: 'rgba(78, 123, 235, 0.8)'
+                        },
+                        {
+                            offset: 1,
+                            color: 'rgba(78, 123, 235, 0.2)'
+                        }
+                    ])
+                }
+            }]
+        };
+        
+        chart.setOption(option);
+        return chart;
+    } catch (e) {
+        console.error('初始化情感雷达图出错:', e);
         return null;
     }
 }

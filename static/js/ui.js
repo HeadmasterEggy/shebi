@@ -44,74 +44,65 @@ function switchTab(view) {
         // 给DOM一点时间完成布局
         setTimeout(() => {
             try {
-                // 获取图表实例方法1：从全局对象获取
-                let charts = [];
-                if (window.chartInstances) {
-                    charts = [
-                        window.chartInstances.pieChart,
-                        window.chartInstances.barChart,
-                        window.chartInstances.scatterChart
-                    ].filter(chart => chart);
-                }
-
-                // 获取图表实例方法2：从DOM元素获取
-                if (charts.length === 0) {
-                    charts = [
-                        echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
-                        echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
-                        echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
-                    ].filter(chart => chart);
-                }
-
-                console.log(`找到 ${charts.length} 个图表实例`);
-
-                // 如果找不到图表实例，尝试重新初始化
-                if (charts.length === 0) {
-                    console.log('找不到图表实例，尝试重新初始化');
-                    if (window.lastAnalysisData) {
-                        console.log('使用存储的分析数据重新初始化图表');
-                        initSentimentPieChart(window.lastAnalysisData);
-                        initSentimentBarChart(window.lastAnalysisData);
-                        initSentimentScatterChart(window.lastAnalysisData);
-                    } else if (window.allSentences && window.allSentences.length > 0) {
-                        console.log('使用存储的句子数据重新初始化图表');
-                        // 构造数据对象
-                        const data = {
-                            sentences: window.allSentences,
-                            overall: {
-                                probabilities: {
-                                    positive: window.allSentences.filter(s => s.sentiment === '积极').length / window.allSentences.length * 100,
-                                    negative: window.allSentences.filter(s => s.sentiment === '消极').length / window.allSentences.length * 100
-                                }
-                            }
-                        };
-
-                        initSentimentPieChart(data);
-                        initSentimentBarChart(data);
-                        initSentimentScatterChart(data);
-                    } else {
-                        console.error('没有分析数据可用于初始化图表');
-                    }
-
-                    // 重新获取图表实例
-                    charts = [
-                        echarts.getInstanceByDom(document.getElementById('sentimentPieChart')),
-                        echarts.getInstanceByDom(document.getElementById('sentimentBarChart')),
-                        echarts.getInstanceByDom(document.getElementById('sentimentScatterChart'))
-                    ].filter(chart => chart);
-                }
-
-                // 调整所有图表大小
-                charts.forEach(chart => {
+                // 获取所有图表实例并调整大小
+                const chartIds = [
+                    'sentimentPieChart', 
+                    'sentimentBarChart', 
+                    'sentimentScatterChart',
+                    'sentimentRadarChart'  // 添加雷达图
+                ];
+                
+                chartIds.forEach(id => {
+                    const chart = echarts.getInstanceByDom(document.getElementById(id));
                     if (chart) {
                         try {
                             chart.resize();
-                            console.log('图表已调整大小');
+                            console.log(`已调整 ${id} 图表大小`);
                         } catch (e) {
-                            console.error('调整图表大小失败:', e);
+                            console.error(`调整 ${id} 图表大小失败:`, e);
                         }
+                    } else {
+                        console.log(`找不到图表实例: ${id}`);
                     }
                 });
+                
+                // 如果找不到图表实例，尝试重新初始化
+                if (window.lastAnalysisData) {
+                    console.log('使用存储的分析数据重新初始化图表');
+                    initSentimentPieChart(window.lastAnalysisData);
+                    initSentimentBarChart(window.lastAnalysisData);
+                    initSentimentScatterChart(window.lastAnalysisData);
+                    
+                    // 检查并初始化雷达图
+                    if (!echarts.getInstanceByDom(document.getElementById('sentimentRadarChart'))) {
+                        console.log('重新初始化情感雷达图');
+                        initSentimentRadarChart(window.lastAnalysisData);
+                    }
+                } else if (window.allSentences && window.allSentences.length > 0) {
+                    console.log('使用存储的句子数据重新初始化图表');
+                    // 构造数据对象
+                    const data = {
+                        sentences: window.allSentences,
+                        overall: {
+                            probabilities: {
+                                positive: window.allSentences.filter(s => s.sentiment === '积极').length / window.allSentences.length * 100,
+                                negative: window.allSentences.filter(s => s.sentiment === '消极').length / window.allSentences.length * 100
+                            }
+                        }
+                    };
+
+                    initSentimentPieChart(data);
+                    initSentimentBarChart(data);
+                    initSentimentScatterChart(data);
+                    
+                    // 检查并初始化雷达图
+                    if (!echarts.getInstanceByDom(document.getElementById('sentimentRadarChart'))) {
+                        console.log('重新初始化情感雷达图');
+                        initSentimentRadarChart(data);
+                    }
+                } else {
+                    console.error('没有分析数据可用于初始化图表');
+                }
             } catch (error) {
                 console.error('处理图表视图切换时出错:', error);
             }
