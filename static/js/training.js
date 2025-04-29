@@ -233,19 +233,6 @@ function initLossChart() {
             },
             series: [
                 {
-                    name: '训练损失',
-                    type: 'line',
-                    data: [0.5, 0.4, 0.3],
-                    lineStyle: {
-                        width: 3,
-                        color: '#4e73df'
-                    },
-                    itemStyle: {
-                        color: '#4e73df'
-                    },
-                    symbolSize: 6
-                },
-                {
                     name: '验证损失',
                     type: 'line',
                     data: [0.6, 0.5, 0.4],
@@ -268,7 +255,7 @@ function initLossChart() {
         // 再设置完整配置
         const fullOption = {
             title: {
-                text: '训练/验证损失',
+                text: '验证损失',
                 left: 'center',
                 textStyle: {
                     fontSize: 14,
@@ -292,7 +279,7 @@ function initLossChart() {
                 }
             },
             legend: {
-                data: ['训练损失', '验证损失'],
+                data: ['验证损失'],
                 bottom: 10,
                 icon: 'circle',
                 itemWidth: 10,
@@ -359,19 +346,6 @@ function initAccuracyChart() {
             },
             series: [
                 {
-                    name: '训练准确率',
-                    type: 'line',
-                    data: [80, 85, 90],
-                    lineStyle: {
-                        width: 3,
-                        color: '#1cc88a'
-                    },
-                    itemStyle: {
-                        color: '#1cc88a'
-                    },
-                    symbolSize: 6
-                },
-                {
                     name: '验证准确率',
                     type: 'line',
                     data: [75, 80, 85],
@@ -394,7 +368,7 @@ function initAccuracyChart() {
         // 再设置完整配置
         const fullOption = {
             title: {
-                text: '训练/验证准确率',
+                text: '验证准确率',
                 left: 'center',
                 textStyle: {
                     fontSize: 14,
@@ -418,7 +392,7 @@ function initAccuracyChart() {
                 }
             },
             legend: {
-                data: ['训练准确率', '验证准确率'],
+                data: ['验证准确率'],
                 bottom: 10,
                 icon: 'circle',
                 itemWidth: 10,
@@ -682,27 +656,82 @@ async function startTraining() {
     console.log("训练参数:", params);
 
     try {
-        // 隐藏占位符和错误信息
-        document.getElementById('trainingPlaceholder').classList.add('d-none');
-        document.getElementById('errorMessage').style.display = 'none';
+        // 隐藏占位符和错误信息 - 添加元素存在性检查
+        const trainingPlaceholder = document.getElementById('trainingPlaceholder');
+        if (trainingPlaceholder) {
+            trainingPlaceholder.classList.add('d-none');
+        }
+        
+        const errorMessage = document.getElementById('errorMessage');
+        if (errorMessage) {
+            errorMessage.style.display = 'none';
+        }
 
-        // 显示训练进度区域
-        document.getElementById('trainingProgress').classList.remove('d-none');
-        document.getElementById('trainingControls').classList.remove('d-none');
-        document.getElementById('modelEvaluation').classList.add('d-none');
+        // 显示训练进度区域 - 添加元素存在性检查
+        const trainingProgress = document.getElementById('trainingProgress');
+        if (trainingProgress) {
+            trainingProgress.classList.remove('d-none');
+        } else {
+            console.error('找不到训练进度区域元素 (ID: trainingProgress)');
+            throw new Error('页面缺少必要的训练进度显示元素');
+        }
+        
+        const trainingControls = document.getElementById('trainingControls');
+        if (trainingControls) {
+            trainingControls.classList.remove('d-none');
+        }
+        
+        const modelEvaluation = document.getElementById('modelEvaluation');
+        if (modelEvaluation) {
+            modelEvaluation.classList.add('d-none');
+        }
 
-        // 更新UI
-        document.getElementById('trainingStatus').textContent = '初始化中';
-        document.getElementById('trainingStatus').className = 'training-status-badge bg-secondary';
-        document.getElementById('currentEpoch').textContent = `0/${params.epochs}`;
-        document.getElementById('remainingTime').textContent = '计算中...';
-        document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('progressLabel').textContent = '0%';
-        document.getElementById('progressPercentage').textContent = '0%';
+        // 更新UI - 添加元素存在性检查
+        const elements = {
+            trainingStatus: document.getElementById('trainingStatus'),
+            currentEpoch: document.getElementById('currentEpoch'),
+            remainingTime: document.getElementById('remainingTime'),
+            progressBar: document.getElementById('progressBar'),
+            progressLabel: document.getElementById('progressLabel'),
+            progressPercentage: document.getElementById('progressPercentage'),
+            logContent: document.querySelector('.log-content')
+        };
+
+        // 更新训练状态
+        if (elements.trainingStatus) {
+            elements.trainingStatus.textContent = '初始化中';
+            elements.trainingStatus.className = 'training-status-badge bg-secondary';
+        }
+
+        // 更新当前轮次
+        if (elements.currentEpoch) {
+            elements.currentEpoch.textContent = `0/${params.epochs}`;
+        }
+
+        // 更新剩余时间
+        if (elements.remainingTime) {
+            elements.remainingTime.textContent = '计算中...';
+        }
+
+        // 更新进度条
+        if (elements.progressBar) {
+            elements.progressBar.style.width = '0%';
+        }
+
+        // 更新进度标签
+        if (elements.progressLabel) {
+            elements.progressLabel.textContent = '0%';
+        }
+
+        // 更新进度百分比
+        if (elements.progressPercentage) {
+            elements.progressPercentage.textContent = '0%';
+        }
 
         // 清空训练日志
-        const logContent = document.querySelector('.log-content');
-        if (logContent) logContent.innerHTML = '';
+        if (elements.logContent) {
+            elements.logContent.innerHTML = '';
+        }
 
         // 延迟200毫秒，确保训练进度区域已经显示出来
         setTimeout(() => {
@@ -716,14 +745,12 @@ async function startTraining() {
                     lossChart.setOption({
                         xAxis: {data: []},
                         series: [
-                            {name: '训练损失', data: []},
                             {name: '验证损失', data: []}
                         ]
                     });
                     accuracyChart.setOption({
                         xAxis: {data: []},
                         series: [
-                            {name: '训练准确率', data: []},
                             {name: '验证准确率', data: []}
                         ]
                     });
@@ -798,13 +825,27 @@ async function startTraining() {
 
     } catch (error) {
         console.error('启动训练出错:', error);
-        document.getElementById('errorMessage').textContent = '启动训练失败: ' + error.message;
-        document.getElementById('errorMessage').style.display = 'block';
+        // 显示错误消息
+        const errorElement = document.getElementById('errorMessage');
+        if (errorElement) {
+            errorElement.textContent = '启动训练失败: ' + error.message;
+            errorElement.style.display = 'block';
+        } else {
+            // 如果无法找到错误消息元素，使用alert作为退路
+            alert('启动训练失败: ' + error.message);
+        }
 
         // 恢复训练占位符
-        document.getElementById('trainingPlaceholder').classList.remove('d-none');
-        document.getElementById('trainingProgress').classList.add('d-none');
-        document.getElementById('trainingControls').classList.remove('d-none');
+        const trainingPlaceholder = document.getElementById('trainingPlaceholder');
+        const trainingProgress = document.getElementById('trainingProgress');
+        
+        if (trainingPlaceholder) {
+            trainingPlaceholder.classList.remove('d-none');
+        }
+        
+        if (trainingProgress) {
+            trainingProgress.classList.add('d-none');
+        }
 
         addTrainingLog('error', '启动训练失败: ' + error.message);
 
@@ -956,11 +997,11 @@ function updateTrainingProgress(data) {
     }
 
     // 更新图表数据
-    if (data.history && data.history.train_loss && data.history.train_loss.length > 0) {
-        const epochs = Array.from({length: data.history.train_loss.length}, (_, i) => i + 1);
+    if (data.history && data.history.val_loss && data.history.val_loss.length > 0) {
+        const epochs = Array.from({length: data.history.val_loss.length}, (_, i) => i + 1);
         if (lossChart) {
             try {
-                console.log("更新损失图表，数据长度:", data.history.train_loss.length);
+                console.log("更新损失图表，数据长度:", data.history.val_loss.length);
 
                 // 使用简单明确的方式更新
                 lossChart.setOption({
@@ -968,10 +1009,6 @@ function updateTrainingProgress(data) {
                         data: epochs
                     },
                     series: [
-                        {
-                            name: '训练损失',
-                            data: data.history.train_loss
-                        },
                         {
                             name: '验证损失',
                             data: data.history.val_loss || []
@@ -1003,10 +1040,6 @@ function updateTrainingProgress(data) {
                         data: epochs
                     },
                     series: [
-                        {
-                            name: '训练准确率',
-                            data: (data.history.train_acc || []).map(v => typeof v === 'number' ? v * 100 : 0)
-                        },
                         {
                             name: '验证准确率',
                             data: data.history.val_acc.map(v => typeof v === 'number' ? v * 100 : 0)
