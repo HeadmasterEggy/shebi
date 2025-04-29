@@ -48,67 +48,211 @@
 
 <div class="profile-container">
     <div class="container py-5">
-        <div class="row">
+        <div class="page-header mb-4">
+            <h2 class="page-title"><i class="bi bi-person-badge me-2"></i>个人资料</h2>
+            <p class="text-muted">管理您的账户信息和安全设置</p>
+        </div>
+        
+        <div class="row g-4">
+            <!-- 左侧栏 - 个人信息和快捷菜单 -->
             <div class="col-lg-4">
-                <div class="card mb-4">
-                    <div class="card-header">
+                <!-- 个人信息卡片 -->
+                <div class="card profile-card mb-4 shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-person-circle text-primary me-2"></i>
                         <h5 class="mb-0">个人信息</h5>
                     </div>
                     <div class="card-body text-center">
-                        <img src="https://via.placeholder.com/150" alt="用户头像"
-                             class="rounded-circle img-fluid" style="width: 150px;">
-                        <h5 class="my-3" id="profileUsername">加载中...</h5>
-                        <p class="text-muted mb-1" id="profileRole">用户角色</p>
-                        <p class="text-muted mb-4" id="profileEmail">用户邮箱</p>
+                        <h3 class="profile-name mb-3" id="profileUsername">加载中...</h3>
+                        <span class="profile-role-badge mb-3" id="profileRole">用户角色</span>
+                        <div class="profile-email">
+                            <i class="bi bi-envelope-fill me-2"></i>
+                            <span id="profileEmail">用户邮箱</span>
+                        </div>
+                        
+                        <div class="profile-stats mt-4">
+                            <div class="row g-0">
+                                <div class="col-6 border-end">
+                                    <div class="p-3">
+                                        <h5 class="stat-value">12</h5>
+                                        <p class="stat-label mb-0">分析记录</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-3">
+                                        <h5 class="stat-value">4</h5>
+                                        <p class="stat-label mb-0">已保存模型</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="card mb-4">
-                    <div class="card-header">
+                
+                <!-- 账户安全卡片 -->
+                <div class="card security-card mb-4 shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-shield-lock-fill text-primary me-2"></i>
                         <h5 class="mb-0">账户安全</h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
+                        <div class="security-item mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>密码强度</span>
-                                <span class="badge bg-success">强</span>
+                                <span class="security-label">密码强度</span>
+                                <span class="security-badge bg-success">强</span>
                             </div>
-                            <div class="progress" style="height: 5px;">
-                                <div class="progress-bar bg-success" role="progressbar" style="width: 80%"></div>
+                            <div class="password-strength-bar">
+                                <div class="strength-bar-fill bg-success" style="width: 85%"></div>
                             </div>
                         </div>
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-primary" data-bs-toggle="modal"
-                                    data-bs-target="#changePasswordModal">
-                                <i class="bi bi-shield-lock"></i> 修改密码
-                            </button>
+                        
+                        <div class="security-item mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="security-label">安全评分</span>
+                                <span class="security-score">85<small>/100</small></span>
+                            </div>
+                            <div class="progress-slim">
+                                <div class="progress-slim-bar" style="width: 85%"></div>
+                            </div>
                         </div>
+                        
+                        <div class="security-tips mb-4">
+                            <div class="security-tip-item">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <span>强密码已设置</span>
+                            </div>
+                            <div class="security-tip-item">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                                <span>邮箱已验证</span>
+                            </div>
+                            <div class="security-tip-item">
+                                <i class="bi bi-x-circle-fill text-danger"></i>
+                                <span>未启用双因素认证</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary d-block w-100 change-password-btn" data-bs-toggle="modal"
+                                data-bs-target="#changePasswordModal">
+                            <i class="bi bi-shield-lock me-2"></i>修改密码
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 快捷链接卡片 -->
+                <div class="card quick-links shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-lightning-charge-fill text-primary me-2"></i>
+                        <h5 class="mb-0">快捷操作</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <a href="/settings" class="quick-link-item">
+                            <i class="bi bi-gear-fill"></i>
+                            <span>系统设置</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                        <a href="/" class="quick-link-item">
+                            <i class="bi bi-house-fill"></i>
+                            <span>返回首页</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                        <a href="#" class="quick-link-item text-danger" id="logoutLink">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>退出登录</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
                     </div>
                 </div>
             </div>
+            
+            <!-- 右侧栏 - 编辑个人资料和活动记录 -->
             <div class="col-lg-8">
-                <div class="card mb-4">
-                    <div class="card-header">
+                <!-- 编辑个人资料卡片 -->
+                <div class="card edit-profile-card mb-4 shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>
                         <h5 class="mb-0">编辑个人资料</h5>
                     </div>
                     <div class="card-body">
                         <form id="profileForm">
-                            <div class="mb-3">
+                            <div class="mb-4">
                                 <label class="form-label" for="username">用户名</label>
-                                <input type="text" class="form-control" id="username" disabled>
-                                <div class="form-text">用户名不可修改</div>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                                    <input type="text" class="form-control" id="username" disabled>
+                                </div>
+                                <div class="form-hint">用户名不可修改</div>
                             </div>
-                            <div class="mb-3">
+                            
+                            <div class="mb-4">
                                 <label class="form-label" for="email">电子邮箱</label>
-                                <input type="email" class="form-control" id="email" required>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" class="form-control" id="email" required>
+                                </div>
                             </div>
+                            
+                            <div class="mb-4">
+                                <div class="divider">
+                                    <span>个性化设置</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label">显示名称</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-light"><i class="bi bi-person-badge"></i></span>
+                                    <input type="text" class="form-control" id="displayName" placeholder="显示名称（选填）">
+                                </div>
+                                <div class="form-hint">用于在系统中显示，留空则使用用户名</div>
+                            </div>
+                            
+                            <div class="notification-settings mb-4">
+                                <label class="form-label">通知偏好</label>
+                                <div class="notification-item">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                                        <label class="form-check-label" for="emailNotifications">电子邮件通知</label>
+                                    </div>
+                                    <span class="text-muted small">接收系统更新和重要提醒</span>
+                                </div>
+                                <div class="notification-item">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="systemNotifications">
+                                        <label class="form-check-label" for="systemNotifications">系统内通知</label>
+                                    </div>
+                                    <span class="text-muted small">接收系统内部通知和提醒</span>
+                                </div>
+                            </div>
+                            
                             <div id="profileMessage" class="alert d-none" role="alert"></div>
-                            <div class="text-end">
+                            
+                            <div class="form-actions">
                                 <button type="button" class="btn btn-outline-secondary me-2"
-                                        onclick="window.location.href='/'">返回首页
+                                        onclick="window.location.href='/'">
+                                    <i class="bi bi-arrow-left me-1"></i> 返回首页
                                 </button>
-                                <button type="submit" class="btn btn-primary">保存更改</button>
+                                <button type="submit" class="btn btn-primary save-btn">
+                                    <i class="bi bi-save me-1"></i> 保存更改
+                                </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+                
+                <!-- 最近活动卡片 -->
+                <div class="card user-activity-card shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-activity text-primary me-2"></i>
+                        <h5 class="mb-0">最近活动</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="timeline" id="userTimeline">
+                            <!-- 活动记录将通过JavaScript动态加载 -->
+                            <div class="timeline-empty text-center py-4 text-muted">
+                                <i class="bi bi-clock-history d-block mb-2" style="font-size: 2rem;"></i>
+                                暂无活动记录
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -119,32 +263,69 @@
 <!-- 修改密码模态框 -->
 <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel"
      aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="changePasswordModalLabel">修改密码</h5>
+                <h5 class="modal-title" id="changePasswordModalLabel">
+                    <i class="bi bi-shield-lock me-2 text-primary"></i>修改密码
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="passwordForm">
                     <div class="mb-3">
                         <label for="currentPassword" class="form-label">当前密码</label>
-                        <input type="password" class="form-control" id="currentPassword" required>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="currentPassword" required>
+                            <button class="btn btn-outline-secondary toggle-password" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">新密码</label>
-                        <input type="password" class="form-control" id="newPassword" required>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" class="form-control" id="newPassword" required>
+                            <button class="btn btn-outline-secondary toggle-password" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength mt-2" id="passwordStrength">
+                            <div class="strength-bar">
+                                <div class="strength-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="strength-text">密码强度: 未输入</span>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">确认新密码</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                            <button class="btn btn-outline-secondary toggle-password" type="button">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="password-tips mb-4">
+                        <div class="tips-title"><i class="bi bi-info-circle me-1"></i> 密码提示:</div>
+                        <ul class="tips-list">
+                            <li id="lengthTip" class="text-muted">至少8个字符</li>
+                            <li id="upperTip" class="text-muted">包含大写字母</li>
+                            <li id="numberTip" class="text-muted">包含数字</li>
+                            <li id="specialTip" class="text-muted">包含特殊字符</li>
+                        </ul>
                     </div>
                     <div id="passwordMessage" class="alert d-none" role="alert"></div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="changePasswordBtn">更新密码</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="changePasswordBtn">
+                    <i class="bi bi-check-lg me-1"></i> 确认修改
+                </button>
             </div>
         </div>
     </div>
