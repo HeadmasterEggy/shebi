@@ -452,11 +452,11 @@ body {
     width: 100%;
     height: 100%;
     width: 100% !important;
-    height: 400px !important;
-    min-height: 350px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important;
+    height: 400px !重要;
+    min-height: 350px !重要;
+    visibility: visible !重要;
+    opacity: 1 !重要;
+    position: relative !重要;
     z-index: 5;
 }
 
@@ -474,8 +474,8 @@ body {
 .chart {
     width: 100% !important;
     height: 100% !important;
-    min-height: 300px !important;
-    min-width: 200px !important; /* 添加最小宽度 */
+    min-height: 300px !重要;
+    min-width: 200px !重要; /* 添加最小宽度 */
 }
 
 .wordcloud-container {
@@ -924,6 +924,9 @@ body {
     background-color: white;
     border-bottom: 1px solid #eaeaea;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .section-header h4 {
@@ -1288,10 +1291,10 @@ body {
 #confusionMatrixChart {
     width: 100% !important;
     height: 100% !important;
-    min-height: 300px !important;
+    min-height: 300px !重要;
     visibility: visible !重要;
-    opacity: 1 !important;
-    position: relative !important; /* 确保定位正确 */
+    opacity: 1 !重要;
+    position: relative !重要; /* 确保定位正确 */
     z-index: 1; /* 确保在顶层 */
 }
 
@@ -1329,7 +1332,7 @@ body {
 
 /* 词频图表容器相关样式 */
 #wordFreq {
-    visibility: visible !important;
+    visibility: visible !重要;
     min-height: 400px;
     margin-bottom: 20px;
     width: 100%; /* 确保占用全宽 */
@@ -1350,8 +1353,8 @@ body {
 
 #wordFreqBarChart,
 #wordCloudChart {
-    height: 350px !important;
-    width: 100% !important;
+    height: 350px !重要;
+    width: 100% !重要;
 }
 
 /* 标签动画 */
@@ -1417,12 +1420,12 @@ body {
 
 #wordFreqBarChart,
 #wordCloudChart {
-    width: 100% !important;
-    height: 400px !important;
-    min-height: 300px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important;
+    width: 100% !重要;
+    height: 400px !重要;
+    min-height: 300px !重要;
+    visibility: visible !重要;
+    opacity: 1 !重要;
+    position: relative !重要;
     z-index: 5;
     margin-bottom: 20px;
 }
@@ -1492,11 +1495,11 @@ body {
 /* 词云和柱状图容器样式 */
 #wordFreqBarChart,
 #wordCloudChart {
-    width: 100% !important;
-    height: 300px !important;
-    min-height: 250px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    width: 100% !重要;
+    height: 300px !重要;
+    min-height: 250px !重要;
+    visibility: visible !重要;
+    opacity: 1 !重要;
 }
 
 /* 在小屏幕上调整为单列布局 */
@@ -1903,4 +1906,97 @@ body {
     border: 1px solid #e9ecef;
     border-radius: 8px;
     overflow: hidden;
+}
+
+/* 导出按钮样式 */
+.section-header {
+    padding: 15px 20px;
+    background-color: white;
+    border-bottom: 1px solid #eaeaea;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-header h4 {
+    margin: 0;
+    font-weight: 500;
+    color: #333;
+}
+
+.export-buttons .dropdown-toggle {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.export-buttons .dropdown-toggle:hover {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #212529;
+}
+
+.export-buttons .dropdown-toggle::after {
+    margin-left: 8px;
+}
+
+.export-buttons .dropdown-item {
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    color: #495057;
+    transition: all 0.2s ease;
+}
+
+.export-buttons .dropdown-item:hover {
+    background-color: #e9ecef;
+}
+
+.export-buttons .dropdown-item i {
+    margin-right: 5px;
+}
+
+.export-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #fff;
+    border-left: 4px solid #28a745;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 15px;
+    border-radius: 4px;
+    z-index: 1050;
+    animation: slideIn 0.3s ease-out forwards;
+    max-width: 350px;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 确保小屏幕上导出按钮的响应式显示 */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .export-buttons {
+        margin-top: 10px;
+        align-self: flex-end;
+    }
 }

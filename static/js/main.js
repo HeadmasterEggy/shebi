@@ -1281,3 +1281,219 @@ function processAnalysisResult(data) {
     // 这里应该保留原有的结果处理逻辑
     // ...
 }
+
+/**
+ * 导出分析结果为CSV或TXT文件
+ * @param {string} type - 导出类型：'overall', 'sentences', 'wordfreq'
+ * @param {string} format - 导出格式：'csv', 'txt'
+ */
+function exportResults(type, format) {
+    // 检查是否有分析结果
+    if (!window.lastAnalysisData) {
+        showToast('没有可导出的分析结果', 'warning');
+        return;
+    }
+
+    try {
+        let content = '';
+        let filename = '';
+        const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 15);
+        
+        switch (type) {
+            case 'overall':
+                content = formatOverallResults(window.lastAnalysisData, format);
+                filename = `整体分析结果_${timestamp}.${format}`;
+                break;
+            case 'sentences':
+                content = formatSentencesResults(window.lastAnalysisData.sentences, format);
+                filename = `句子分析结果_${timestamp}.${format}`;
+                break;
+            case 'wordfreq':
+                content = formatWordFreqResults(window.lastAnalysisData.wordFreq, format);
+                filename = `词频统计结果_${timestamp}.${format}`;
+                break;
+            default:
+                showToast('未知的导出类型', 'danger');
+                return;
+        }
+
+        // 创建文件下载
+        downloadFile(content, filename, format);
+        
+        // 显示成功消息
+        showToast(`已成功导出为${format.toUpperCase()}文件`, 'success');
+    } catch (error) {
+        console.error('导出结果失败:', error);
+        showToast('导出结果失败', 'danger');
+    }
+}
+
+/**
+ * 格式化整体分析结果
+ * @param {Object} data - 分析结果数据
+ * @param {string} format - 导出格式：'csv', 'txt'
+ * @returns {string} - 格式化后的内容
+ */
+function formatOverallResults(data, format) {
+    if (format === 'csv') {
+        let csv = '分析项目,结果\n';
+        csv += `整体情感,${data.overall.sentiment || 'N/A'}\n`;
+        csv += `积极概率,${(data.overall.probabilities?.positive || 0).toFixed(2)}%\n`;
+        csv += `消极概率,${(data.overall.probabilities?.negative || 0).toFixed(2)}%\n`;
+        
+        // 添加模型评估指标
+        if (data.modelMetrics) {
+            csv += `准确率,${(data.modelMetrics.accuracy * 100).toFixed(2)}%\n`;
+            csv += `F1分数,${(data.modelMetrics.f1_score * 100).toFixed(2)}%\n`;
+            csv += `召回率,${(data.modelMetrics.recall * 100).toFixed(2)}%\n`;
+        }
+        
+        // 添加混淆矩阵数据（如果有）
+        if (data.modelMetrics?.confusion_matrix) {
+            const cm = data.modelMetrics.confusion_matrix;
+            csv += '\n混淆矩阵:\n';
+            csv += ',预测积极,预测消极\n';
+            csv += `实际积极,${cm[0][0]},${cm[0][1]}\n`;
+            csv += `实际消极,${cm[1][0]},${cm[1][1]}\n`;
+        }
+        
+        return csv;
+    } else {
+        let txt = '============== 情感分析整体结果 ==============\n\n';
+        txt += `整体情感倾向: ${data.overall.sentiment || 'N/A'}\n`;
+        txt += `积极概率: ${(data.overall.probabilities?.positive || 0).toFixed(2)}%\n`;
+        txt += `消极概率: ${(data.overall.probabilities?.negative || 0).toFixed(2)}%\n\n`;
+        
+        // 添加模型评估指标
+        if (data.modelMetrics) {
+            txt += '-------------- 模型评估指标 --------------\n\n';
+            txt += `准确率: ${(data.modelMetrics.accuracy * 100).toFixed(2)}%\n`;
+            txt += `F1分数: ${(data.modelMetrics.f1_score * 100).toFixed(2)}%\n`;
+            txt += `召回率: ${(data.modelMetrics.recall * 100).toFixed(2)}%\n\n`;
+        }
+        
+        // 添加混淆矩阵数据（如果有）
+        if (data.modelMetrics?.confusion_matrix) {
+            const cm = data.modelMetrics.confusion_matrix;
+            txt += '-------------- 混淆矩阵 --------------\n\n';
+            txt += '             | 预测积极 | 预测消极 \n';
+            txt += '-------------------------------\n';
+            txt += `实际积极 |    ${cm[0][0]}    |    ${cm[0][1]}    \n`;
+            txt += `实际消极 |    ${cm[1][0]}    |    ${cm[1][1]}    \n\n`;
+        }
+        
+        txt += `分析时间: ${new Date().toLocaleString()}\n`;
+        txt += '==========================================\n';
+        return txt;
+    }
+}
+
+/**
+ * 格式化句子分析结果
+ * @param {Array} sentences - 句子分析结果数组
+ * @param {string} format - 导出格式：'csv', 'txt'
+ * @returns {string} - 格式化后的内容
+ */
+function formatSentencesResults(sentences, format) {
+    if (!sentences || sentences.length === 0) {
+        return format === 'csv' ? '没有句子分析结果\n' : '没有句子分析结果';
+    }
+    
+    if (format === 'csv') {
+        let csv = '序号,句子内容,情感倾向,积极概率,消极概率\n';
+        sentences.forEach((sentence, index) => {
+            // 处理CSV中的引号和逗号
+            const content = `"${sentence.text.replace(/"/g, '""')}"`;
+            const sentiment = sentence.sentiment || 'N/A';
+            const positive = (sentence.probabilities?.positive || 0).toFixed(2);
+            const negative = (sentence.probabilities?.negative || 0).toFixed(2);
+            csv += `${index + 1},${content},${sentiment},${positive},${negative}\n`;
+        });
+        return csv;
+    } else {
+        let txt = '============== 句子分析结果 ==============\n\n';
+        txt += `共分析 ${sentences.length} 个句子\n\n`;
+        
+        sentences.forEach((sentence, index) => {
+            txt += `[${index + 1}] 句子: ${sentence.text}\n`;
+            txt += `    情感倾向: ${sentence.sentiment || 'N/A'}\n`;
+            txt += `    积极概率: ${(sentence.probabilities?.positive || 0).toFixed(2)}%\n`;
+            txt += `    消极概率: ${(sentence.probabilities?.negative || 0).toFixed(2)}%\n\n`;
+        });
+        
+        txt += `分析时间: ${new Date().toLocaleString()}\n`;
+        txt += '==========================================\n';
+        return txt;
+    }
+}
+
+/**
+ * 格式化词频统计结果
+ * @param {Array} wordFreq - 词频统计数组
+ * @param {string} format - 导出格式：'csv', 'txt'
+ * @returns {string} - 格式化后的内容
+ */
+function formatWordFreqResults(wordFreq, format) {
+    if (!wordFreq || wordFreq.length === 0) {
+        return format === 'csv' ? '没有词频统计结果\n' : '没有词频统计结果';
+    }
+    
+    // 对词频排序（从高到低）
+    const sortedWordFreq = [...wordFreq].sort((a, b) => b.count - a.count);
+    
+    if (format === 'csv') {
+        let csv = '排名,词语,出现次数\n';
+        sortedWordFreq.forEach((item, index) => {
+            const word = `"${item.word.replace(/"/g, '""')}"`;
+            csv += `${index + 1},${word},${item.count}\n`;
+        });
+        return csv;
+    } else {
+        let txt = '============== 词频统计结果 ==============\n\n';
+        txt += `共统计 ${sortedWordFreq.length} 个词语\n\n`;
+        txt += '排名\t词语\t出现次数\n';
+        txt += '---------------------------------------\n';
+        
+        sortedWordFreq.forEach((item, index) => {
+            txt += `${(index + 1).toString().padEnd(4)}\t${item.word.padEnd(12, ' ')}\t${item.count}\n`;
+        });
+        
+        txt += '\n';
+        txt += `分析时间: ${new Date().toLocaleString()}\n`;
+        txt += '==========================================\n';
+        return txt;
+    }
+}
+
+/**
+ * 下载文件的通用函数
+ * @param {string} content - 文件内容
+ * @param {string} filename - 文件名
+ * @param {string} format - 文件格式：'csv', 'txt'
+ */
+function downloadFile(content, filename, format) {
+    // 创建Blob对象
+    let blob;
+    if (format === 'csv') {
+        // 为CSV添加BOM，解决Excel中文乱码问题
+        blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), content], { type: 'text/csv;charset=utf-8' });
+    } else {
+        blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    }
+    
+    // 创建下载链接
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    
+    // 添加到页面并触发点击
+    document.body.appendChild(link);
+    link.click();
+    
+    // 清理
+    setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+    }, 100);
+}

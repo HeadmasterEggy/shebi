@@ -163,6 +163,18 @@
         <div class="content-section" id="overall-section">
             <div class="section-header">
                 <h4>整体分析结果</h4>
+                <!-- 添加导出按钮 -->
+                <div class="export-buttons">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportOverallBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download"></i> 导出结果
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportOverallBtn">
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('overall', 'csv')">导出为CSV</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('overall', 'txt')">导出为TXT</a></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div class="section-body">
                 <div id="overallResult" class="result-card show">
@@ -208,6 +220,18 @@
         <div class="content-section" id="sentences-section">
             <div class="section-header">
                 <h4>句子分析结果</h4>
+                <!-- 添加导出按钮 -->
+                <div class="export-buttons">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportSentencesBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download"></i> 导出结果
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportSentencesBtn">
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('sentences', 'csv')">导出为CSV</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('sentences', 'txt')">导出为TXT</a></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div class="section-body">
                 <div id="sentenceResults" class="result-card show">
@@ -300,6 +324,18 @@
         <div class="content-section" id="word-freq-section">
             <div class="section-header">
                 <h4>词频统计</h4>
+                <!-- 添加导出按钮 -->
+                <div class="export-buttons">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="exportWordFreqBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download"></i> 导出结果
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportWordFreqBtn">
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('wordfreq', 'csv')">导出为CSV</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportResults('wordfreq', 'txt')">导出为TXT</a></li>
+                        </ul>
+                    </div>
+                </div>
             </div>
             <div class="section-body">
                 <!-- 词频标签区域 - 保留这部分 -->
