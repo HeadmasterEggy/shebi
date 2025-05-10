@@ -27,6 +27,7 @@ from lstm_model import LSTM_attention, LSTMModel
 from models import db, User
 # 导入模型工具模块
 from utils import initialize_model
+from scraper_api import scraper_bp
 
 # 配置日志
 logging.basicConfig(
@@ -51,6 +52,7 @@ login_manager.init_app(app)
 
 # 注册认证蓝图
 app.register_blueprint(auth, url_prefix='/auth')
+app.register_blueprint(scraper_bp)
 
 # 添加安全全局类
 torch.serialization.add_safe_globals([

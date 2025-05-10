@@ -1421,11 +1421,11 @@ body {
 #wordFreqBarChart,
 #wordCloudChart {
     width: 100% !important;
-    height: 400px !important;
-    min-height: 300px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: relative !important;
+    height: 400px !;
+    min-height: 300px !;
+    visibility: visible !;
+    opacity: 1 !;
+    position: relative !;
     z-index: 5;
     margin-bottom: 20px;
 }
@@ -1495,11 +1495,11 @@ body {
 /* 词云和柱状图容器样式 */
 #wordFreqBarChart,
 #wordCloudChart {
-    width: 100% !important;
-    height: 300px !important;
-    min-height: 250px !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    width: 100% !;
+    height: 300px !;
+    min-height: 250px !;
+    visibility: visible !;
+    opacity: 1 !;
 }
 
 /* 在小屏幕上调整为单列布局 */
@@ -1998,5 +1998,79 @@ body {
     .export-buttons {
         margin-top: 10px;
         align-self: flex-end;
+    }
+}
+
+/* 网络爬虫相关样式 */
+.web-scraper-container {
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.web-scraper-container .card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.web-scraper-container .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.web-scraper-container .card-header {
+    background: linear-gradient(to right, #f8f9fa, #e9ecef);
+    border-bottom: 1px solid #e9ecef;
+    padding: 10px 15px;
+}
+
+.web-scraper-container .toggle-scraper-panel {
+    padding: 0;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.web-scraper-container .toggle-scraper-panel:hover {
+    color: #0d6efd;
+}
+
+.web-scraper-container #scrapeStatus {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    margin-top: 12px;
+}
+
+.web-scraper-container #scrapeProgressBar {
+    height: 10px;
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+.web-scraper-container #scrapeStatusText {
+    margin-top: 5px;
+    font-size: 0.85rem;
+}
+
+/* 确保输入框样式一致 */
+.web-scraper-container .form-control {
+    height: 38px;
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+    .web-scraper-container .input-group {
+        flex-direction: column;
+    }
+    
+    .web-scraper-container .input-group > .form-control {
+        width: 100%;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    
+    .web-scraper-container .input-group > .btn {
+        width: 100%;
+        border-radius: 4px;
     }
 }

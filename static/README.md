@@ -210,6 +210,11 @@
 - **GET /api/train/status/:id**：获取训练任务状态
     - 响应：包含训练进度、当前指标和状态
 
+- **网络爬虫接口**：
+    - **POST /api/scrape/product**：爬取商品评论数据
+    - 请求体：包含url（商品链接）
+    - 响应：包含评论列表和统计信息
+
 - **认证相关接口**：
     - **POST /auth/login**：用户登录
     - **POST /auth/register**：用户注册

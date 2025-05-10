@@ -448,6 +448,154 @@ function resizeChartsInSection(sectionId) {
 }
 
 /**
+ * 初始化网络爬虫功能
+ * 添加网络爬虫相关UI元素和事件监听
+ */
+function initWebScraper() {
+    console.log('初始化网络爬虫功能');
+    
+    // 创建链接输入组件
+    const linkInputGroup = document.createElement('div');
+    linkInputGroup.className = 'web-scraper-container mt-3';
+    linkInputGroup.innerHTML = `
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-link-45deg me-2"></i>从网页获取文本
+                </h6>
+                <button type="button" class="btn btn-sm btn-link text-decoration-none toggle-scraper-panel">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+            <div class="card-body scraper-panel">
+                <div class="mb-3">
+                    <label for="productUrl" class="form-label">输入商品链接（京东）:</label>
+                    <div class="input-group">
+                        <input type="url" class="form-control" id="productUrl" 
+                            placeholder="https://item.jd.com/123456789.html">
+                        <button class="btn btn-primary" type="button" id="scrapeButton">
+                            <i class="bi bi-cloud-download me-1"></i>获取评论
+                        </button>
+                    </div>
+                    <div class="form-text">系统将爬取商品评论并自动填入文本框</div>
+                </div>
+                <div id="scrapeStatus" class="d-none">
+                    <div class="progress mb-2">
+                        <div id="scrapeProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                            role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p class="small text-muted mb-0" id="scrapeStatusText">正在准备...</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 获取文本输入区域
+    const textTab = document.getElementById('textInput-tab');
+    const textInput = document.getElementById('textInput');
+    
+    if (textTab && textInput) {
+        // 插入到文本输入框后面
+        textInput.parentNode.insertBefore(linkInputGroup, textInput.nextSibling);
+        
+        // 绑定面板切换事件
+        const toggleButton = linkInputGroup.querySelector('.toggle-scraper-panel');
+        const scraperPanel = linkInputGroup.querySelector('.scraper-panel');
+        
+        toggleButton.addEventListener('click', function() {
+            const isVisible = scraperPanel.style.display !== 'none';
+            scraperPanel.style.display = isVisible ? 'none' : 'block';
+            toggleButton.querySelector('i').classList.toggle('bi-chevron-down', !isVisible);
+            toggleButton.querySelector('i').classList.toggle('bi-chevron-up', isVisible);
+        });
+        
+        // 绑定爬取按钮事件
+        const scrapeButton = document.getElementById('scrapeButton');
+        scrapeButton.addEventListener('click', function() {
+            startScraping();
+        });
+        
+        // 链接输入框添加回车触发爬取
+        const productUrlInput = document.getElementById('productUrl');
+        productUrlInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                startScraping();
+            }
+        });
+    }
+}
+
+/**
+ * 开始网络爬虫操作
+ */
+function startScraping() {
+    const urlInput = document.getElementById('productUrl');
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        showError('请输入有效的商品链接');
+        return;
+    }
+    
+    // 验证URL格式
+    if (!url.match(/^https?:\/\/(item\.)?(jd|jingdong)\.com\/\d+\.html/)) {
+        showError('请输入有效的京东商品链接，例如：https://item.jd.com/123456789.html');
+        return;
+    }
+    
+    // 显示爬取状态
+    const scrapeStatus = document.getElementById('scrapeStatus');
+    const progressBar = document.getElementById('scrapeProgressBar');
+    const statusText = document.getElementById('scrapeStatusText');
+    
+    scrapeStatus.classList.remove('d-none');
+    progressBar.style.width = '10%';
+    statusText.textContent = '正在连接到服务器...';
+    
+    // 禁用按钮
+    const scrapeButton = document.getElementById('scrapeButton');
+    scrapeButton.disabled = true;
+    
+    // 调用爬虫API
+    window.webScraperModule.scrapeProductComments(url, 
+        // 进度回调
+        function(progress, message) {
+            progressBar.style.width = `${progress}%`;
+            statusText.textContent = message;
+        },
+        // 完成回调
+        function(comments, error) {
+            scrapeButton.disabled = false;
+            
+            if (error) {
+                progressBar.classList.remove('bg-primary');
+                progressBar.classList.add('bg-danger');
+                statusText.textContent = `爬取失败: ${error}`;
+                setTimeout(() => {
+                    scrapeStatus.classList.add('d-none');
+                    progressBar.classList.add('bg-primary');
+                    progressBar.classList.remove('bg-danger');
+                }, 3000);
+                return;
+            }
+            
+            progressBar.style.width = '100%';
+            statusText.textContent = `成功获取 ${comments.length} 条评论数据`;
+            
+            // 填充到文本输入框
+            const textInput = document.getElementById('textInput');
+            textInput.value = comments.join('\n\n');
+            
+            // 3秒后隐藏进度条
+            setTimeout(() => {
+                scrapeStatus.classList.add('d-none');
+                progressBar.style.width = '0%';
+            }, 3000);
+        }
+    );
+}
+
+/**
  * 设置界面事件监听器
  */
 function setupUIEventListeners() {
@@ -511,4 +659,7 @@ function setupUIEventListeners() {
 
     // 设置标签页事件
     setupTabButtonsEvents();
+
+    // 初始化网络爬虫功能
+    initWebScraper();
 }
