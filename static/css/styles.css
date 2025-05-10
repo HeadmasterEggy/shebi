@@ -452,11 +452,11 @@ body {
     width: 100%;
     height: 100%;
     width: 100% !important;
-    height: 400px !重要;
-    min-height: 350px !重要;
-    visibility: visible !重要;
-    opacity: 1 !重要;
-    position: relative !重要;
+    height: 400px !important;
+    min-height: 350px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
     z-index: 5;
 }
 
@@ -474,8 +474,8 @@ body {
 .chart {
     width: 100% !important;
     height: 100% !important;
-    min-height: 300px !重要;
-    min-width: 200px !重要; /* 添加最小宽度 */
+    min-height: 300px !important;
+    min-width: 200px !important; /* 添加最小宽度 */
 }
 
 .wordcloud-container {
@@ -1291,10 +1291,10 @@ body {
 #confusionMatrixChart {
     width: 100% !important;
     height: 100% !important;
-    min-height: 300px !重要;
-    visibility: visible !重要;
-    opacity: 1 !重要;
-    position: relative !重要; /* 确保定位正确 */
+    min-height: 300px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important; /* 确保定位正确 */
     z-index: 1; /* 确保在顶层 */
 }
 
@@ -1332,7 +1332,7 @@ body {
 
 /* 词频图表容器相关样式 */
 #wordFreq {
-    visibility: visible !重要;
+    visibility: visible !important;
     min-height: 400px;
     margin-bottom: 20px;
     width: 100%; /* 确保占用全宽 */
@@ -1353,8 +1353,8 @@ body {
 
 #wordFreqBarChart,
 #wordCloudChart {
-    height: 350px !重要;
-    width: 100% !重要;
+    height: 350px !important;
+    width: 100% !important;
 }
 
 /* 标签动画 */
@@ -1420,12 +1420,12 @@ body {
 
 #wordFreqBarChart,
 #wordCloudChart {
-    width: 100% !重要;
-    height: 400px !重要;
-    min-height: 300px !重要;
-    visibility: visible !重要;
-    opacity: 1 !重要;
-    position: relative !重要;
+    width: 100% !important;
+    height: 400px !important;
+    min-height: 300px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
     z-index: 5;
     margin-bottom: 20px;
 }
@@ -1495,11 +1495,11 @@ body {
 /* 词云和柱状图容器样式 */
 #wordFreqBarChart,
 #wordCloudChart {
-    width: 100% !重要;
-    height: 300px !重要;
-    min-height: 250px !重要;
-    visibility: visible !重要;
-    opacity: 1 !重要;
+    width: 100% !important;
+    height: 300px !important;
+    min-height: 250px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* 在小屏幕上调整为单列布局 */
