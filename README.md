@@ -1,6 +1,8 @@
-# Shebi 情感分析系统
+# 情感分析系统
 
-Shebi 是一个基于 Python 的中文文本情感分析平台，支持多种深度学习模型（TextCNN、LSTM、BiLSTM、Attention 等），集成了京东商品评论爬取、训练日志分析、用户管理和 Web API 服务。适用于中文文本情感分析、数据挖掘和自动化文本处理。
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HeadmasterEggy/shebi)
+
+本项目是一个基于 Python 的中文文本情感分析平台，支持多种深度学习模型（TextCNN、LSTM、BiLSTM、Attention 等），集成了京东商品评论爬取、训练日志分析、用户管理和 Web API 服务。适用于中文文本情感分析、数据挖掘和自动化文本处理。
 
 ## 主要功能
 
