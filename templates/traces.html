@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent 执行轨迹 - 情感分析系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/traces.css">
+</head>
+<body>
+<!-- 顶部导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark top-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-graph-up"></i> 情感分析系统
+        </a>
+
+        <div class="navbar-text system-title d-none d-md-block">
+            Agent 执行轨迹
+        </div>
+
+        <div class="ms-auto user-navbar-panel">
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle user-dropdown" type="button" id="userDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle"></i>
+                    <span id="navbarUsername">加载中...</span>
+                    <span id="navbarUserRole" class="badge bg-primary ms-1">用户</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="/profile"><i class="bi bi-person"></i> 个人资料</a></li>
+                    <li><a class="dropdown-item active" href="/traces" id="navbarTraces"><i class="bi bi-diagram-3"></i> Agent 执行轨迹</a></li>
+                    <li><a class="dropdown-item" href="/settings"><i class="bi bi-gear"></i> 设置</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" id="navbarLogoutBtn"><i class="bi bi-box-arrow-right"></i> 注销</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="trace-layout">
+    <!-- 左栏：run 列表 -->
+    <aside class="trace-sidebar">
+        <div class="trace-sidebar-head">
+            <h2>执行记录</h2>
+            <button class="btn btn-sm btn-outline-secondary" id="refreshBtn" title="刷新">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div id="runList" class="run-list">
+            <p class="trace-hint">加载中…</p>
+        </div>
+    </aside>
+
+    <!-- 右栏：时间线 -->
+    <main class="trace-main">
+        <div id="traceDetail">
+            <div class="trace-empty">
+                <i class="bi bi-diagram-3"></i>
+                <h3>选择左侧任一次执行</h3>
+                <p>
+                    每一次 agent 运行都会把完整过程落盘到 <code>runtime/traces/</code>：
+                    模型每一步在想什么、调了哪个工具、传了什么参数、拿回什么、
+                    花了多少 token 和多少钱。
+                </p>
+                <p class="trace-hint">
+                    还没有记录？跑一次
+                    <code>python scripts/demo_supervisor.py</code>
+                    就会出现。
+                </p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/shared.js"></script>
+<script src="/static/js/auth.js"></script>
+<script src="/static/js/traces.js"></script>
+</body>
+</html>

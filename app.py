@@ -8,6 +8,8 @@ import time
 import traceback
 import uuid
 
+import re
+
 import jieba
 import torch
 import torch.nn as nn
@@ -1106,6 +1108,62 @@ def get_api_info():
             {'path': '/api/admin/delete_user/<id>', 'methods': ['DELETE'], 'description': '删除用户'}
         ]
     })
+
+
+# ---------------------------------------------------------------------------
+# Agent 执行轨迹
+# ---------------------------------------------------------------------------
+# 轨迹本来就一直在往 runtime/traces/ 落盘，但只有能读 JSON 的人看得懂。
+# 把它画成一条时间线之后，"这个 agent 到底做了什么"从一句话变成一屏可点开的
+# 证据——每一步的思考、调了哪个工具、传了什么参数、拿回什么、花了多少钱。
+@app.route('/traces')
+@login_required
+def traces_page():
+    return render_template('traces.html')
+
+
+@app.route('/api/traces', methods=['GET'])
+@login_required
+def api_traces():
+    """轨迹列表，最新的在前。"""
+    from agent.trace import list_traces, load_trace
+
+    items = []
+    for run_id in reversed(list_traces()):
+        try:
+            data = load_trace(run_id)
+        except (OSError, ValueError):
+            continue
+        summary = data.get('summary', {})
+        items.append({
+            'run_id': run_id,
+            'task': data.get('task', ''),
+            'status': data.get('status', 'unknown'),
+            'model': data.get('model', ''),
+            'started_at': data.get('started_at'),
+            'records': summary.get('records'),
+            'tool_calls': summary.get('tool_calls'),
+            'roles': summary.get('roles') or [],
+            'duration_s': summary.get('duration_s'),
+            'cost_usd': summary.get('cost_usd'),
+            'total_tokens': summary.get('total_tokens'),
+            'unsupported_rate_final': summary.get('unsupported_rate_final'),
+        })
+    return jsonify({'traces': items, 'count': len(items)})
+
+
+@app.route('/api/traces/<run_id>', methods=['GET'])
+@login_required
+def api_trace_detail(run_id):
+    from agent.trace import load_trace
+
+    # run_id 会被拼进文件路径，只放行十六进制——否则 ../ 就能读到仓库里任何文件
+    if not re.fullmatch(r'[0-9a-f]{6,32}', run_id or ''):
+        return jsonify({'error': '非法的 run_id'}), 400
+    try:
+        return jsonify(load_trace(run_id))
+    except FileNotFoundError:
+        return jsonify({'error': f'找不到轨迹 {run_id}'}), 404
 
 
 def _warmup():

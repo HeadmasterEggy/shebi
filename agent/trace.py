@@ -112,7 +112,8 @@ class RunTrace:
         d["summary"] = self.summary()
         return d
 
-    def save(self, directory: str = TRACE_DIR) -> str:
+    def save(self, directory: Optional[str] = None) -> str:
+        directory = directory or TRACE_DIR
         os.makedirs(directory, exist_ok=True)
         path = os.path.join(directory, f"{self.run_id}.json")
         with open(path, "w", encoding="utf-8") as f:
@@ -120,12 +121,17 @@ class RunTrace:
         return path
 
 
-def load_trace(run_id: str, directory: str = TRACE_DIR) -> Dict[str, Any]:
+# 下面三个函数的 directory 默认值刻意写成 None 再在函数体里取 TRACE_DIR，
+# 而不是 `directory: str = TRACE_DIR`——后者在 import 时就把值绑死了，
+# 之后改 TRACE_DIR（换运行时目录、测试里指到 tmp_path）根本不生效。
+def load_trace(run_id: str, directory: Optional[str] = None) -> Dict[str, Any]:
+    directory = directory or TRACE_DIR
     with open(os.path.join(directory, f"{run_id}.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
-def list_traces(directory: str = TRACE_DIR) -> List[str]:
+def list_traces(directory: Optional[str] = None) -> List[str]:
+    directory = directory or TRACE_DIR
     if not os.path.isdir(directory):
         return []
     return sorted(f[:-5] for f in os.listdir(directory) if f.endswith(".json"))

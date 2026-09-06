@@ -26,3 +26,6 @@ instance/
 
 # 运行时产物
 metrics_log.csv
+
+# 本地 agent 工具配置，不属于项目
+.claude/

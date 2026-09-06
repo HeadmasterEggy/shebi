@@ -19,6 +19,9 @@ PROTECTED = [
     ("/api/models", "get"),
     ("/api/user", "get"),
     ("/api/admin/users", "get"),
+    ("/api/traces", "get"),
+    ("/api/traces/abcdef123456", "get"),
+    ("/traces", "get"),
 ]
 
 
