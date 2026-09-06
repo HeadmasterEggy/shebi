@@ -5,8 +5,10 @@
 基于 PyTorch 的中文文本情感分析平台，支持 TextCNN / LSTM / BiLSTM / LSTM+Attention /
 BiLSTM+Attention 五种模型，含京东评论爬虫、训练调度、日志分析与 Web 服务。
 
-> **分支说明**：`毕设完成分支` 在原毕设基础上做了一轮工程审计与修复，
-> 详见下方「本轮修复」与 [SECURITY_CLEANUP.md](SECURITY_CLEANUP.md)。
+> **分支说明**
+> - `main` —— 当前开发分支。在毕设基础上做了一轮工程审计与修复（见下方「本轮修复」），
+>   并外挂了一层 Agent（工具层 / ReAct 循环 / 多 Agent 编排 / 评论检索）。
+> - `thesis` —— 毕业设计完成时的原样快照，不含任何后续改造，需要对照时切过去即可。
 
 ---
 
