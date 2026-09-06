@@ -56,6 +56,17 @@ def get_conn() -> sqlite3.Connection:
     return _conn
 
 
+def db_path(conn: Optional[sqlite3.Connection] = None) -> str:
+    """这个连接实际连的是哪个文件。
+
+    向量索引必须和它索引的那个库绑定——测试用临时库、生产用 runtime/reviews.db，
+    索引要是认不出自己索的是谁，就会拿 A 库的 id 去 B 库里查原文。
+    """
+    conn = conn or get_conn()
+    row = conn.execute("PRAGMA database_list").fetchone()
+    return (row[2] if row else "") or ":memory:"
+
+
 def count(conn: Optional[sqlite3.Connection] = None, source: Optional[str] = None) -> int:
     conn = conn or get_conn()
     if source:

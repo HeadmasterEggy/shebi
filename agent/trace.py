@@ -28,8 +28,10 @@ TRACE_DIR = os.path.join(Config.runtime_dir, "traces")
 @dataclass
 class StepRecord:
     step: int
-    kind: str                      # llm | tool | final | error
+    kind: str                      # llm | tool | final | error | critic
     started_at: float
+    # 多 Agent 编排下由哪个角色产生：planner / collector / analyst / critic / reporter
+    role: Optional[str] = None
     latency_ms: float = 0.0
     thought: Optional[str] = None
     tool: Optional[str] = None
@@ -54,6 +56,8 @@ class RunTrace:
     answer: Optional[str] = None
     steps: List[StepRecord] = field(default_factory=list)
     budget: Dict[str, Any] = field(default_factory=dict)
+    # 编排层产物：引用校验报告、修订轮数等，评测直接读这里
+    extra: Dict[str, Any] = field(default_factory=dict)
 
     def add(self, record: StepRecord) -> StepRecord:
         self.steps.append(record)
@@ -72,6 +76,18 @@ class RunTrace:
     def repair_attempts(self) -> int:
         return sum(1 for s in self.steps if s.repaired)
 
+    @property
+    def roles_used(self) -> List[str]:
+        seen = [s.role for s in self.steps if s.role]
+        return list(dict.fromkeys(seen))
+
+    def steps_by_role(self) -> Dict[str, int]:
+        out: Dict[str, int] = {}
+        for s in self.steps:
+            if s.role:
+                out[s.role] = out.get(s.role, 0) + 1
+        return out
+
     def summary(self) -> Dict[str, Any]:
         calls = self.tool_calls
         # 注意 key 不要和 budget.snapshot() 撞车：budget 里的 steps 是循环轮数，
@@ -84,6 +100,9 @@ class RunTrace:
             "failed_tool_calls": len(self.failed_tool_calls),
             "repair_attempts": self.repair_attempts,
             "tools_used": sorted({s.tool for s in calls if s.tool}),
+            **({"roles": self.roles_used, "steps_by_role": self.steps_by_role()}
+               if self.roles_used else {}),
+            **self.extra,
             "duration_s": round((self.finished_at or time.time()) - self.started_at, 3),
             **self.budget,
         }

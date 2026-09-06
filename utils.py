@@ -38,6 +38,15 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
     """
     model_type = model_type.lower() if model_type else Config.default_model
 
+    # 必须拷一份再交给模型。nn.Embedding.from_pretrained 不复制张量，而是直接
+    # 拿它当 weight，于是模型的 embedding 与传进来的 w2vec 共享存储；随后
+    # initialize_model 里的 load_state_dict 会原地写入，把调用方的预训练词向量
+    # 一并改掉（实测最大绝对差 1.61）。后果有二：
+    #   1. 接着初始化第二个模型时，用的是上一个模型微调过的 embedding，而不是预训练值
+    #   2. 依赖 engine.w2vec 的下游（向量索引、句向量编码）会在"载入模型前后"
+    #      落到两个不同的向量空间里
+    w2vec = w2vec.clone() if hasattr(w2vec, "clone") else w2vec
+
     # 词表大小以实际词向量矩阵为准，而不是 Config 里写死的常量。
     # Config.vocab_size 曾长期停留在 54848，而 build_word2id 依据当前数据集
     # 实际产出 60723 个词；两者不一致时 padding_idx 会落到一个真实词上。

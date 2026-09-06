@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from config import Config
 from agent import store
+from agent.aspects import ASPECT_LEXICON as _ASPECT_LEXICON
 from agent.registry import ToolError, registry
 
 MAX_BATCH = 512
@@ -119,23 +120,153 @@ class SearchArgs(BaseModel):
     query: str = Field(..., min_length=1, description="检索词，例如「物流慢」「屏幕划痕」")
     k: int = Field(5, ge=1, le=50, description="返回条数")
     product_id: Optional[str] = Field(None, description="限定商品，留空则全库检索")
+    mode: Literal["hybrid", "lexical", "semantic"] = Field(
+        "hybrid",
+        description=("检索模式。hybrid（默认）字面与语义两路召回后融合，一般不用改；"
+                     "lexical 只按词面匹配，适合查具体型号、错别字；"
+                     "semantic 只按语义，适合换一种说法也要召回的场景。"))
 
 
 @registry.register(
     name="search_reviews",
-    description=("按关键词检索评论库，返回带 review_id 的原文。"
+    description=("检索评论库，返回带 review_id 的原文。默认走字面 + 语义的混合检索，"
+                 "所以「续航差」也能召回「一天要充三次电」这种没有字面重合的说法。"
                  "任何写进报告的结论都必须能引用到这里返回的 review_id。"),
     args_model=SearchArgs,
     tags=["retrieval"],
 )
-def search_reviews(query: str, k: int = 5, product_id: Optional[str] = None) -> Dict[str, Any]:
-    hits = store.search(query, k=k, product_id=product_id)
-    return {
-        "query": query,
-        "count": len(hits),
-        "reviews": [{"review_id": h["id"], "text": h["text"],
-                     "relevance": h["relevance"], "source": h["source"]} for h in hits],
-    }
+def search_reviews(query: str, k: int = 5, product_id: Optional[str] = None,
+                   mode: str = "hybrid") -> Dict[str, Any]:
+    if mode == "lexical":
+        hits = [_as_review(h) for h in store.search(query, k=k, product_id=product_id)]
+    else:
+        from agent import vectorstore
+        fn = vectorstore.semantic_search if mode == "semantic" else vectorstore.hybrid_search
+        hits = [_as_review(h) for h in fn(query, k=k, product_id=product_id)]
+    return {"query": query, "mode": mode, "count": len(hits), "reviews": hits}
+
+
+def _as_review(row: Dict[str, Any]) -> Dict[str, Any]:
+    """统一成 {review_id, text, source, ...} —— 溯源链认这个形状。"""
+    out = {"review_id": row.get("review_id", row.get("id")),
+           "text": row.get("text", ""),
+           "source": row.get("source")}
+    for key in ("relevance", "similarity", "rrf_score"):
+        if row.get(key) is not None:
+            out[key] = row[key]
+    return out
+
+
+# --------------------------------------------------------------------------
+# extract_aspects —— 方面级情感，回答「差评集中在什么方面」
+# --------------------------------------------------------------------------
+# 方面词典集中在 agent/aspects.py，Critic 与标定脚本共用同一份，
+# 避免"工具按一份词典统计、校验器按另一份判断"这种对不上的情况。
+ASPECT_LEXICON = _ASPECT_LEXICON
+
+
+class AspectArgs(BaseModel):
+    product_id: Optional[str] = Field(None, description="限定商品，留空则全库")
+    sample_limit: int = Field(200, ge=1, le=MAX_BATCH, description="参与统计的评论条数上限")
+    min_mentions: int = Field(2, ge=1, description="低于这个提及次数的方面不报出来，避免噪音")
+    model: Optional[Literal["cnn", "lstm", "bilstm", "lstm_attention", "bilstm_attention"]] = None
+
+
+@registry.register(
+    name="extract_aspects",
+    description=("按方面（物流、包装、质量、客服、价格、外观、性能、续航、屏幕、售后）"
+                 "统计评论的提及量与负面率，并给出每个方面的代表性 review_id。"
+                 "回答「差评主要集中在什么问题上」时用这个，比自己读一遍评论准得多。"),
+    args_model=AspectArgs,
+    tags=["analysis"],
+)
+def extract_aspects(product_id: Optional[str] = None, sample_limit: int = 200,
+                    min_mentions: int = 2, model: Optional[str] = None) -> Dict[str, Any]:
+    rows = store.fetch(limit=sample_limit, product_id=product_id)
+    if not rows:
+        raise ToolError("评论库里没有匹配的数据，先用 scrape_reviews 采集或检查 product_id",
+                        retryable=False)
+
+    # 一次前向把所有评论的情感算完，不要按方面分组后逐组调用
+    sentiments = classify_sentiment([r["text"] for r in rows], model=model)["results"]
+
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for row, sent in zip(rows, sentiments):
+        text = row["text"]
+        negative = sent["sentiment"] == "消极"
+        for aspect, words in ASPECT_LEXICON.items():
+            if not any(w in text for w in words):
+                continue
+            b = buckets.setdefault(aspect, {"mentions": 0, "negative": 0,
+                                            "negative_ids": [], "positive_ids": []})
+            b["mentions"] += 1
+            if negative:
+                b["negative"] += 1
+                if len(b["negative_ids"]) < 5:
+                    b["negative_ids"].append(row["id"])
+            elif len(b["positive_ids"]) < 5:
+                b["positive_ids"].append(row["id"])
+
+    aspects = []
+    for name, b in buckets.items():
+        if b["mentions"] < min_mentions:
+            continue
+        aspects.append({
+            "aspect": name,
+            "mentions": b["mentions"],
+            "negative": b["negative"],
+            "negative_rate": round(b["negative"] / b["mentions"] * 100, 2),
+            "negative_review_ids": b["negative_ids"],
+            "positive_review_ids": b["positive_ids"],
+        })
+    # 按负面数排序：问"差评集中在哪"时，最该先看到的是抱怨最多的那个方面
+    aspects.sort(key=lambda a: (-a["negative"], -a["mentions"]))
+
+    return {"product_id": product_id, "analyzed": len(rows),
+            "aspects": aspects, "model": sentiments and model or Config.default_model}
+
+
+# --------------------------------------------------------------------------
+# export_report —— 出带引用附录的 Markdown
+# --------------------------------------------------------------------------
+class ExportArgs(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120, description="报告标题")
+    body: str = Field(..., min_length=1, description="报告正文，结论后保留 [review_id: x] 标注")
+    filename: Optional[str] = Field(None, description="文件名，留空自动生成")
+
+
+@registry.register(
+    name="export_report",
+    description=("把带引用的结论导出成 Markdown 报告，正文里的 [review_id: x] 会自动"
+                 "在附录里展开成评论原文。用于交付最终成果。"),
+    args_model=ExportArgs,
+    tags=["output"],
+)
+def export_report(title: str, body: str, filename: Optional[str] = None) -> Dict[str, Any]:
+    import datetime as _dt
+    import re as _re
+
+    from agent.critic import extract_ids
+
+    cited = extract_ids(body)
+    lines = [f"# {title}", "",
+             f"> 生成时间：{_dt.datetime.now().isoformat(timespec='seconds')}",
+             f"> 引用评论 {len(cited)} 条", "", body.strip(), ""]
+    if cited:
+        lines += ["", "## 引用原文", ""]
+        for rid in cited:
+            row = store.get(rid)
+            text = row["text"] if row else "（该 review_id 不存在）"
+            lines.append(f"- **[{rid}]** {text}")
+
+    safe = _re.sub(r"[^\w\u4e00-\u9fff-]+", "_", filename or title)[:60] or "report"
+    out_dir = os.path.join(Config.runtime_dir, "reports")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{safe}.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    return {"path": path, "cited_reviews": cited, "bytes": os.path.getsize(path)}
 
 
 # --------------------------------------------------------------------------
@@ -283,6 +414,15 @@ def list_experiments(model: Optional[str] = None) -> Dict[str, Any]:
     return {"metrics": data}
 
 
-def bootstrap_store() -> int:
-    """首次使用时把数据集里的真实评论灌进检索库。"""
-    return store.seed_from_dataset()
+def bootstrap_store(build_index: bool = True) -> int:
+    """首次使用时把数据集里的真实评论灌进检索库，并准备好向量索引。
+
+    索引是懒建的：get_index 发现库里有没编码过的评论会自动补。这里显式
+    调一次，是为了把几秒钟的编码成本挪到启动阶段，而不是让 agent 的
+    第一次检索白等——和 inference.engine.warmup 是同一个思路。
+    """
+    added = store.seed_from_dataset()
+    if build_index:
+        from agent import vectorstore
+        vectorstore.get_index()
+    return added

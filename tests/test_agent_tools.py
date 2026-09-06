@@ -40,7 +40,8 @@ def test_side_effect_tools_require_confirmation():
 
 def test_read_only_tools_do_not_require_confirmation():
     for name in ("classify_sentiment", "search_reviews", "get_reviews",
-                 "aggregate_reviews", "list_experiments"):
+                 "aggregate_reviews", "list_experiments",
+                 "extract_aspects", "export_report"):
         assert registry.get(name).requires_confirmation is False
 
 
@@ -64,7 +65,7 @@ def test_classify_rejects_unknown_model_name():
 # ---------------- 检索与溯源 ----------------
 def test_search_returns_review_ids(db, monkeypatch):
     monkeypatch.setattr(store, "_conn", db)
-    res = registry.invoke("search_reviews", {"query": "物流 慢", "k": 3})
+    res = registry.invoke("search_reviews", {"query": "物流 慢", "k": 3, "mode": "lexical"})
     assert res.ok
     reviews = res.content["reviews"]
     assert reviews, "应当检索到内容"
@@ -74,7 +75,8 @@ def test_search_returns_review_ids(db, monkeypatch):
 
 def test_search_can_scope_to_one_product(db, monkeypatch):
     monkeypatch.setattr(store, "_conn", db)
-    res = registry.invoke("search_reviews", {"query": "包装 发货", "k": 5, "product_id": "p2"})
+    res = registry.invoke("search_reviews", {"query": "包装 发货", "k": 5,
+                                             "product_id": "p2", "mode": "lexical"})
     assert res.ok
     assert all(r["review_id"] == 4 for r in res.content["reviews"])
 
@@ -90,8 +92,65 @@ def test_get_reviews_reports_missing_ids(db, monkeypatch):
 
 def test_search_with_no_match_returns_empty_not_error(db, monkeypatch):
     monkeypatch.setattr(store, "_conn", db)
-    res = registry.invoke("search_reviews", {"query": "螺旋桨核聚变", "k": 3})
+    res = registry.invoke("search_reviews", {"query": "螺旋桨核聚变", "k": 3, "mode": "lexical"})
     assert res.ok and res.content["reviews"] == []
+
+
+def test_search_rejects_unknown_mode():
+    res = registry.invoke("search_reviews", {"query": "物流", "mode": "magic"})
+    assert res.ok is False and res.repair_hint
+
+
+def test_search_defaults_to_hybrid():
+    """默认走混合检索，模型不用知道有几种模式也能拿到最好的召回。"""
+    params = registry.get("search_reviews").json_schema()["function"]["parameters"]
+    assert params["properties"]["mode"]["default"] == "hybrid"
+
+
+# ---------------- 方面统计 ----------------
+@needs_w2v
+@needs_weights
+def test_extract_aspects_ranks_by_negative_volume(db, monkeypatch):
+    """问"差评集中在哪"时，最该先看到的是抱怨最多的那个方面。"""
+    monkeypatch.setattr(store, "_conn", db)
+    res = registry.invoke("extract_aspects", {"product_id": "p1", "min_mentions": 1})
+    assert res.ok
+    aspects = {a["aspect"]: a for a in res.content["aspects"]}
+    assert "物流配送" in aspects
+    assert aspects["物流配送"]["negative_review_ids"] == [1]
+    counts = [a["negative"] for a in res.content["aspects"]]
+    assert counts == sorted(counts, reverse=True), "应按负面数降序"
+
+
+@needs_w2v
+@needs_weights
+def test_extract_aspects_filters_noise_by_min_mentions(db, monkeypatch):
+    monkeypatch.setattr(store, "_conn", db)
+    res = registry.invoke("extract_aspects", {"min_mentions": 99})
+    assert res.ok and res.content["aspects"] == []
+
+
+# ---------------- 报告导出 ----------------
+def test_export_report_expands_citations_into_an_appendix(db, monkeypatch, tmp_path):
+    """报告里的 [review_id: x] 要能在附录里展开成原文——溯源链得让人点得开。"""
+    monkeypatch.setattr(store, "_conn", db)
+    monkeypatch.setattr(Config, "runtime_dir", str(tmp_path))
+    res = registry.invoke("export_report", {
+        "title": "差评分析", "body": "- 物流配送慢 [review_id: 1]"})
+    assert res.ok
+    assert res.content["cited_reviews"] == [1]
+    text = open(res.content["path"], encoding="utf-8").read()
+    assert "## 引用原文" in text
+    assert "物流很慢，等了一个星期才到" in text
+
+
+def test_export_report_marks_fabricated_ids_instead_of_silently_dropping(db, monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "_conn", db)
+    monkeypatch.setattr(Config, "runtime_dir", str(tmp_path))
+    res = registry.invoke("export_report", {
+        "title": "编造", "body": "- 质量问题 [review_id: 999999]"})
+    assert res.ok
+    assert "不存在" in open(res.content["path"], encoding="utf-8").read()
 
 
 # ---------------- 副作用工具 ----------------

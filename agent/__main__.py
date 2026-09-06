@@ -2,6 +2,7 @@
 """命令行入口。
 
     python -m agent "这批评论里差评主要集中在什么问题上？"
+    python -m agent --multi "..."     # 多 Agent 编排（含 Critic 引用校验）
     python -m agent --tools           # 列出工具与 JSON Schema
     python -m agent --trace <run_id>  # 回看一次执行轨迹
 
@@ -21,6 +22,7 @@ from agent.budget import Budget
 from agent.llm import build_client
 from agent.react import ReActAgent
 from agent.registry import registry
+from agent.supervisor import Supervisor
 from agent.trace import list_traces, load_trace
 
 
@@ -35,6 +37,8 @@ def main(argv=None) -> int:
     ap.add_argument("--tools", action="store_true", help="列出所有工具及其 JSON Schema")
     ap.add_argument("--trace", metavar="RUN_ID", help="回看一次执行轨迹")
     ap.add_argument("--traces", action="store_true", help="列出已有的 run_id")
+    ap.add_argument("--multi", action="store_true",
+                    help="走多 Agent 编排：Planner → Collector → Analyst ⇄ Critic → Reporter")
     ap.add_argument("--max-steps", type=int, default=12)
     ap.add_argument("--max-cost", type=float, default=0.50, help="成本上限（美元）")
     ap.add_argument("--yes", action="store_true", help="自动放行有副作用的工具")
@@ -63,7 +67,9 @@ def main(argv=None) -> int:
         print(json.dumps(data["summary"], ensure_ascii=False, indent=2))
         for s in data["steps"]:
             head = f"[{s['step']:>2}] {s['kind']:<5}"
-            if s["kind"] == "llm":
+            if s.get("role"):
+                head += f" [{s['role']}]"
+            if s["kind"] in ("llm", "critic"):
                 print(f"{head} {(s.get('thought') or '')[:140]}")
             elif s["kind"] == "tool":
                 mark = "ok " if s.get("ok") else "ERR"
@@ -78,19 +84,39 @@ def main(argv=None) -> int:
         return 2
 
     _tools.bootstrap_store()
+    confirm = (lambda n, a: True) if args.yes else _confirm_interactive
 
-    agent = ReActAgent(
-        client=build_client(),
-        budget=Budget(max_steps=args.max_steps, max_cost_usd=args.max_cost),
-        confirm=(lambda n, a: True) if args.yes else _confirm_interactive,
-    )
-    result = agent.run(args.task)
+    if args.multi:
+        # 五个角色跑一趟，步数天然比单体循环多；用户没显式指定就放宽
+        max_steps = args.max_steps if args.max_steps != 12 else 24
+        result = Supervisor(
+            client=build_client(),
+            budget=Budget(max_steps=max_steps, max_cost_usd=args.max_cost),
+            confirm=confirm,
+        ).run(args.task)
+    else:
+        result = ReActAgent(
+            client=build_client(),
+            budget=Budget(max_steps=args.max_steps, max_cost_usd=args.max_cost),
+            confirm=confirm,
+        ).run(args.task)
+
     path = result.trace.save()
 
     print("\n" + "=" * 60)
     print(result.answer or "(无答案)")
     print("=" * 60)
-    print(json.dumps(result.trace.summary(), ensure_ascii=False, indent=2))
+
+    critique = getattr(result, "critique", None)
+    if critique is not None:
+        print(f"\n引用校验：{critique.grounded}/{critique.total} 条结论有据，"
+              f"无据率 {critique.unsupported_rate}%"
+              f"（关卡：{' → '.join(critique.gates)}）")
+        for v in critique.verdicts:
+            print(f"  {'✓' if v.grounded else '✗'} {v.claim[:50]}"
+                  f"{'  ← ' + '；'.join(v.reasons) if v.reasons else ''}")
+
+    print("\n" + json.dumps(result.trace.summary(), ensure_ascii=False, indent=2))
     print(f"轨迹已保存: {path}")
     return 0 if result.ok else 1
 

@@ -50,6 +50,8 @@ class AgentResult:
     answer: Optional[str]
     trace: RunTrace
     status: str
+    # 超的是哪一层预算："role" 只该停这个角色，"global" 该整体收尾。
+    budget_scope: Optional[str] = None
 
     @property
     def ok(self) -> bool:
@@ -69,7 +71,8 @@ class ReActAgent:
     def __init__(self, client: LLMClient, registry: Optional[ToolRegistry] = None,
                  budget: Optional[Budget] = None, system_prompt: str = SYSTEM_PROMPT,
                  confirm: ConfirmFn = deny_all, max_repairs_per_call: int = 2,
-                 allowed_tools: Optional[List[str]] = None):
+                 allowed_tools: Optional[List[str]] = None,
+                 on_tool_result: Optional[Callable[[str, Dict[str, Any], ToolResult], None]] = None):
         self.client = client
         self.registry = registry or default_registry
         self.budget = budget or Budget()
@@ -77,10 +80,22 @@ class ReActAgent:
         self.confirm = confirm
         self.max_repairs_per_call = max_repairs_per_call
         self.allowed_tools = allowed_tools
+        # 每次工具调用成功后回调一次。Supervisor 用它把证据从工具输出里收割出来，
+        # 而不是去解析已经转成字符串的 observation——后者一改格式就崩。
+        self.on_tool_result = on_tool_result
+        self._role: Optional[str] = None
 
     # ------------------------------------------------------------------
-    def run(self, task: str) -> AgentResult:
-        trace = RunTrace(task=task, model=getattr(self.client, "model", "unknown"))
+    def run(self, task: str, trace: Optional[RunTrace] = None,
+            role: Optional[str] = None) -> AgentResult:
+        """跑一轮 ReAct。
+
+        传入 trace 时把记录追加进去而不是新建——Supervisor 就是靠这个把
+        五个角色的执行过程串成一条完整轨迹，而不是散成五份互不相干的日志。
+        """
+        own_trace = trace is None
+        trace = trace or RunTrace(task=task, model=getattr(self.client, "model", "unknown"))
+        self._role = role
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": task},
@@ -89,6 +104,8 @@ class ReActAgent:
         # 每个 tool_call_id 已经修复过几次，防止在同一个错误上死循环
         repairs: Dict[str, int] = {}
         status, answer = "error", None
+
+        budget_scope: Optional[str] = None
 
         try:
             while True:
@@ -99,7 +116,8 @@ class ReActAgent:
                     answer = response.content or ""
                     status = "completed"
                     trace.add(StepRecord(step=len(trace.steps) + 1, kind="final",
-                                         started_at=time.time(), thought=answer))
+                                         started_at=time.time(), thought=answer,
+                                         role=role))
                     break
 
                 messages.append(_assistant_message(response))
@@ -118,20 +136,26 @@ class ReActAgent:
 
         except BudgetExceeded as e:
             status = "budget_exceeded"
+            budget_scope = e.scope
             trace.add(StepRecord(step=len(trace.steps) + 1, kind="error",
-                                 started_at=time.time(), error=str(e)))
+                                 started_at=time.time(), error=str(e), role=role))
             answer = self._wrap_up(messages, trace, str(e))
         except Exception as e:  # noqa: BLE001
             logger.exception("agent 执行异常")
             status = "error"
             trace.add(StepRecord(step=len(trace.steps) + 1, kind="error",
-                                 started_at=time.time(), error=f"{type(e).__name__}: {e}"))
+                                 started_at=time.time(), error=f"{type(e).__name__}: {e}",
+                                 role=role))
 
-        trace.status = status
-        trace.answer = answer
-        trace.finished_at = time.time()
+        # 只有自己新建的 trace 才由自己收尾；被 Supervisor 复用时，
+        # 整体状态由编排层在所有角色跑完后统一写。
+        if own_trace:
+            trace.status = status
+            trace.answer = answer
+            trace.finished_at = time.time()
         trace.budget = self.budget.snapshot()
-        return AgentResult(answer=answer, trace=trace, status=status)
+        return AgentResult(answer=answer, trace=trace, status=status,
+                           budget_scope=budget_scope)
 
     # ------------------------------------------------------------------
     def _call_llm(self, messages, tools, trace: RunTrace) -> LLMResponse:
@@ -143,6 +167,7 @@ class ReActAgent:
         self.budget.add_usage(model, response.usage)
         trace.add(StepRecord(
             step=len(trace.steps) + 1, kind="llm", started_at=time.time(),
+            role=getattr(self, "_role", None),
             latency_ms=round(latency, 2), thought=response.content,
             prompt_tokens=response.usage.prompt_tokens,
             completion_tokens=response.usage.completion_tokens,
@@ -165,6 +190,7 @@ class ReActAgent:
                        "请改用无副作用的工具，或在答案中说明这一步需要用户授权。")
                 trace.add(StepRecord(step=len(trace.steps) + 1, kind="tool",
                                      started_at=time.time(), tool=call.name,
+                                     role=getattr(self, "_role", None),
                                      tool_args=call.arguments, ok=False,
                                      error="denied_by_confirmation", observation=obs))
                 return obs, False
@@ -185,9 +211,16 @@ class ReActAgent:
                     latency_ms=result.latency_ms,
                 )
 
+        if result.ok and self.on_tool_result is not None:
+            try:
+                self.on_tool_result(call.name, call.arguments, result)
+            except Exception:  # noqa: BLE001 —— 旁路回调不该影响主循环
+                logger.exception("on_tool_result 回调异常")
+
         observation = result.to_observation()
         trace.add(StepRecord(
             step=len(trace.steps) + 1, kind="tool", started_at=time.time(),
+            role=getattr(self, "_role", None),
             latency_ms=round(result.latency_ms, 2), tool=call.name,
             tool_args=call.arguments, ok=result.ok,
             observation=observation[:2000], error=result.error, repaired=repaired,

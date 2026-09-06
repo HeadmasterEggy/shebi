@@ -85,3 +85,24 @@ def test_predictions_do_not_collapse_to_one_class():
 
     acc = (preds == np.array(labels[:1024])).mean()
     assert acc > 0.75, f"测试集准确率仅 {acc:.2%}，明显低于预期"
+
+
+@needs_w2v
+@needs_weights
+def test_loading_a_model_does_not_mutate_the_pretrained_vectors():
+    """nn.Embedding.from_pretrained 不复制张量，直接拿它当 weight。
+
+    不在 create_model 里 clone 的话，initialize_model 的 load_state_dict 会
+    原地改写 engine.w2vec：接着初始化的第二个模型会从上一个模型微调过的
+    embedding 起步，而依赖 engine.w2vec 的向量索引会在"载入模型前后"
+    落到两个不同的空间里。
+    """
+    import torch
+
+    from inference import engine
+
+    before = engine.w2vec.clone()
+    model = engine.get_model(Config.default_model)
+    assert torch.equal(before, engine.w2vec), "预训练词向量被模型加载改写了"
+    assert model.embedding.weight.data_ptr() != engine.w2vec.data_ptr(), \
+        "模型 embedding 不应与 engine.w2vec 共享存储"

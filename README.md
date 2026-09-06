@@ -139,11 +139,13 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
 # 列出全部工具及其 JSON Schema
 python -m agent --tools
 
-# 离线跑通一次完整循环（不需要 API key，用剧本驱动真实工具）
-python scripts/demo_agent.py
+# 离线跑通（不需要 API key，用剧本驱动真实工具）
+python scripts/demo_agent.py         # 单体 ReAct 循环
+python scripts/demo_supervisor.py    # 多 Agent 编排 + Critic 修订闭环
 
 # 接真实模型
 AGENT_API_KEY=sk-...  python -m agent "这批评论里差评主要集中在什么问题上？"
+AGENT_API_KEY=sk-...  python -m agent --multi "这批评论里差评主要集中在什么问题上？"
 
 # 回看执行轨迹
 python -m agent --traces
@@ -168,9 +170,11 @@ AGENT_API_KEY=sk-...            AGENT_MODEL=qwen-plus       AGENT_BASE_URL=https
 | Tool | 说明 | 副作用 |
 |---|---|---|
 | `classify_sentiment` | 本地模型批量判情感，一次最多 512 条 | — |
-| `search_reviews` | 关键词检索评论，返回带 `review_id` 的原文 | — |
+| `search_reviews` | 检索评论，字面 / 语义 / 混合三种模式，返回带 `review_id` 的原文 | — |
 | `get_reviews` | 按 id 取原文，供引用溯源校验 | — |
 | `aggregate_reviews` | 整体统计：总量、情感分布、正负比 | — |
+| `extract_aspects` | 方面级统计：十类方面的提及量、负面率与代表性 id | — |
+| `export_report` | 导出 Markdown 报告，引用自动展开成原文附录 | — |
 | `list_experiments` | 各模型在测试集上的真实指标 | — |
 | `scrape_reviews` | 抓取京东商品评论 | 需人工确认 |
 | `train_model` | 按超参训练模型 | 需人工确认 |
@@ -188,6 +192,64 @@ AGENT_API_KEY=sk-...            AGENT_MODEL=qwen-plus       AGENT_BASE_URL=https
 
 先手写这一层，理解透了再考虑换 LangGraph——不是反过来。
 
+### 检索：为什么句向量这条路被推翻了
+
+评论入向量库，用的是项目自己那份 50 维预训练词向量做 SIF 加权，不调任何
+embedding API。第一版按常规做法把每条评论压成一个句向量比余弦，**实测是错的**：
+
+| 查询「续航很差」 | 排第一 | 目标「一天要充三次电」 |
+|---|---|---|
+| 句向量余弦 | 运行很流畅，玩游戏一点都不卡（0.74） | 第 5 名 |
+| 词级 MaxSim | 一天要充三次电（0.61） | **第 1 名** |
+
+根因是均值池化把内容词摊平了。改成词级加权 MaxSim（ColBERT 思路）后目标回到第一。
+索引因此存词级向量而非句向量：2000 条评论约 2.9 万个词向量、5.8MB，可接受；
+到十万条以上就该改成"先召回再重排"的两段式，接口不用变。
+
+检索默认走混合模式，词重合与向量两路召回后用 RRF 融合——RRF 只看名次不看分数，
+不需要把两路量纲不同的分数归一化。
+
+一句必须说清的话：**语义召回不承担主题过滤的职责**。MaxSim 的绝对分随语料规模
+饱和，"红烧肉的家常做法"在两千条评论上照样能拿到 0.8。挡住无据结论的是下面的
+Critic，不是检索的相似度阈值。
+
+### 多 Agent 编排与 Critic
+
+```
+Planner ──► Collector ──► Analyst ──► Critic ──┬─(不通过)─► Analyst 重做
+                │                              │
+             证据池                          (通过)
+                │                              ▼
+                └────────► 只有通过校验的引用 ──► Reporter
+```
+
+三个设计点：
+
+1. **证据池从工具返回值里收割，不从模型的话里解析。** Collector 每次工具调用成功，
+   回调就把带 `review_id` 的原文存进黑板。模型在自然语言里吹嘘"我检索到了 999 条"
+   不影响证据池。
+2. **最小工具授权。** Analyst 拿不到 `search_reviews`，想给站不住的结论现找一条证据，
+   接口层面就做不到；Planner 和 Reporter 一个工具都没有。这比在 prompt 里写
+   "请不要编造"可靠。
+3. **Critic 不调 LLM。** 让 LLM 审 LLM，审查者自己也会幻觉，还要付钱。这里五道关卡
+   全部可复算：有引用 → id 存在 → 在证据池内 → 极性一致 → 方面一致。
+
+其中极性关卡用的正是毕设自训练的那个模型——它在这里从"被展示的成果"变成了
+"系统内部的质检工序"：结论断言"差评"，被引评论就必须被本地模型判为消极。
+
+**这一关也踩过坑。** 最初用句向量余弦判断"引用切不切题"，拿评论库造了 196 条带标签
+对照集一标定，准确率只有 **59%**，约等于抛硬币——SIF 权重衡量的是"在电商评论语料里
+罕见"，而分析师写的书面语（"存在""用户""对此"）在评论语料里恰恰罕见，权重反被顶高。
+所以语义关卡被降级成可选项、默认关闭，改用上面两条确定性关卡。标定可复现：
+
+```bash
+python scripts/calibrate_critic.py
+```
+
+产出 `unsupported_rate`。`scripts/demo_supervisor.py` 跑一趟能看到它从
+**75% 降到 0%**——第一版四条结论里三条分别踩中"编造 id""无引用""极性相反"，
+重写后两条全部通过。这两个数是算出来的，不是简历上一个查无实据的百分比。
+
 ---
 
 ## 测试
@@ -196,9 +258,11 @@ AGENT_API_KEY=sk-...            AGENT_MODEL=qwen-plus       AGENT_BASE_URL=https
 SHEBI_ALLOW_DEV_SECRET=1 python -m pytest
 ```
 
-74 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
-路径可移植性、指标不可编造、推理缓存与死锁、端到端情感判定与鉴权，
-以及 agent 层的 schema 校验与自修复、三种预算终止、副作用拦截、trace 落盘。
+122 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
+预训练词向量不被模型加载改写、路径可移植性、指标不可编造、推理缓存与死锁、
+端到端情感判定与鉴权；agent 层的 schema 校验与自修复、角色/全局两级预算终止、
+副作用拦截、trace 落盘；检索层的词级 MaxSim 排序、索引按库隔离、增量编码；
+以及 Critic 五道关卡各自的拦截行为与修订闭环。
 缺少模型权重时相关用例自动跳过。
 
 ---
@@ -235,6 +299,20 @@ shebi/
 ├── scraper_api.py        # 京东评论爬虫 API
 ├── models.py / auth.py   # 用户模型与认证
 ├── config.py             # 全局配置（路径以项目根为基准）
+├── agent/
+│   ├── registry.py       # 工具注册表：pydantic schema、校验与自修复
+│   ├── tools.py          # 9 个工具
+│   ├── store.py          # SQLite 评论库（带 review_id 供溯源）
+│   ├── embedding.py      # SIF 句向量 / 词级 MaxSim，复用项目自己的词向量
+│   ├── vectorstore.py    # 词级向量索引 + RRF 混合检索
+│   ├── aspects.py        # 方面词典与极性词典（工具与 Critic 共用）
+│   ├── critic.py         # 确定性引用溯源校验
+│   ├── roles.py          # 五个角色的职责与最小工具授权
+│   ├── supervisor.py     # 多 Agent 编排与修订闭环
+│   ├── react.py          # 手写 ReAct 循环
+│   ├── budget.py         # 角色 / 全局两级预算
+│   ├── llm.py            # provider 抽象
+│   └── trace.py          # 全链路轨迹
 ├── scripts/              # 运维脚本
 ├── tests/                # pytest 用例
 └── static/ templates/    # 前端
