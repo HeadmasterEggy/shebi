@@ -61,7 +61,8 @@ class LSTMModel(nn.Module):
         self.bidirectional = bidirectional
 
         # 初始化词嵌入层, 使用预训练权重
-        self.embedding = nn.Embedding.from_pretrained(pretrained_weight)
+        # padding_idx 指向 _PAD_ 的真实索引 0，避免把填充位当成普通词参与梯度更新
+        self.embedding = nn.Embedding.from_pretrained(pretrained_weight, padding_idx=0)
         self.embedding.weight.requires_grad = update_w2v  # 控制是否微调词嵌入
 
         # 初始化LSTM编码器
@@ -145,7 +146,8 @@ class LSTM_attention(nn.Module):
         self.bidirectional = bidirectional
 
         # 初始化词嵌入层, 使用预训练权重
-        self.embedding = nn.Embedding.from_pretrained(pretrained_weight)
+        # padding_idx 指向 _PAD_ 的真实索引 0，避免把填充位当成普通词参与梯度更新
+        self.embedding = nn.Embedding.from_pretrained(pretrained_weight, padding_idx=0)
         self.embedding.weight.requires_grad = update_w2v  # 控制是否微调词嵌入
 
         # 初始化LSTM编码器

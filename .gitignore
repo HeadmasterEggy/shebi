@@ -1,7 +1,28 @@
 .ipynb_checkpoints/
 static/.ipynb_checkpoints
 __pycache__/
+*.py[cod]
 .idea
-config
-log
+.vscode
+.venv/
+venv/
+
+# 运行时产物：训练进度、超参交换文件、评测指标、临时预测文件
+runtime/
+config/
 data/pre.txt
+
+# 训练日志（如需保留历史结果，改为白名单单独提交）
+# log/
+
+# 用户数据库绝不入库：曾经把 6 个真实账号（含邮箱与密码哈希）提交进公开仓库
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# 本地环境变量
+.env
+
+# 运行时产物
+metrics_log.csv

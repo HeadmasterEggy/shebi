@@ -9,30 +9,28 @@ import traceback
 import uuid
 
 import jieba
-import pandas as pd
 import torch
 import torch.nn as nn
 from flask import Flask, jsonify, send_from_directory, render_template, request  # 添加request导入
 from flask_cors import CORS
 from flask_login import login_required, current_user
-from torch.utils.data import DataLoader
 
 from auth import auth, login_manager, admin_required
 from cnn_model import TextCNN
 from config import Config
-from data_Process import build_word2id, build_word2vec, build_id2word, prepare_data, text_to_array_nolabel, Data_set
+from data_Process import text_to_array_nolabel
 from data_Process import tokenize, clean_text
 from lstm_model import LSTM_attention, LSTMModel
 # 导入用户模型和认证模块
 from models import db, User
-# 导入模型工具模块
-from utils import initialize_model
 from scraper_api import scraper_bp
+from inference import engine
+from metrics_store import load_model_metrics
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,17 @@ jieba.initialize()
 logger.info("Jieba分词器初始化完成")
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_for_testing')
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    if os.environ.get('SHEBI_ALLOW_DEV_SECRET') == '1':
+        _secret = 'dev_key_for_testing'
+        logger.warning('未设置 SECRET_KEY，正在使用开发用默认密钥，请勿用于生产环境')
+    else:
+        raise RuntimeError(
+            '缺少 SECRET_KEY 环境变量。生产环境请设置一个随机值；'
+            '本地开发可设置 SHEBI_ALLOW_DEV_SECRET=1 使用默认密钥。'
+        )
+app.config['SECRET_KEY'] = _secret
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -70,8 +78,11 @@ torch.serialization.add_safe_globals([
 # 全局设备变量
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# 训练进程 PID 文件
+TRAIN_PID_PATH = os.path.join(Config.runtime_dir, 'train_pid.txt')
 
-def pre(word2id, model, seq_length, path):
+
+def pre(word2id, model, seq_length, path, model_type=None):
     """
     给定文本，预测其情感标签。
 
@@ -110,7 +121,7 @@ def pre(word2id, model, seq_length, path):
                         "probabilities": {"positive": 0, "negative": 0}
                     },
                     "sentences": [],
-                    "modelMetrics": {"accuracy": 0, "f1_score": 0, "recall": 0},
+                    "modelMetrics": None,
                     "wordFreq": []
                 }
 
@@ -172,39 +183,22 @@ def pre(word2id, model, seq_length, path):
                 "probabilities": {"positive": 0, "negative": 0}
             },
             "sentences": [],
-            "modelMetrics": {"accuracy": 0, "f1_score": 0, "recall": 0},
+            "modelMetrics": None,
             "wordFreq": []
         }
 
-    # 计算模型评估指标
-    try:
-        # 读取评估指标日志
-        metrics_df = pd.read_csv('metrics_log.csv')
-        # 获取最新的测试评估指标
-        validation_metrics = metrics_df[metrics_df['type'] == 'validation']
-        if not validation_metrics.empty:
-            latest_metrics = validation_metrics.iloc[-1]
-            model_metrics = {
-                "accuracy": latest_metrics['accuracy'] / 100,  # 转换为小数
-                "f1_score": latest_metrics['f1'] / 100,
-                "recall": latest_metrics['recall'] / 100
-            }
-        else:
-            # 如果没有验证数据，使用默认值
-            logger.warning("未找到验证指标数据，使用默认值")
-            model_metrics = {
-                "accuracy": 0.85,
-                "f1_score": 0.84,
-                "recall": 0.83
-            }
-    except Exception as e:
-        # 如果读取指标文件出错，使用默认值
-        logger.error(f"读取评估指标时出错: {str(e)}")
-        model_metrics = {
-            "accuracy": 0.85,
-            "f1_score": 0.84,
-            "recall": 0.83
-        }
+    # 模型评估指标。
+    #
+    # 原实现有两个问题：一是读取全局 metrics_log.csv，里面混着所有模型最近一次的
+    # 验证结果，取 iloc[-1] 拿到的未必是当前模型的；二是读不到时回落到写死的
+    # 0.85 / 0.84 / 0.83，等于在界面上展示一组从未测过的数字。
+    #
+    # 现在只认 evaluate.py 在测试集上跑出来的、按模型分开存的真实指标；
+    # 没有就返回 None，由前端显示「未评测」，绝不编造。
+    model_metrics = load_model_metrics(model_type)
+    if model_metrics is None:
+        logger.warning("模型 %s 尚无评测记录，请先运行 python evaluate.py --model %s",
+                       model_type, model_type)
 
     # 将词频统计转换为列表格式
     word_freq_list = [{"word": word, "count": count} for word, count in word_freq.items()]
@@ -250,38 +244,9 @@ def pre(word2id, model, seq_length, path):
     }
 
 
-def initialize_data():
-    """
-    初始化数据、字典和模型。
-    """
-    logging.info("初始化数据...")
-    word2id = build_word2id(Config.word2id_path)
-    id2word = build_id2word(word2id)
-
-    # 准备训练、验证和测试数据
-    train_array, train_label, val_array, val_label, test_array, test_label = prepare_data(
-        word2id,
-        train_path=Config.train_path,
-        val_path=Config.val_path,
-        test_path=Config.test_path,
-        seq_length=Config.max_sen_len,
-    )
-
-    # 创建 DataLoader
-    test_loader = Data_set(test_array, test_label)
-    test_dataloader = DataLoader(test_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
-
-    val_loader = Data_set(val_array, val_label)
-    val_dataloader = DataLoader(val_loader, batch_size=Config.batch_size, shuffle=True, num_workers=0)
-
-    return word2id, test_dataloader, val_dataloader, train_array, train_label
-
-
-# 删除 create_model 和 initialize_model 函数，使用从 model_utils 导入的函数
-
 # 读取停用词
 stopwords = []
-with open("data/stopword.txt", "r", encoding="utf-8") as f:
+with open(Config.stopword_path, "r", encoding="utf-8") as f:
     for line in f.readlines():
         stopwords.append(line.strip())
 
@@ -290,19 +255,14 @@ with open("data/stopword.txt", "r", encoding="utf-8") as f:
 with app.app_context():
     db.create_all()
 
-    # 检查是否已存在管理员账户
-    admin = User.query.filter_by(is_admin=True).first()
-    if not admin:
-        # 创建默认管理员账户
-        admin = User(
-            username='admin',
-            email='admin@example.com',
-            password='admin123',
-            is_admin=True
+    # 不再在服务启动时自动创建 admin/admin123。
+    # 任何人 clone 这个公开仓库都能读到那组凭据，等于给部署实例留了一道后门。
+    # 管理员账户改由 init_db.py 依据环境变量显式创建。
+    if not User.query.filter_by(is_admin=True).first():
+        logger.warning(
+            "数据库中没有管理员账户。请运行："
+            "ADMIN_USERNAME=... ADMIN_EMAIL=... ADMIN_PASSWORD=... python init_db.py"
         )
-        db.session.add(admin)
-        db.session.commit()
-        logger.info("已创建默认管理员账户 (admin/admin123)")
 
 
 @app.route('/')
@@ -314,8 +274,8 @@ def index():
         return render_template('login.html')
 
 
-# 定义默认模型
-default_model = "cnn"
+# 默认模型统一由 Config 提供
+default_model = Config.default_model
 
 
 @app.route('/api/models', methods=['GET'])
@@ -391,25 +351,23 @@ def analyze():
             if tokenized_text.strip():  # 只添加非空句子
                 processed_sentences.append(tokenized_text)
 
-        # 将处理后的句子写入预测文件
-        with open(Config.pre_path, 'w', encoding='utf-8') as file:
+        # 每个请求写自己的临时文件，避免并发请求互相覆盖 data/pre.txt
+        pre_file = os.path.join(Config.runtime_dir, f'pre_{uuid.uuid4().hex}.txt')
+        with open(pre_file, 'w', encoding='utf-8') as file:
             for sentence in processed_sentences:
                 file.write(sentence + '\n')
 
-        # 初始化数据
-        word2id, test_dataloader, val_dataloader, train_array, train_label = initialize_data()
-
-        # 生成 word2vec
-        logger.info("生成word2vec...")
-        w2vec = build_word2vec(Config.pre_word2vec_path, word2id, None)
-        w2vec = torch.from_numpy(w2vec).float()
-
-        # 使用导入的初始化模型函数，传入当前设备
-        model = initialize_model(model_type, w2vec, device)
+        # 词表、词向量与模型都是进程内单例，只在首次请求（或启动预热）时加载
+        word2id = engine.word2id
+        model = engine.get_model(model_type)
 
         logger.info("开始进行情感分析...")
         # 获取预测结果
-        result = pre(word2id, model, Config.max_sen_len, Config.pre_path)
+        try:
+            result = pre(word2id, model, Config.max_sen_len, pre_file, model_type)
+        finally:
+            if os.path.exists(pre_file):
+                os.remove(pre_file)
 
         # 更新结果中的文本为原始句子
         for i, sentence_result in enumerate(result['sentences']):
@@ -417,7 +375,7 @@ def analyze():
                 sentence_result['text'] = original_sentences[i]
 
         # 添加使用的模型信息到结果中
-        used_model = model_type.upper() if model_type else Config.model_name
+        used_model = (model_type or Config.default_model).upper()
         result['modelInfo'] = {
             'type': used_model
         }
@@ -805,11 +763,11 @@ def start_training():
             params['patience'] = data.get('patience', 5)
 
         # 保存参数到配置文件
-        with open('config/params.json', 'w') as f:
+        with open(Config.params_path, 'w') as f:
             json.dump(params, f)
 
         # 重置训练进度文件
-        with open('config/progress.json', 'w') as f:
+        with open(Config.progress_path, 'w') as f:
             json.dump({
                 'status': 'initializing',
                 'current_epoch': 0,
@@ -835,7 +793,7 @@ def start_training():
                                          universal_newlines=True)
 
         # 记录训练进程PID
-        with open('config/train_pid.txt', 'w') as f:
+        with open(TRAIN_PID_PATH, 'w') as f:
             f.write(str(train_process.pid))
 
         return jsonify({
@@ -854,7 +812,7 @@ def start_training():
 def get_training_progress():
     """获取训练进度"""
     try:
-        progress_file = os.path.join('config', 'progress.json')
+        progress_file = Config.progress_path
 
         # 确保文件存在
         if not os.path.exists(progress_file):
@@ -931,7 +889,7 @@ def check_training_progress():
     """获取训练进度"""
     try:
         logger.info("正在检查训练进度...")
-        progress_file = os.path.join('config', 'progress.json')
+        progress_file = Config.progress_path
 
         if not os.path.exists(progress_file):
             logger.warning("未找到进度文件，没有正在进行的训练任务")
@@ -1029,7 +987,7 @@ def pause_training():
     """暂停/继续训练进程"""
     try:
         # 由于Python的subprocess没有直接暂停功能，这里我们通过更新状态文件来模拟
-        progress_file = os.path.join('config', 'progress.json')
+        progress_file = Config.progress_path
 
         if not os.path.exists(progress_file):
             return jsonify({'error': '没有正在进行的训练任务'}), 404
@@ -1071,7 +1029,7 @@ def stop_training():
         process.terminate()
 
         # 更新进度文件
-        progress_file = os.path.join('config', 'progress.json')
+        progress_file = Config.progress_path
 
         if os.path.exists(progress_file):
             with open(progress_file, 'r+') as f:
@@ -1101,7 +1059,7 @@ def save_model():
         os.makedirs(model_dir, exist_ok=True)
 
         # 从params.json获取模型类型
-        params_file = os.path.join('config', 'params.json')
+        params_file = Config.params_path
 
         if not os.path.exists(params_file):
             return jsonify({'error': '找不到训练参数文件'}), 404
@@ -1150,5 +1108,14 @@ def get_api_info():
     })
 
 
+def _warmup():
+    """进程启动时预热词表 / 词向量 / 默认模型。"""
+    try:
+        engine.warmup()
+    except Exception as e:  # 预热失败不应阻止服务启动
+        logger.warning("推理引擎预热失败（首个请求会变慢）: %s", e)
+
+
 if __name__ == '__main__':
-    app.run(debug=False, port=5003)
+    _warmup()
+    app.run(debug=False, port=int(os.environ.get('PORT', 5003)), host=os.environ.get('HOST', '127.0.0.1'))

@@ -342,7 +342,7 @@ def create_comparison_plots(log_data, output_dir):
         plt.savefig(os.path.join(output_dir, f"{metric}_best_config_comparison.png"), dpi=300)
         plt.close()
 
-    print(f"已生成最佳配置对比图")
+    print("已生成最佳配置对比图")
 
     # 3. 专注于生成模型的dp vs wd热力图
     for model in models:
@@ -418,7 +418,7 @@ def create_comparison_plots(log_data, output_dir):
     plt.savefig(os.path.join(output_dir, "model_metrics_by_weight_decay.png"), dpi=300)
     plt.close()
 
-    print(f"已生成按dropout和weight_decay分组的性能比较图")
+    print("已生成按dropout和weight_decay分组的性能比较图")
 
 
 def generate_html_report(output_dir):

@@ -248,7 +248,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
 
 def update_training_progress(current_epoch, total_epochs, train_loss, val_loss, val_acc, status, message=None):
     """更新训练进度文件"""
-    progress_file = '/Users/joey/PycharmProjects/shebi/config/progress.json'
+    progress_file = Config.progress_path
     try:
         # 确保文件存在
         if not os.path.exists(progress_file):
@@ -318,11 +318,14 @@ def update_training_progress(current_epoch, total_epochs, train_loss, val_loss, 
 def load_params():
     """从 JSON 文件加载超参数"""
     try:
-        params_file = '/Users/joey/PycharmProjects/shebi/config/params.json'
+        params_file = Config.params_path
         with open(params_file, 'r') as f:
             params = json.load(f)
         print(f"加载的超参数: {params}")
         return params
+    except FileNotFoundError:
+        # 没有 params.json 属正常情况：直接用命令行参数 / Config 默认值
+        return {}
     except Exception as e:
         print(f"加载参数文件出错: {str(e)}")
         traceback.print_exc()

@@ -18,21 +18,22 @@ class TextCNN(nn.Module):
             pretrained_weight,
             embedding_dim,
             n_class,
+            padding_idx=0,
     ):
         super(TextCNN, self).__init__()
-        self.dropout = dropout
+        self.dropout_p = dropout
         self.vocab_size = vocab_size
         self.pad_size = pad_size
         self.filter_sizes = filter_sizes
         self.num_filters = num_filters
-        self.pretrained_weight = pretrained_weight
         self.embedding_dim = embedding_dim
         self.n_class = n_class
 
-        # 设置填充词索引
-        self.padding_idx = self.vocab_size - 1
+        # PAD 的真实索引由 build_word2id 决定，_PAD_ 固定为 0。
+        # 旧实现用 vocab_size - 1 作为 padding_idx，等于把词表末尾一个真实词当成了填充符。
+        self.padding_idx = padding_idx
 
-        # 使用预训练权重初始化嵌入层，并设置 padding_idx
+        # 使用预训练权重初始化嵌入层
         self.embedding = nn.Embedding.from_pretrained(
             pretrained_weight,
             freeze=False,
@@ -40,15 +41,25 @@ class TextCNN(nn.Module):
         )
 
         # 嵌入层后的 Dropout
-        self.embedding_dropout = nn.Dropout(p=self.dropout)
+        self.embedding_dropout = nn.Dropout(p=self.dropout_p)
 
         # 卷积层定义
         self.convs = nn.ModuleList(
             [nn.Conv2d(1, num_filters, (k, embedding_dim)) for k in filter_sizes]
         )
 
-        # 批归一化
-        self.bn = nn.BatchNorm1d(num_filters * len(filter_sizes))
+        # 归一化层。
+        #
+        # 这里原本是 nn.BatchNorm1d(num_filters * len(filter_sizes))，存在一个致命缺陷：
+        # BatchNorm 在 train() 下用当前 batch 统计量，在 eval() 下切换到 running stats。
+        # 由于嵌入层参与训练（freeze=False），特征分布在训练全程持续漂移，
+        # running_mean / running_var 始终追不上，导致 eval() 下特征被压平，
+        # 分类头退化为常数分类器 —— 验证集 6334 条全部被判为同一类（acc 49.87%），
+        # 而同一份权重改用 batch 统计量可达 76.07%。
+        #
+        # LayerNorm 在样本内部归一化，不维护 running stats，train / eval 行为完全一致，
+        # 且不受推理时 batch 大小影响（线上单条请求 batch=1，BatchNorm 在此本就不适用）。
+        self.norm = nn.LayerNorm(num_filters * len(filter_sizes))
 
         # Dropout 层
         self.dropout = nn.Dropout(dropout)
@@ -71,14 +82,14 @@ class TextCNN(nn.Module):
         前向传播方法
         """
         out = self.embedding(x)
-        out = self.embedding_dropout(out)  # 添加嵌入层 Dropout
+        out = self.embedding_dropout(out)
         out = out.unsqueeze(1)  # 增加通道维度
 
         # 卷积 + 池化
         out = torch.cat([self.conv_and_pool(out, conv) for conv in self.convs], 1)
 
-        # 批归一化 + Dropout
-        out = self.bn(out)
+        # 归一化 + Dropout
+        out = self.norm(out)
         out = self.dropout(out)
 
         # 全连接层

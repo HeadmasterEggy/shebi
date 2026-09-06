@@ -1,0 +1,17 @@
+services:
+  shebi:
+    build: .
+    ports:
+      - "5003:5003"
+    environment:
+      # 生产环境请换成随机值：openssl rand -hex 32
+      SECRET_KEY: ${SECRET_KEY:-}
+      SHEBI_ALLOW_DEV_SECRET: ${SHEBI_ALLOW_DEV_SECRET:-1}
+      HOST: 0.0.0.0
+      PORT: 5003
+    volumes:
+      # 用户库与训练产物留在宿主机，容器重建不丢
+      - ./instance:/app/instance
+      - ./model:/app/model
+      - ./runtime:/app/runtime
+      - ./log:/app/log

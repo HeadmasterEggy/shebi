@@ -216,9 +216,8 @@ def pre(word2id, model, seq_length, path, device=None):
     model.eval()  # 确保模型处于评估模式
 
     # 读取文件中的文本
-    with open(path, "r", encoding="utf-8") as file, open("data/stopword.txt", "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as file:
         texts = file.readlines()
-        stopwords = [line.strip() for line in f.readlines()]
 
     # texts = process_texts(texts, stopwords)
     predictions = []  # 用于存储预测的标签
@@ -234,7 +233,6 @@ def pre(word2id, model, seq_length, path, device=None):
         _, pred = torch.max(output_p, 1)
 
         for i in range(pred.size(0)):
-            logits = output_p[i].tolist()
             prediction = pred[i].item()
             predictions.append(prediction)
             probs = F.softmax(output_p, dim=1)

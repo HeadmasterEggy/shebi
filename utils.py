@@ -13,6 +13,12 @@ from lstm_model import LSTM_attention, LSTMModel
 logger = logging.getLogger(__name__)
 
 
+def pretrained_weight_size(w2vec):
+    """返回预训练词向量矩阵的词表大小。"""
+    return int(w2vec.shape[0])
+
+
+
 def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=None,
                  num_layers=None, dropout=None):
     """
@@ -30,7 +36,12 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
     返回:
         对应类型的模型实例
     """
-    model_type = model_type.lower() if model_type else Config.model_name.lower()
+    model_type = model_type.lower() if model_type else Config.default_model
+
+    # 词表大小以实际词向量矩阵为准，而不是 Config 里写死的常量。
+    # Config.vocab_size 曾长期停留在 54848，而 build_word2id 依据当前数据集
+    # 实际产出 60723 个词；两者不一致时 padding_idx 会落到一个真实词上。
+    vocab_size = pretrained_weight_size(w2vec)
 
     # 如果参数为None，则使用Config默认值
     embedding_dim = embedding_dim if embedding_dim is not None else Config.embedding_dim
@@ -40,32 +51,32 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
 
     if model_type == 'bilstm_attention':
         model = LSTM_attention(
-            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            vocab_size, embedding_dim, w2vec, Config.update_w2v,
             hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_1
         )
     elif model_type == 'bilstm':
         model = LSTMModel(
-            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            vocab_size, embedding_dim, w2vec, Config.update_w2v,
             hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_1
         )
     elif model_type == 'lstm_attention':
         model = LSTM_attention(
-            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            vocab_size, embedding_dim, w2vec, Config.update_w2v,
             hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_2
         )
     elif model_type == 'lstm':
         model = LSTMModel(
-            Config.vocab_size, embedding_dim, w2vec, Config.update_w2v,
+            vocab_size, embedding_dim, w2vec, Config.update_w2v,
             hidden_dim, num_layers, dropout,
             Config.n_class, Config.bidirectional_2
         )
     else:  # 默认使用CNN模型
         model = TextCNN(
             dropout,
-            Config.vocab_size,
+            vocab_size,
             Config.pad_size,
             Config.filter_sizes,
             Config.num_filters,
