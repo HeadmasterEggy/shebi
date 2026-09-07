@@ -7,8 +7,6 @@
 空结果会不会被当成满分。
 """
 
-import pytest
-
 from agent import store, tools  # noqa: F401 —— import 即完成工具注册
 from evals import agent_eval, critic_eval, report
 from evals.tasks import TASKS

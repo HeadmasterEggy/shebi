@@ -37,7 +37,8 @@ from typing import Any, Dict, List, Optional
 
 from agent import roles as role_defs
 from agent.budget import Budget, BudgetExceeded
-from agent.critic import Critic, CritiqueReport, extract_ids
+from agent.critic import (Critic, CritiqueReport, extract_claim_block,
+                          extract_ids)
 from agent.llm import LLMClient
 from agent.react import ConfirmFn, ReActAgent, deny_all
 from agent.registry import ToolRegistry, ToolResult
@@ -46,9 +47,27 @@ from agent.trace import RunTrace, StepRecord
 
 logger = logging.getLogger(__name__)
 
+
+class RoleFailed(RuntimeError):
+    """某个角色的执行循环彻底失败（API 报错、网络中断等）。
+
+    和"预算耗尽"分开：预算耗尽是预期内的收敛，这个是真出事了，
+    整条流水线必须停下并如实标记，不能交出一份看起来正常的报告。
+    """
+
 MAX_REVISIONS = 2
 # 交给 Analyst 的证据池条数上限：再多就是在烧 prompt token
 MAX_EVIDENCE = 40
+# 统计结果转交给分析师时的长度上限。方面统计一整份 JSON 可以很长，
+# 全塞进 prompt 只会把预算烧在重复的字段名上。
+MAX_STATS_CHARS = 2500
+# 分析师没按格式交作业时的整改意见
+FORMAT_FEEDBACK = (
+    "上一版没有把结论放进 <结论></结论> 标签，校验器无法读取。\n"
+    "请重新给出完整结论列表，推理过程写在标签外，标签内一行一条结论，"
+    "每条后面跟 [review_id: ...]，不要在标签内罗列证据原文或写小节标题。")
+# 哪些工具的返回值属于"统计结果"而不是"证据"
+STATS_TOOLS = ("extract_aspects", "aggregate_reviews", "list_experiments")
 
 
 @dataclass
@@ -57,6 +76,9 @@ class Blackboard:
     task: str
     plan: str = ""
     evidence: Dict[int, str] = field(default_factory=dict)
+    # 取证者跑出来的非评论类结果（方面统计、整体分布、模型指标）。
+    # 证据池只收 {review_id: text}，这些数字得单独存，否则分析师看不到。
+    stats: List[str] = field(default_factory=list)
     collector_note: str = ""
     findings: str = ""
     report: str = ""
@@ -72,6 +94,12 @@ class Blackboard:
             return "（证据池为空——取证者没有检索到任何评论）"
         items = list(self.evidence.items())[:limit]
         return "\n".join(f"[review_id: {rid}] {text}" for rid, text in items)
+
+    def stats_block(self, limit: int = MAX_STATS_CHARS) -> str:
+        if not self.stats:
+            return ""
+        block = "\n".join(self.stats)
+        return block if len(block) <= limit else block[:limit] + "\n…（已截断）"
 
     def grounded_claims(self) -> str:
         """通过校验的结论，且只保留**通过校验的那几个** review_id。
@@ -153,6 +181,11 @@ class Supervisor:
             trace.add(StepRecord(step=len(trace.steps) + 1, kind="error",
                                  started_at=time.time(), error=str(e)))
             board.report = board.report or self._fallback_answer(board, str(e))
+        except RoleFailed as e:
+            status = "error"
+            trace.add(StepRecord(step=len(trace.steps) + 1, kind="error",
+                                 started_at=time.time(), error=str(e)))
+            board.report = board.report or f"执行失败：{e}"
         except Exception as e:  # noqa: BLE001
             logger.exception("supervisor 执行异常")
             status = "error"
@@ -178,6 +211,12 @@ class Supervisor:
         """
         if result.budget_scope == "global":
             raise BudgetExceeded(f"{role_name} 阶段触及全局预算上限", "global")
+        # 角色的 ReAct 循环内部会把异常（API 报错、网络中断）兜住并把自己
+        # 标成 error 后正常返回。不在这里拦一道的话，取证者因为余额不足
+        # 一条评论都没拿到，流水线照样往下跑，最后交出一份"完成"的报告——
+        # 评测里就出现过：账户扣光了，40 条任务全部显示 completed。
+        if result.status == "error":
+            raise RoleFailed(f"{role_name} 阶段执行失败")
         return result
 
     def _agent(self, role: role_defs.Role, **kwargs) -> ReActAgent:
@@ -202,6 +241,10 @@ class Supervisor:
 
         def harvest(name: str, args: Dict[str, Any], result: ToolResult) -> None:
             harvest_evidence(result.content, board.evidence)
+            if name in STATS_TOOLS:
+                board.stats.append(
+                    f"[{name}] " + json.dumps(result.content, ensure_ascii=False,
+                                              default=str))
 
         agent = self._agent(role, on_tool_result=harvest)
         result = self._guard(
@@ -215,19 +258,26 @@ class Supervisor:
 
         for attempt in range(self.max_revisions + 1):
             board.revisions = attempt
-            brief = role_defs.analyst_brief(board.task, board.plan,
-                                            board.evidence_block(), feedback)
+            brief = role_defs.analyst_brief(
+                board.task, board.plan, board.evidence_block(),
+                stats=board.stats_block(), note=board.collector_note,
+                feedback=feedback)
             result = self._guard(self._agent(role).run(brief, trace=trace, role=role.name),
                                  role.name)
             board.findings = (result.answer or "").strip()
 
-            critique = self.critic.review(board.findings, evidence_ids=board.evidence.keys())
+            # 格式是契约的一部分：没给结论块就直接打回，不去解析那段推理。
+            # 曾经不这么做，模型在结论前写了 698 行推理和证据罗列，被数成
+            # 477 条"无据结论"——那一轮评测的引用准确率因此整个作废。
+            block = extract_claim_block(board.findings)
+            critique = self.critic.review(block or "",
+                                          evidence_ids=board.evidence.keys())
             board.critiques.append(critique)
             self._record_critique(trace, critique, attempt)
 
             if critique.passed:
                 return
-            feedback = critique.feedback()
+            feedback = critique.feedback() if block is not None else FORMAT_FEEDBACK
             # 预算快见底就别再来一轮了，把已通过的部分交出去
             if self.budget.remaining_steps <= role_defs.REPORTER.max_steps:
                 logger.info("预算不足以再修订一轮，提前收敛")

@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -27,6 +28,8 @@ from agent.budget import Budget
 from agent.llm import LLMClient
 from agent.supervisor import Supervisor
 from evals.tasks import TASKS, Task
+
+logger = logging.getLogger(__name__)
 
 # 判定"这是一次拒答"的措辞。Reporter 的 prompt 要求证据不足时如实说明，
 # Supervisor 在证据为空时也会走 _no_evidence_answer，两条路都落在这些词上。
@@ -48,6 +51,7 @@ class TaskRun:
     tokens: int = 0
     cost_usd: float = 0.0
     latency_ms: float = 0.0
+    trace_path: Optional[str] = None
     error: Optional[str] = None
 
     @property
@@ -76,6 +80,7 @@ class TaskRun:
             "cost_usd": round(self.cost_usd, 6),
             "latency_ms": round(self.latency_ms, 1),
             "answer": self.answer[:300], "error": self.error,
+            "trace": (self.trace_path or "").rsplit("/", 1)[-1].removesuffix(".json") or None,
         }
 
 
@@ -83,11 +88,19 @@ def looks_like_refusal(answer: str) -> bool:
     return any(m in (answer or "") for m in REFUSAL_MARKERS)
 
 
+# 五个角色跑一趟的真实开销，是实测出来的：单任务约 11 万 token。
+# Budget 默认的 6 万上限是给单体 ReAct 循环定的，直接拿来评测多 Agent 流水线
+# 会让每条任务都以"预算耗尽"收场——那测的是预算设错了，不是 agent 不行。
+DEFAULT_MAX_TOKENS = 200_000
+
+
 def run_task(task: Task, client: LLMClient, max_steps: int = 24,
-             max_cost: float = 0.20) -> TaskRun:
+             max_cost: float = 0.20,
+             max_tokens: int = DEFAULT_MAX_TOKENS) -> TaskRun:
     run = TaskRun(task=task)
     sup = Supervisor(client=client,
-                     budget=Budget(max_steps=max_steps, max_cost_usd=max_cost))
+                     budget=Budget(max_steps=max_steps, max_tokens=max_tokens,
+                                   max_cost_usd=max_cost))
     t0 = time.perf_counter()
     try:
         result = sup.run(task.question)
@@ -97,6 +110,12 @@ def run_task(task: Task, client: LLMClient, max_steps: int = 24,
         return run
 
     run.latency_ms = (time.perf_counter() - t0) * 1000
+    # 评测跑出来的轨迹也落盘：出了问题要能在 /traces 里逐步回看，
+    # 而不是只看到一个"完成率 40%"然后猜是哪一步坏了
+    try:
+        run.trace_path = result.trace.save()
+    except OSError as e:  # noqa: BLE001 —— 落盘失败不该让这条任务算作失败
+        logger.warning("轨迹落盘失败：%s", e)
     run.status = result.status
     run.answer = result.answer or ""
     run.refused = looks_like_refusal(run.answer)
@@ -152,7 +171,8 @@ def aggregate(runs: List[TaskRun]) -> Dict[str, Any]:
 
 def run(limit: Optional[int] = None, kind: Optional[str] = None,
         client: Optional[LLMClient] = None, max_steps: int = 24,
-        max_cost: float = 0.20) -> Dict[str, Any]:
+        max_cost: float = 0.20,
+        max_tokens: int = DEFAULT_MAX_TOKENS) -> Dict[str, Any]:
     from agent import tools as _tools
 
     tasks = [t for t in TASKS if kind is None or t.kind == kind]
@@ -164,6 +184,6 @@ def run(limit: Optional[int] = None, kind: Optional[str] = None,
         client = build_client()          # 没有 key 时在这里抛，不静默降级
 
     _tools.bootstrap_store()
-    runs = [run_task(t, client, max_steps, max_cost) for t in tasks]
+    runs = [run_task(t, client, max_steps, max_cost, max_tokens) for t in tasks]
     return {"summary": aggregate(runs), "runs": [r.to_dict() for r in runs],
             "model": getattr(client, "model", "unknown")}

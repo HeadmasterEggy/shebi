@@ -47,7 +47,7 @@ COLLECTOR = Role(
     name="collector",
     max_steps=6,
     tools=["search_reviews", "get_reviews", "aggregate_reviews",
-           "extract_aspects", "scrape_reviews"],
+           "extract_aspects", "list_experiments", "scrape_reviews"],
     system_prompt="""你是电商评论洞察团队的取证者。你的产出是证据，不是观点。
 
 工作方式：
@@ -61,22 +61,28 @@ COLLECTOR = Role(
 
 ANALYST = Role(
     name="analyst",
-    max_steps=6,
-    # 刻意不给 search_reviews：分析只能在 Collector 交上来的证据池里做
-    tools=["classify_sentiment", "get_reviews", "aggregate_reviews", "list_experiments"],
+    max_steps=4,
+    # 只留 classify_sentiment。原本还给了 get_reviews / aggregate_reviews，
+    # 结果实测下来它把这两个当成了检索工具反复重调——一条任务烧掉 14 万 token。
+    # 根因是取证者的统计结果当时没传给它（见 supervisor.analyst_brief），
+    # 补上之后它手上已经有全部素材，再给取数工具只是邀请它重新取一遍。
+    tools=["classify_sentiment"],
     system_prompt="""你是电商评论洞察团队的分析师。你只能在取证者交给你的证据池里工作。
 
-输出格式是硬性要求，校验器会逐条机器校验：
+输出格式是硬性要求，校验器会逐条机器校验。最终结论必须放在 <结论> 标签里：
 
-    - 结论一句话 [review_id: 12, 34]
-    - 结论一句话 [review_id: 56]
+<结论>
+- 结论一句话 [review_id: 12, 34]
+- 结论一句话 [review_id: 56]
+</结论>
 
 规则：
-1. 一行一条结论，每条结论后面必须跟 [review_id: ...]，id 只能来自证据池。
-2. 引用的原文必须真的在说这条结论说的事。凑一个不相干的 id 上去会被校验器当场打回。
-3. 需要判断情感倾向时用 classify_sentiment，不要凭语感。
-4. 证据不足以支撑的结论，直接不写。写三条站得住的，比写八条被打回的强。
-5. 不要写标题、不要写开场白，直接输出结论列表。""",
+1. 推理过程写在标签外面，随便写多长都不影响校验；**标签里只放最终结论，
+   一行一条，每条后面必须跟 [review_id: ...]**，id 只能来自证据池。
+2. 标签里不要罗列证据原文、不要写小节标题——那些会被当成结论去校验。
+3. 引用的原文必须真的在说这条结论说的事。凑一个不相干的 id 上去会被当场打回。
+4. 需要判断情感倾向时用 classify_sentiment，不要凭语感。
+5. 证据不足以支撑的结论，直接不写。写三条站得住的，比写八条被打回的强。""",
 )
 
 REPORTER = Role(
@@ -105,10 +111,20 @@ def collector_brief(task: str, plan: str) -> str:
 
 
 def analyst_brief(task: str, plan: str, evidence: str,
+                  stats: str = "", note: str = "",
                   feedback: Optional[str] = None) -> str:
+    """给分析师的交底。
+
+    证据池、统计结果、取证者的交代，三样都要给全。少给任何一样，分析师
+    就会拿自己手里的工具重新去取一遍——实测这一条能让单任务 token 翻五倍。
+    """
     parts = [f"用户的问题：{task}",
              f"\n规划：\n{plan}",
              f"\n取证者收集到的证据池（只能引用这里面的 review_id）：\n{evidence}"]
+    if stats:
+        parts.append(f"\n取证者跑出来的统计结果（可直接引用其中的数字）：\n{stats}")
+    if note:
+        parts.append(f"\n取证者的交代：{note}")
     if feedback:
         parts.append(f"\n⚠️ 上一版的结论没有通过引用校验，校验器的意见：\n{feedback}\n"
                      f"请重新给出**完整的**结论列表（不是只给修改的那几条）。")

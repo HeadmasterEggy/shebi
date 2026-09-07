@@ -49,6 +49,13 @@ logger = logging.getLogger(__name__)
 # 匹配 [review_id: 12, 34] / [review_id：12] / [review_ids: 12,34]
 CITATION_RE = re.compile(r"\[\s*review_ids?\s*[:：]\s*([0-9,，、\s]+?)\s*\]", re.I)
 
+# 分析师用它把结论列表和推理过程隔开。有这个块就只读块内，
+# 没有则退回"只认列表项"的宽松模式（见 parse_claims）。
+CLAIM_BLOCK_RE = re.compile(r"<结论>(.*?)</结论>", re.S)
+
+# 列表项前缀：- * • 或 "1." "1、"
+BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.、)])\s+")
+
 # 语义关卡的默认阈值。None = 关闭，理由见模块 docstring 里的标定结果。
 DEFAULT_SEMANTIC_THRESHOLD: Optional[float] = None
 
@@ -140,25 +147,54 @@ class CritiqueReport:
 
 # ---------------------------------------------------------------------------
 def parse_claims(text: str) -> List[Claim]:
-    """把一段报告拆成「结论 + 引用」。
+    """把分析师的产出拆成「结论 + 引用」。
 
-    按行拆：一行一条结论是 prompt 里明确要求的格式。标题、空行、纯过渡句
-    不计入分母——否则"无据结论率"会被格式噪音稀释成一个好看但没意义的数。
+    **这个函数踩过一个把整份评测报废的坑，值得写下来。** 最初的版本是
+    "每一行只要够长就算一条结论"，实测跑下来，模型在结论列表前面还写了
+    一大段推理和证据罗列，698 行的产出被数成 477 条结论、其中带引用的
+    一条都没有——"无据结论率 100%"于是成了"模型话多"的度量，跟幻觉毫无关系。
+    整轮评测的引用准确率因此全部作废。
+
+    现在的口径分两级：
+
+      1. 产出里有 <结论>…</结论> 块时，**只读块内**。这是和分析师约定的
+         机器可校验格式，推理过程爱写多少写多少，不进分母。
+      2. 没有这个块时退回宽松模式，但**只认列表项**（- * • 或 "1."）。
+         散文段落一律不算结论——它们本来就不是结论。
+
+    宁可漏掉一条没按格式写的结论（分析师会收到整改意见重来），
+    也不要把叙述文字算成无据结论：后者会让这个指标彻底失去意义。
     """
+    block = CLAIM_BLOCK_RE.search(text or "")
+    body_text = block.group(1) if block else (text or "")
+    strict = block is None      # 没有结论块时才需要靠列表项前缀筛选
+
     claims: List[Claim] = []
-    for raw_line in (text or "").splitlines():
-        line = raw_line.strip().lstrip("-*•").strip()
+    for raw_line in body_text.splitlines():
+        if strict and not BULLET_RE.match(raw_line):
+            continue
+        line = BULLET_RE.sub("", raw_line).strip()
         if not line:
             continue
         ids = extract_ids(line)
-        body = CITATION_RE.sub("", line).strip(" 。;；,，")
-        if not body:
+        content = CITATION_RE.sub("", line).strip(" 。;；,，")
+        if not content:
             continue
-        # 无引用的行只有看起来像结论（够长、不是标题）才计入
-        if not ids and (len(body) < 8 or body.endswith(("：", ":"))):
+        # 标题、"负面：" 这类小节名不是结论
+        if not ids and (len(content) < 8 or content.endswith(("：", ":"))):
             continue
-        claims.append(Claim(text=body, review_ids=ids, index=len(claims) + 1))
+        claims.append(Claim(text=content, review_ids=ids, index=len(claims) + 1))
     return claims
+
+
+def extract_claim_block(text: str) -> Optional[str]:
+    """取出 <结论>…</结论> 的内容；没有这个块返回 None。
+
+    编排层用它判断分析师有没有按格式交作业。没按格式就直接打回，
+    而不是去解析那一大段推理——把叙述文字当成结论校验，指标就废了。
+    """
+    m = CLAIM_BLOCK_RE.search(text or "")
+    return m.group(1) if m else None
 
 
 def extract_ids(text: str) -> List[int]:
