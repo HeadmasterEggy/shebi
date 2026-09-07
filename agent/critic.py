@@ -56,15 +56,28 @@ CLAIM_BLOCK_RE = re.compile(r"<结论>(.*?)</结论>", re.S)
 # 列表项前缀：- * • 或 "1." "1、"
 BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+[.、)])\s+")
 
+# 引用工具产出：[source: list_experiments]
+#
+# 这一条是评测逼出来的。原来只认 review_id，等于假设"每条结论都是关于评论内容的"。
+# 可"当前模型准确率是多少""一共有多少条评论"这类问题，答案来自工具返回值，
+# 根本没有评论可引——40 条任务里有 4 条因此结构性地无法通过校验：
+# agent 明明查到了正确答案，却被判成"证据不足"。
+SOURCE_RE = re.compile(r"\[\s*source\s*[:：]\s*([A-Za-z_,，、\s]+?)\s*\]")
+
 # 语义关卡的默认阈值。None = 关闭，理由见模块 docstring 里的标定结果。
 DEFAULT_SEMANTIC_THRESHOLD: Optional[float] = None
 
 
 @dataclass
 class Claim:
-    """一条结论及它声称的出处。"""
+    """一条结论及它声称的出处。
+
+    出处有两种：评论原文（review_ids）和工具产出（sources）。
+    统计类结论只能是后者——没有哪一条评论能"支撑"住"库里共 2000 条评论"。
+    """
     text: str
     review_ids: List[int] = field(default_factory=list)
+    sources: List[str] = field(default_factory=list)
     index: int = 0
 
 
@@ -78,6 +91,7 @@ class ClaimVerdict:
     missing_ids: List[int] = field(default_factory=list)
     out_of_scope_ids: List[int] = field(default_factory=list)
     rejected: Dict[int, str] = field(default_factory=dict)
+    sources: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -89,6 +103,7 @@ class ClaimVerdict:
             "missing_ids": self.missing_ids,
             "out_of_scope_ids": self.out_of_scope_ids,
             "rejected": {str(k): v for k, v in self.rejected.items()},
+            **({"sources": self.sources} if self.sources else {}),
         }
 
 
@@ -177,13 +192,16 @@ def parse_claims(text: str) -> List[Claim]:
         if not line:
             continue
         ids = extract_ids(line)
-        content = CITATION_RE.sub("", line).strip(" 。;；,，")
+        sources = extract_sources(line)
+        content = SOURCE_RE.sub("", CITATION_RE.sub("", line)).strip(" 。;；,，")
         if not content:
             continue
         # 标题、"负面：" 这类小节名不是结论
-        if not ids and (len(content) < 8 or content.endswith(("：", ":"))):
+        if not ids and not sources and (len(content) < 8
+                                        or content.endswith(("：", ":"))):
             continue
-        claims.append(Claim(text=content, review_ids=ids, index=len(claims) + 1))
+        claims.append(Claim(text=content, review_ids=ids, sources=sources,
+                            index=len(claims) + 1))
     return claims
 
 
@@ -195,6 +213,16 @@ def extract_claim_block(text: str) -> Optional[str]:
     """
     m = CLAIM_BLOCK_RE.search(text or "")
     return m.group(1) if m else None
+
+
+def extract_sources(text: str) -> List[str]:
+    """取出 [source: xxx] 里声明的工具名。"""
+    names: List[str] = []
+    for chunk in SOURCE_RE.findall(text or ""):
+        for part in re.split(r"[,，、\s]+", chunk):
+            if part and part not in names:
+                names.append(part)
+    return names
 
 
 def extract_ids(text: str) -> List[int]:
@@ -252,9 +280,17 @@ class Critic:
 
     # ------------------------------------------------------------------
     def review(self, report: str,
-               evidence_ids: Optional[Iterable[int]] = None) -> CritiqueReport:
+               evidence_ids: Optional[Iterable[int]] = None,
+               available_sources: Optional[Iterable[str]] = None) -> CritiqueReport:
+        """校验一份结论列表。
+
+        available_sources 是这一轮里真正调用成功过的工具名。传了它，统计类
+        结论就可以用 [source: 工具名] 作为出处——但只能引真调过的工具，
+        编一个没调过的名字照样过不了。不传则不接受工具引用。
+        """
         claims = parse_claims(report)
         scope: Optional[Set[int]] = set(evidence_ids) if evidence_ids is not None else None
+        sources: Set[str] = set(available_sources or ())
 
         # 先把所有被引评论的原文和极性一次性算完：极性判断要过本地模型，
         # 按结论逐条调用就退化成了工具层第 1 条硬规则明令禁止的那种用法。
@@ -263,7 +299,7 @@ class Critic:
         polarity = self._classify(texts) if self.check_polarity else {}
 
         return CritiqueReport(
-            verdicts=[self._judge(c, scope, texts, polarity) for c in claims],
+            verdicts=[self._judge(c, scope, texts, polarity, sources) for c in claims],
             gates=self.gates(),
         )
 
@@ -290,9 +326,21 @@ class Critic:
             return {}
 
     def _judge(self, claim: Claim, scope: Optional[Set[int]],
-               texts: Dict[int, str], polarity: Dict[int, str]) -> ClaimVerdict:
+               texts: Dict[int, str], polarity: Dict[int, str],
+               sources: Set[str]) -> ClaimVerdict:
         verdict = ClaimVerdict(claim=claim.text, review_ids=list(claim.review_ids),
                                grounded=False)
+        verdict.sources = list(claim.sources)
+
+        # 统计类结论：出处是工具产出，不是某条评论。
+        # 只校验"这个工具这一轮真的调过"——编一个没调过的工具名同样过不了。
+        if claim.sources:
+            bad = [s for s in claim.sources if s not in sources]
+            if bad:
+                verdict.reasons.append(f"引用了本轮没有调用过的工具 {bad}")
+                return verdict
+            verdict.grounded = True
+            return verdict
 
         # 关卡 1：有没有引用
         if not claim.review_ids:

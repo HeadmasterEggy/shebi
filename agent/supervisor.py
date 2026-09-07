@@ -33,7 +33,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from agent import roles as role_defs
 from agent.budget import Budget, BudgetExceeded
@@ -79,6 +79,8 @@ class Blackboard:
     # 取证者跑出来的非评论类结果（方面统计、整体分布、模型指标）。
     # 证据池只收 {review_id: text}，这些数字得单独存，否则分析师看不到。
     stats: List[str] = field(default_factory=list)
+    # 本轮真正调用成功过的工具。统计类结论可以引用它们作为出处。
+    tools_used: Set[str] = field(default_factory=set)
     collector_note: str = ""
     findings: str = ""
     report: str = ""
@@ -110,8 +112,15 @@ class Blackboard:
         c = self.critique
         if c is None:
             return self.findings
-        lines = [f"- {v.claim} [review_id: {', '.join(str(i) for i in v.supporting_ids)}]"
-                 for v in c.verdicts if v.grounded]
+        lines = []
+        for v in c.verdicts:
+            if not v.grounded:
+                continue
+            if v.sources:
+                lines.append(f"- {v.claim} [source: {', '.join(v.sources)}]")
+            else:
+                ids = ", ".join(str(i) for i in v.supporting_ids)
+                lines.append(f"- {v.claim} [review_id: {ids}]")
         return "\n".join(lines)
 
 
@@ -241,6 +250,7 @@ class Supervisor:
 
         def harvest(name: str, args: Dict[str, Any], result: ToolResult) -> None:
             harvest_evidence(result.content, board.evidence)
+            board.tools_used.add(name)
             if name in STATS_TOOLS:
                 board.stats.append(
                     f"[{name}] " + json.dumps(result.content, ensure_ascii=False,
@@ -270,8 +280,9 @@ class Supervisor:
             # 曾经不这么做，模型在结论前写了 698 行推理和证据罗列，被数成
             # 477 条"无据结论"——那一轮评测的引用准确率因此整个作废。
             block = extract_claim_block(board.findings)
-            critique = self.critic.review(block or "",
-                                          evidence_ids=board.evidence.keys())
+            critique = self.critic.review(
+                block or "", evidence_ids=board.evidence.keys(),
+                available_sources=board.tools_used)
             board.critiques.append(critique)
             self._record_critique(trace, critique, attempt)
 

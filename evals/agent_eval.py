@@ -33,8 +33,15 @@ logger = logging.getLogger(__name__)
 
 # 判定"这是一次拒答"的措辞。Reporter 的 prompt 要求证据不足时如实说明，
 # Supervisor 在证据为空时也会走 _no_evidence_answer，两条路都落在这些词上。
-REFUSAL_MARKERS = ("证据不足", "无法回答", "没有相关", "无法从评论", "不下结论",
-                   "无法确定", "评论中没有", "没有足够", "不足以")
+#
+# 关键词匹配是启发式的，会漏。首轮实跑就漏了一条：模型答的是"无法给出任何估算…
+# 证据严重不足"，语义上是标准的拒答，但"证据严重不足"里插了两个字，
+# 恰好不含"证据不足"这个连续子串，于是被判成"没有拒答"。
+# 下面的词表按那次漏判补过；这仍是启发式，边界样例要人工复核。
+REFUSAL_MARKERS = ("证据不足", "证据严重不足", "无法回答", "没有相关", "无法从评论",
+                   "不下结论", "无法确定", "评论中没有", "没有足够", "不足以",
+                   "无法给出", "无法得出", "无法估算", "无从", "查不到", "找不到",
+                   "没有披露", "未提及", "没有提及")
 
 
 @dataclass
@@ -136,10 +143,20 @@ def run_task(task: Task, client: LLMClient, max_steps: int = 24,
 
 
 def aggregate(runs: List[TaskRun]) -> Dict[str, Any]:
-    answerable = [r for r in runs if not r.task.must_refuse]
-    refusals = [r for r in runs if r.task.must_refuse]
-    with_tools = [r for r in runs if r.tool_ok is not None]
-    with_claims = [r for r in runs if r.unsupported_rate is not None]
+    """汇总。
+
+    **基础设施失败和质量分开算。** 一次网络抖动让 25 条任务没跑成时，把它们
+    算进完成率的分母，得到的不是"agent 只完成了 37%"，而是"评测那天网不好"——
+    两件事混进一个数字，指标就废了。所以质量类指标只在真正执行完的任务上算，
+    失败数单独报；成本和延迟按全部任务算，因为失败的那些也真的花了钱、占了时间。
+    """
+    failed = [r for r in runs if r.status == "error" or r.error]
+    done = [r for r in runs if r not in failed]
+
+    answerable = [r for r in done if not r.task.must_refuse]
+    refusals = [r for r in done if r.task.must_refuse]
+    with_tools = [r for r in done if r.tool_ok is not None]
+    with_claims = [r for r in done if r.unsupported_rate is not None]
     lat = sorted(r.latency_ms for r in runs)
 
     def pct(rows, pred):
@@ -153,6 +170,9 @@ def aggregate(runs: List[TaskRun]) -> Dict[str, Any]:
 
     return {
         "tasks": len(runs),
+        "执行成功": len(done),
+        "执行失败": len(failed),
+        "失败任务": [r.task.id for r in failed],
         "任务完成率": pct(answerable, lambda r: r.passed),
         "拒答正确率": pct(refusals, lambda r: r.passed),
         "工具调用正确率": pct(with_tools, lambda r: r.tool_ok),
@@ -165,7 +185,6 @@ def aggregate(runs: List[TaskRun]) -> Dict[str, Any]:
                            if runs else None),
         "p50 延迟 ms": p(0.50),
         "p95 延迟 ms": p(0.95),
-        "异常任务": [r.task.id for r in runs if r.error],
     }
 
 

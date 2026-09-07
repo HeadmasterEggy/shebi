@@ -7,6 +7,8 @@
 空结果会不会被当成满分。
 """
 
+import pytest
+
 from agent import store, tools  # noqa: F401 —— import 即完成工具注册
 from evals import agent_eval, critic_eval, report
 from evals.tasks import TASKS
@@ -54,6 +56,23 @@ def test_answerable_task_fails_when_it_refuses():
     assert _run(ask, answer="证据不足，无法回答").passed is False
 
 
+@pytest.mark.parametrize("answer", [
+    "证据不足：没有检索到相关评论",
+    "关于成本价，目前无法给出任何估算，证据严重不足",   # 首轮漏判的那条
+    "评论中没有提及该信息",
+    "查不到相关记录",
+])
+def test_refusal_detector_covers_the_phrasings_it_missed(answer):
+    """关键词匹配会漏。首轮就漏了"证据严重不足"——中间插了两个字，
+    恰好不含"证据不足"这个连续子串。"""
+    assert agent_eval.looks_like_refusal(answer)
+
+
+def test_refusal_detector_does_not_fire_on_a_real_answer():
+    assert not agent_eval.looks_like_refusal(
+        "差评主要集中在物流配送太慢 [review_id: 1, 2]")
+
+
 def test_tool_accuracy_excludes_tasks_with_no_expected_tools():
     """拒答题没有期望工具，把它算进分母会凭空拉低（或抬高）工具正确率。"""
     refusal = next(t for t in TASKS if t.must_refuse)
@@ -77,6 +96,31 @@ def test_aggregate_reports_the_two_pass_rates_separately():
     ])
     assert summary["任务完成率"] == 50.0
     assert summary["拒答正确率"] == 50.0
+
+
+def test_infrastructure_failures_are_excluded_from_quality_metrics():
+    """一次网络抖动让 25 条任务没跑成时，把它们算进完成率的分母，得到的不是
+    "agent 只完成了 37%"，而是"评测那天网不好"。两件事必须分开报。"""
+    ask = next(t for t in TASKS if not t.must_refuse)
+    good = [_run(ask) for _ in range(3)]
+    dead = [_run(ask, status="error", answer="") for _ in range(7)]
+    summary = agent_eval.aggregate(good + dead)
+
+    assert summary["执行失败"] == 7
+    assert summary["执行成功"] == 3
+    assert summary["任务完成率"] == 100.0, "质量指标只该在跑成的任务上算"
+    assert len(summary["失败任务"]) == 7
+
+
+def test_cost_and_latency_still_count_failed_runs():
+    """失败的任务也真的花了钱、占了时间，成本和延迟按全部任务算。"""
+    ask = next(t for t in TASKS if not t.must_refuse)
+    a, b = _run(ask), _run(ask, status="error", answer="")
+    a.cost_usd, b.cost_usd = 0.02, 0.01
+    a.latency_ms, b.latency_ms = 1000.0, 3000.0
+    summary = agent_eval.aggregate([a, b])
+    assert summary["总成本 USD"] == 0.03
+    assert summary["p95 延迟 ms"] == 3000.0
 
 
 def test_failed_run_never_counts_as_passed():

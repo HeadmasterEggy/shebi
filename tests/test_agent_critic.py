@@ -122,6 +122,33 @@ def test_polarity_agreement_passes(db):
     assert rep.grounded == 1
 
 
+# ---------------- 统计类结论：引用工具产出 ----------------
+def test_statistic_claim_may_cite_a_tool_instead_of_a_review(critic):
+    """「模型准确率是多少」这类问题，答案来自工具返回值，没有哪条评论能支撑它。
+
+    只认 review_id 的话，agent 查到了正确答案也会被判成"证据不足"——
+    首轮实跑 40 条任务里有 4 条栽在这个结构性缺口上。
+    """
+    rep = critic.review("- 当前默认模型测试集准确率 89.49% [source: list_experiments]",
+                        available_sources=["list_experiments"])
+    assert rep.grounded == 1 and rep.passed
+    assert rep.verdicts[0].sources == ["list_experiments"]
+
+
+def test_citing_a_tool_that_was_never_called_is_rejected(critic):
+    """能引工具，不等于能编工具名——只能引本轮真调用过的。"""
+    rep = critic.review("- 模型准确率 99.9% [source: list_experiments]",
+                        available_sources=["search_reviews"])
+    assert rep.grounded == 0
+    assert "没有调用过" in "".join(rep.verdicts[0].reasons)
+
+
+def test_tool_citation_is_not_accepted_when_no_sources_are_declared(critic):
+    """调用方没声明可用工具时，工具引用一律不认——默认保守。"""
+    rep = critic.review("- 模型准确率 89.49% [source: list_experiments]")
+    assert rep.grounded == 0
+
+
 # ---------------- 汇总指标 ----------------
 def test_unsupported_rate_and_feedback(critic):
     rep = critic.review(

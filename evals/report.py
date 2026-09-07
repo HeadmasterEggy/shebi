@@ -95,7 +95,13 @@ def agent_md(data: Optional[Dict[str, Any]]) -> str:
                 "配好 key 后 `python -m evals agent` 直接出表。")
 
     s = data["summary"]
-    rows = [
+    rows = []
+    if s.get("执行失败"):
+        rows.append(["**执行失败**", f"{s['执行失败']} / {s['tasks']}",
+                     f"基础设施问题（网络 / 余额），不计入下面的质量指标："
+                     f"{', '.join(s.get('失败任务', [])[:8])}"
+                     + ("…" if len(s.get("失败任务", [])) > 8 else "")])
+    rows += [
         ["任务完成率", _n(s["任务完成率"], "%"), "非拒答题里产出可用答案的比例"],
         ["拒答正确率", _n(s["拒答正确率"], "%"), "库里没有的信息，确实拒答的比例"],
         ["工具调用正确率", _n(s["工具调用正确率"], "%"), "该用的能力用上了没有"],
@@ -105,7 +111,8 @@ def agent_md(data: Optional[Dict[str, Any]]) -> str:
         ["单任务成本", f"${_n(s['单任务成本 USD'])}", f"全集共 ${_n(s['总成本 USD'])}"],
         ["p50 / p95 延迟", f"{_n(s['p50 延迟 ms'])} / {_n(s['p95 延迟 ms'])} ms", ""],
     ]
-    head = f"{s['tasks']} 条任务，模型 `{data['model']}`。"
+    head = (f"{s['tasks']} 条任务，模型 `{data['model']}`，"
+            f"其中 {s.get('执行成功', s['tasks'])} 条执行成功。")
     return "\n".join([head, "", _table(["指标", "结果", "说明"], rows)])
 
 
