@@ -88,6 +88,7 @@ def test_analyst_only_gets_the_polarity_tool():
     assert "list_experiments" in roles.COLLECTOR.tools, "取数属于取证阶段"
 
 
+@needs_w2v
 def test_collector_findings_reach_the_analyst(db):
     """取证者跑出来的统计结果必须转交给分析师。
 

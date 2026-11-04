@@ -180,6 +180,7 @@ class _FakeManager:
         return None if self.running else 1
 
     def start(self, args=None, script=None):
+        self.args = args
         self.started += 1
         self.running = True
         return 4242
@@ -223,6 +224,8 @@ def test_train_start_writes_params_and_starts_once(admin, train_env):
     params = json.loads((tmp / "params.json").read_text())
     assert params["model_type"] == "lstm" and params["epochs"] == 3 and params["hidden_dim"] == 64
     assert json.loads((tmp / "progress.json").read_text())["status"] == "initializing"
+
+    assert mgr.args == ["--params", Config.params_path], "超参文件必须显式传给 main.py"
 
     again = admin.post("/api/train/start", json={"model_type": "cnn"})
     assert again.status_code == 409
@@ -365,3 +368,25 @@ def test_settings_roundtrip_and_reset(user, settings_dir):
 def test_settings_rejects_bad_payload(user, settings_dir, payload):
     resp = user.post("/api/settings/update", data=json.dumps(payload), content_type="application/json")
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# 跨域与响应头
+# ---------------------------------------------------------------------------
+def test_no_wildcard_cors(user):
+    """原实现 CORS(app) 对任意来源放行全部接口。"""
+    resp = user.get("/api/models", headers={"Origin": "https://evil.example"})
+    assert "Access-Control-Allow-Origin" not in resp.headers
+
+
+def test_security_headers_present(app_module):
+    resp = app_module.app.test_client().get("/auth/login")
+    assert resp.headers["X-Content-Type-Options"] == "nosniff"
+    assert resp.headers["X-Frame-Options"] == "SAMEORIGIN"
+
+
+def test_session_cookie_is_httponly_and_samesite(app_module, users):
+    c = app_module.app.test_client()
+    resp = c.post("/auth/login", data={"username": users["user"]["name"], "password": PASSWORD})
+    cookie = resp.headers.get("Set-Cookie", "")
+    assert "HttpOnly" in cookie and "SameSite=Lax" in cookie

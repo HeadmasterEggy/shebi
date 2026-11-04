@@ -558,10 +558,10 @@ function loadTextHistoryInline() {
             historyHtml += `
                 <div class="inline-history-item" data-index="${index}">
                     <div class="inline-history-item-header">
-                        <div class="inline-history-item-title">${item.title || '未命名文本'}</div>
+                        <div class="inline-history-item-title">${escapeHtml(item.title || '未命名文本')}</div>
                         <div class="inline-history-item-date">${formattedDate}</div>
                     </div>
-                    <div class="inline-history-item-preview">${item.text.substring(0, 50)}${item.text.length > 50 ? '...' : ''}</div>
+                    <div class="inline-history-item-preview">${escapeHtml(item.text.substring(0, 50))}${item.text.length > 50 ? '...' : ''}</div>
                     <div class="inline-history-item-actions">
                         <button type="button" class="btn btn-sm btn-primary load-history-text" data-index="${index}">
                             <i class="bi bi-upload"></i> 加载
@@ -723,10 +723,10 @@ function showTextHistory() {
             modalContent += `
                 <div class="history-item" data-index="${index}">
                     <div class="history-item-header">
-                        <span class="history-item-title">${item.title}</span>
+                        <span class="history-item-title">${escapeHtml(item.title)}</span>
                         <span class="history-item-date">${formattedDate}</span>
                     </div>
-                    <div class="history-item-preview">${item.text.substring(0, 100)}${item.text.length > 100 ? '...' : ''}</div>
+                    <div class="history-item-preview">${escapeHtml(item.text.substring(0, 100))}${item.text.length > 100 ? '...' : ''}</div>
                     <div class="history-item-actions">
                         <button type="button" class="btn btn-sm btn-primary load-history-text" data-index="${index}">
                             <i class="bi bi-upload"></i> 加载该文本
@@ -1060,13 +1060,13 @@ function showResultsHistory() {
                 <div class="history-item result-history-item" data-index="${index}">
                     <div class="history-item-header">
                         <div class="history-item-title-wrapper">
-                            <span class="history-item-title">${item.title}</span>
+                            <span class="history-item-title">${escapeHtml(item.title)}</span>
                             ${sourceType} ${sentimentResult}
                         </div>
                         <span class="history-item-date">${formattedDate}</span>
                     </div>
                     <div class="history-item-preview">
-                        ${item.sourceContent.substring(0, 100)}${item.sourceContent.length > 100 ? '...' : ''}
+                        ${escapeHtml(item.sourceContent.substring(0, 100))}${item.sourceContent.length > 100 ? '...' : ''}
                     </div>
                     <div class="history-item-actions">
                         <button type="button" class="btn btn-sm btn-primary view-history-result" data-index="${index}">
@@ -1220,7 +1220,7 @@ function showToast(message, type = 'info', duration = 3000) {
     toast.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">
-                ${message}
+                ${escapeHtml(message)}
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>

@@ -176,7 +176,7 @@ function initWordFreqTags(data) {
             const color = `hsl(210, ${80 - intensity * 40}%, ${85 - intensity * 30}%)`;
             const textColor = intensity > 0.6 ? '#fff' : '#333';
 
-            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: ${color}; color: ${textColor}">${item.word} (${item.count})</span>`;
+            tagsHtml += `<span class="word-freq-item" style="--delay: ${index}; background: ${color}; color: ${textColor}">${escapeHtml(item.word)} (${Number(item.count)})</span>`;
         });
 
         wordFreqTags.innerHTML = tagsHtml;
@@ -376,7 +376,7 @@ function initSentimentScatterChart(data) {
             trigger: 'item',
             formatter: function (params) {
                 const sentimentType = params.data[3] === 0 ? '积极' : '消极';
-                return `句子${params.data[2]}<br/>` +
+                return `句子${escapeHtml(params.data[2])}<br/>` +
                     `积极概率: ${params.data[0]}%<br/>` +
                     `置信度: ${params.data[1]}%<br/>` +
                     `情感类型: ${sentimentType}`;
@@ -712,7 +712,7 @@ function initWordCloudChart(data, attempt = 1) {
                 show: true,
                 trigger: 'item',
                 formatter: function(params) {
-                    return `<div style="font-weight:bold; font-size:14px;">${params.name}</div>
+                    return `<div style="font-weight:bold; font-size:14px;">${escapeHtml(params.name)}</div>
                             <div>出现次数：<span style="color:#ff9500; font-weight:bold">${params.value}</span></div>`;
                 },
                 backgroundColor: 'rgba(50,50,50,0.9)',

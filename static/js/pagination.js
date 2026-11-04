@@ -38,7 +38,7 @@ function updateDisplay() {
                         <span class="toggle-icon">▼</span>
                     </div>
                 </div>
-                <div class="sentiment-content">${sentence.text}</div>
+                <div class="sentiment-content">${escapeHtml(sentence.text)}</div>
                 <div class="sentiment-footer">
                     <div class="progress">
                         <div class="progress-bar bg-success" role="progressbar"

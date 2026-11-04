@@ -357,10 +357,15 @@ def update_training_progress(current_epoch, total_epochs, train_loss, val_loss, 
         traceback.print_exc()
 
 
-def load_params():
-    """从 JSON 文件加载超参数"""
+def load_params(params_file):
+    """从 JSON 文件加载超参数，作为命令行参数的默认值。
+
+    只在显式传入 --params 时读取。原实现无条件读 runtime/params.json，
+    在命令行直接跑 main.py 时会悄悄继承 Web 端上一次留下的超参。
+    """
+    if not params_file:
+        return {}
     try:
-        params_file = Config.params_path
         with open(params_file, 'r') as f:
             params = json.load(f)
         print(f"加载的超参数: {params}")
@@ -384,10 +389,14 @@ if __name__ == "__main__":
         update_training_progress(0, 0, None, None, None, 'initializing', "初始化训练")
 
         # 加载超参数
-        params = load_params()
+        pre_parser = argparse.ArgumentParser(add_help=False)
+        pre_parser.add_argument('--params', default=None)
+        params = load_params(pre_parser.parse_known_args()[0].params)
 
         # 添加命令行参数解析
         parser = argparse.ArgumentParser(description='Text Classification Model Training')
+        parser.add_argument('--params', default=None,
+                            help='超参 JSON 文件（Web 端启动训练时传入），其中的值作为下列参数的默认值')
         parser.add_argument('--model', type=str, default=params.get('model_type', 'cnn'),
                             choices=['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn'],
                             help='选择使用的模型类型: BiLSTM_attention, BiLSTM, LSTM_attention, LSTM 或 TextCNN (默认: TextCNN)')

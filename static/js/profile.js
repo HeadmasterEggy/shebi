@@ -482,7 +482,7 @@ function loadUserActivities() {
                     </div>
                     <div class="timeline-content">
                         <div class="timeline-header">
-                            <div class="timeline-title">${activity.title}</div>
+                            <div class="timeline-title">${escapeHtml(activity.title)}</div>
                             <div class="timeline-time">${activity.time}</div>
                         </div>
                         <div class="timeline-body">
