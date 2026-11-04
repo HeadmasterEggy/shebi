@@ -241,7 +241,7 @@ async function fetchUsers() {
         if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-danger">获取用户列表出错: ${error.message}</td>
+                    <td colspan="5" class="text-center text-danger">获取用户列表出错: ${escapeHtml(error.message)}</td>
                 </tr>
             `;
         }
@@ -268,9 +268,9 @@ function displayUsers(users) {
     users.forEach(user => {
         html += `
             <tr>
-                <td>${user.id}</td>
-                <td>${user.username}</td>
-                <td>${user.email}</td>
+                <td>${Number(user.id)}</td>
+                <td>${escapeHtml(user.username)}</td>
+                <td>${escapeHtml(user.email)}</td>
                 <td>
                     <span class="badge ${user.is_admin ? 'bg-danger' : 'bg-primary'}">
                         ${user.is_admin ? '管理员' : '用户'}
@@ -278,10 +278,10 @@ function displayUsers(users) {
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary" onclick="editUser(${user.id})">
+                        <button type="button" class="btn btn-outline-primary" onclick="editUser(${Number(user.id)})">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteUser(${user.id}, '${user.username}')">
+                        <button type="button" class="btn btn-outline-danger" data-user-id="${Number(user.id)}" data-username="${escapeHtml(user.username)}" onclick="confirmDeleteUser(Number(this.dataset.userId), this.dataset.username)">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

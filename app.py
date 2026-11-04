@@ -10,7 +10,6 @@ import re
 import jieba
 import torch
 from flask import Flask, jsonify, send_from_directory, render_template, request  # 添加request导入
-from flask_cors import CORS
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
@@ -58,8 +57,24 @@ app.config['SECRET_KEY'] = _secret
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+
+
+@app.after_request
+def _security_headers(resp):
+    """基础安全响应头：禁止 MIME 嗅探、禁止被第三方页面 iframe 嵌套（点击劫持）。"""
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Referrer-Policy', 'same-origin')
+    return resp
+
+
 # 初始化扩展
-CORS(app)  # 启用CORS
+# 不再全局开启 CORS：前端与 API 同源，不需要跨域；原来的 CORS(app) 对任意来源
+# 放行所有接口，等于允许任何网站在用户浏览器里调用本站 API。
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
 login_manager.init_app(app)
 
@@ -713,7 +728,7 @@ def start_training():
     try:
         atomic_write_json(Config.params_path, params)
         atomic_write_json(Config.progress_path, _initial_progress(params['epochs']))
-        pid = train_manager.start()
+        pid = train_manager.start(args=['--params', Config.params_path])
     except RuntimeError as e:
         return jsonify({'error': str(e)}), 409
     except Exception:

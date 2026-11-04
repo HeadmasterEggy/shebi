@@ -167,10 +167,10 @@ function loadFileHistoryInline() {
             historyHtml += `
                 <div class="inline-history-item" data-index="${index}">
                     <div class="inline-history-item-header">
-                        <div class="inline-history-item-title">${file.name}</div>
+                        <div class="inline-history-item-title">${escapeHtml(file.name)}</div>
                         <div class="inline-history-item-date">${formattedDate}</div>
                     </div>
-                    <div class="inline-history-item-preview">${file.content.substring(0, 50)}${file.content.length > 50 ? '...' : ''}</div>
+                    <div class="inline-history-item-preview">${escapeHtml(file.content.substring(0, 50))}${file.content.length > 50 ? '...' : ''}</div>
                     <div class="inline-history-item-actions">
                         <button type="button" class="btn btn-sm btn-primary load-history-file" data-index="${index}">
                             <i class="bi bi-upload"></i> 加载
@@ -365,10 +365,10 @@ function showFileHistory() {
             modalContent += `
                 <div class="history-item" data-index="${index}">
                     <div class="history-item-header">
-                        <span class="history-item-title">${file.name}</span>
+                        <span class="history-item-title">${escapeHtml(file.name)}</span>
                         <span class="history-item-date">${formattedDate}</span>
                     </div>
-                    <div class="history-item-preview">${file.content.substring(0, 100)}${file.content.length > 100 ? '...' : ''}</div>
+                    <div class="history-item-preview">${escapeHtml(file.content.substring(0, 100))}${file.content.length > 100 ? '...' : ''}</div>
                     <div class="history-item-actions">
                         <button type="button" class="btn btn-sm btn-primary load-history-file" data-index="${index}">
                             <i class="bi bi-upload"></i> 加载该文件

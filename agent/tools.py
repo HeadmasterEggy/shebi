@@ -13,8 +13,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 from typing import Any, Dict, List, Literal, Optional
 
 import numpy as np
@@ -340,29 +338,38 @@ class ScrapeArgs(BaseModel):
     @field_validator("product_url")
     @classmethod
     def _check_url(cls, v):
-        if not v.startswith(("http://", "https://")):
-            raise ValueError("product_url 必须是完整链接")
+        from scraper_api import extract_product_id
+        if not extract_product_id(v):
+            raise ValueError("product_url 必须是京东商品页链接，如 https://item.jd.com/100008348542.html")
         return v
 
 
 @registry.register(
     name="scrape_reviews",
-    description="抓取指定京东商品的评论并入库。会发起外部网络请求，需要人工确认后才执行。",
+    description="抓取指定京东商品的评论并去重入库，返回新增条数与示例 review_id。"
+                "会启动浏览器发起外部网络请求，需要人工确认后才执行。",
     args_model=ScrapeArgs,
     requires_confirmation=True,
     tags=["side-effect", "network"],
 )
 def scrape_reviews(product_url: str, pages: int = 1) -> Dict[str, Any]:
-    from scraper_api import extract_product_id
+    from scraper_api import ScrapeError, extract_product_id, scrape
 
     pid = extract_product_id(product_url)
-    if not pid:
-        raise ToolError(f"无法从链接提取商品 ID: {product_url}", retryable=False)
-    raise ToolError(
-        "爬虫需要本机 Chrome（DrissionPage），当前环境不可用。"
-        "可先用 search_reviews / aggregate_reviews 在已有评论库上工作。",
-        retryable=False,
-    )
+    try:
+        # 一"页"约等于滚动一轮评论区
+        result = scrape(pid, rounds=pages * 2)
+    except ScrapeError as e:
+        raise ToolError(f"{e}。可先用 search_reviews / aggregate_reviews 在已有评论库上工作。",
+                        retryable=e.status == 409)
+    return {
+        "product_id": pid,
+        "scraped": result["count"],
+        "new_reviews": len(result["new_review_ids"]),
+        "cached": result["cached"],
+        "sample_review_ids": result["new_review_ids"][:10],
+        "hint": f"用 search_reviews(product_id='{pid}') 检索这些评论",
+    }
 
 
 # --------------------------------------------------------------------------
@@ -384,13 +391,20 @@ class TrainArgs(BaseModel):
 )
 def train_model(model: str, epochs: int = 6, batch_size: int = 128,
                 learning_rate: float = 1e-3) -> Dict[str, Any]:
-    cmd = [sys.executable, os.path.join(Config.base_dir, "main.py"),
-           "--model", model, "--epochs", str(epochs),
-           "--batch-size", str(batch_size), "--learning-rate", str(learning_rate)]
-    proc = subprocess.Popen(cmd, cwd=Config.base_dir,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return {"started": True, "pid": proc.pid, "model": model, "epochs": epochs,
-             "note": "训练已在后台启动，用 list_experiments 查看进度"}
+    # 与 Web 端共用同一个进程管理器：同一时刻只允许一个训练进程，
+    # 否则两个进程会同时覆盖同一份权重、同时写 progress.json
+    from training_control import LOG_PATH, manager
+
+    try:
+        pid = manager.start(args=["--model", model, "--epochs", str(epochs),
+                                  "--batch-size", str(batch_size),
+                                  "--learning-rate", str(learning_rate)])
+    except RuntimeError as e:
+        raise ToolError(f"{e}，请等待当前训练结束", retryable=False)
+    return {"started": True, "pid": pid, "model": model, "epochs": epochs,
+            "progress_file": os.path.relpath(Config.progress_path, Config.base_dir),
+            "log_file": os.path.relpath(LOG_PATH, Config.base_dir),
+            "note": "训练已在后台启动；结束后运行 evaluate.py 才会在 list_experiments 里看到新指标"}
 
 
 class ExperimentsArgs(BaseModel):

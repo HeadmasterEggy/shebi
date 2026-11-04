@@ -184,6 +184,50 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
 
 ---
 
+## 第三轮修复：爬虫、前端 XSS 与跨域
+
+### 爬虫：匿名 SSRF
+
+`/api/scrape/product` **不需要登录**，并把请求里的 URL 原样交给服务器上的 Chromium 打开。
+任何匿名访问者都能让服务器的浏览器去访问任意地址——内网服务、`http://169.254.169.254`
+云元数据接口、本机管理端口。
+
+现在：
+
+- 接口要求登录；同一时刻只允许一个抓取任务（每个任务占一整个浏览器），忙时返回 409
+- 只接受京东商品页域名，并且**交给浏览器的 URL 由商品 ID 重新拼出**，用户传入的字符串本身永远不会被打开
+- 浏览器在 `finally` 里关闭（原来每次异常泄漏一组 Chrome 进程）
+- 解析拆成纯函数 `parse_comment_payloads`，可以脱离浏览器测试；去重、清理空白
+- 结果写入 `runtime/scraped/`（原来在当前工作目录下建 `csv/ txt/ cache/`），并**去重入库**到 agent 评论库——
+  `scrape_reviews` 工具从"永远报错"变成真能用，抓完即可 `search_reviews(product_id=...)`
+- `DrissionPage` 改为延迟导入：没装它，Web 服务照样能起，只是抓取接口返回 503
+
+### 前端：存储型 XSS
+
+逐句分析结果用 `innerHTML` 拼接 `sentence.text`，而这段文本可能来自**爬取的第三方评论**。
+一条内容为 `<img src=x onerror=...>` 的评论，就能在查看结果的用户会话里执行脚本。用 Playwright
+在真实浏览器里对照验证过：旧代码注入成功，新代码只显示字面文本。
+
+同类问题一并处理：用户管理表格里的用户名 / 邮箱（还被拼进了 `onclick='...'` 属性）、词频标签与词云
+提示框、历史记录的标题与预览、文件名、训练日志、toast。统一走 `shared.js` 里的 `escapeHtml`；
+训练日志改用 `textContent`。
+
+### 跨域与 Cookie
+
+- 删掉全局 `CORS(app)`：前端与 API 同源，根本不需要跨域，原配置对任意来源放行全部接口。
+  `Flask-Cors` 依赖随之移除
+- 会话 Cookie 设为 `HttpOnly` + `SameSite=Lax`，跨站表单 POST 不再携带登录态
+- 补 `X-Content-Type-Options: nosniff`、`X-Frame-Options: SAMEORIGIN`、`Referrer-Policy`
+
+### 训练入口统一
+
+- agent 的 `train_model` 原来自己 `Popen` 一个训练进程，绕过了单实例约束——可以和 Web 端的训练
+  同时跑、同时覆盖同一份权重。现在与 Web 端共用 `training_control.manager`
+- `main.py` 原来无条件读取 `runtime/params.json` 作为默认值，命令行直接训练会悄悄继承 Web 端上一次
+  的超参。现在只有显式传 `--params` 时才读
+
+---
+
 ## Agent 层
 
 把这套情感分析能力包成工具，交给一个手写的 ReAct 循环来编排。
@@ -230,7 +274,7 @@ AGENT_API_KEY=sk-...            AGENT_MODEL=qwen-plus       AGENT_BASE_URL=https
 | `extract_aspects` | 方面级统计：十类方面的提及量、负面率与代表性 id | — |
 | `export_report` | 导出 Markdown 报告，引用自动展开成原文附录 | — |
 | `list_experiments` | 各模型在测试集上的真实指标 | — |
-| `scrape_reviews` | 抓取京东商品评论 | 需人工确认 |
+| `scrape_reviews` | 抓取京东商品评论并去重入库 | 需人工确认 |
 | `train_model` | 按超参训练模型 | 需人工确认 |
 
 三条设计规则：**批量优先**（`texts` 是数组，不是单条）、**可溯源**（返回评论一律带 id）、
@@ -435,7 +479,7 @@ python -m evals --md report.md     # 结果写成 Markdown
 SHEBI_ALLOW_DEV_SECRET=1 python -m pytest
 ```
 
-235 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
+264 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
 预训练词向量不被模型加载改写、路径可移植性、指标不可编造、推理缓存与死锁、
 端到端情感判定与鉴权；agent 层的 schema 校验与自修复、角色/全局两级预算终止、
 副作用拦截、trace 落盘；检索层的词级 MaxSim 排序、索引按库隔离、增量编码；
@@ -477,7 +521,7 @@ shebi/
 ├── lstm_model.py         # LSTM / BiLSTM / +Attention
 ├── data_Process.py       # 分词、词表、序列化
 ├── compare_logs.py       # 训练日志分析与可视化
-├── scraper_api.py        # 京东评论爬虫 API
+├── scraper_api.py        # 京东评论爬虫：URL 白名单 / 抓取 / 解析 / 入库
 ├── models.py / auth.py   # 用户模型与认证
 ├── config.py             # 全局配置（路径以项目根为基准）
 ├── agent/

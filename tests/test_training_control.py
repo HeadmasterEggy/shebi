@@ -163,3 +163,25 @@ def test_val_loss_is_mean_per_batch_not_sum():
     acc, loss = val_accuracy(Const(), loader, "cpu", torch.nn.CrossEntropyLoss())
     assert acc == 0.0   # argmax 平局取 0，标签全是 1
     assert abs(loss - 0.6931) < 1e-3, f"应为单 batch 平均损失 ln2，实际 {loss}"
+
+
+def test_main_ignores_params_file_unless_asked(tmp_path):
+    """命令行直接跑 main.py 时不能悄悄继承 Web 端上次留下的 params.json。"""
+    from main import load_params
+    f = tmp_path / "params.json"
+    f.write_text('{"model_type": "lstm", "epochs": 99}', encoding="utf-8")
+    assert load_params(None) == {}
+    assert load_params(str(f))["epochs"] == 99
+
+
+def test_agent_train_tool_shares_single_instance_guard(monkeypatch):
+    """agent 的 train_model 与 Web 端走同一个进程管理器，不能并发起第二个训练。"""
+    from agent.registry import registry
+
+    class Busy:
+        def start(self, args=None, script=None):
+            raise RuntimeError("已有训练任务正在运行")
+
+    monkeypatch.setattr(tc, "manager", Busy())
+    res = registry.invoke("train_model", {"model": "cnn", "epochs": 1})
+    assert res.ok is False and "已有训练任务" in res.error

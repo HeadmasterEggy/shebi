@@ -1308,7 +1308,7 @@ function addTrainingLog(type, message) {
         const timestamp = new Date().toLocaleTimeString();
         const entry = document.createElement('div');
         entry.className = `log-entry ${type}`;
-        entry.innerHTML = `[${timestamp}] ${message}`;
+        entry.textContent = `[${timestamp}] ${message}`;
         logContent.appendChild(entry);
 
         // 滚动到底部
