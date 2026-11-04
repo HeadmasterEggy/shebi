@@ -6,7 +6,7 @@
 BiLSTM+Attention 五种模型，含训练调度、日志分析、Web 服务与一层 Agent。
 
 > **分支说明**
-> - `main` —— 当前开发分支。在毕设基础上做了十三轮工程审计与修复（见 [CHANGELOG.md](CHANGELOG.md)），
+> - `main` —— 当前开发分支。在毕设基础上做了十四轮工程审计与修复（见 [CHANGELOG.md](CHANGELOG.md)），
 >   并外挂了一层 Agent（工具层 / ReAct 循环 / 多 Agent 编排 / 评论检索）。
 > - `thesis` —— 毕业设计完成时的原样快照，不含任何后续改造，需要对照时切过去即可。
 
@@ -48,6 +48,9 @@ SECRET_KEY=$(openssl rand -hex 32) docker compose up --build
 
 容器内用 gunicorn 提供服务（`wsgi.py`，单 worker 多线程），健康检查走无需登录的 `/healthz`。
 
+部署在反向代理之后（nginx、云负载均衡）时设 `SHEBI_TRUSTED_PROXIES=1`（代理层数），走 HTTPS 时设
+`SHEBI_SECURE_COOKIES=1`。前者不设的话，登录限流会把所有人都算成代理的那一个 IP。
+
 > **不能部署到 Vercel。** 依赖装完约 1.3GB（torch 一项就 723MB），远超 Vercel Python 函数
 > 250MB 的上限；服务还需要可写磁盘（SQLite、训练进度、模型权重）和长时间运行的训练子进程，
 > 这些 serverless 都不提供。仓库里的 `vercel.json` 关掉了 Git 自动部署，免得每次提交都挂一个
@@ -57,7 +60,7 @@ SECRET_KEY=$(openssl rand -hex 32) docker compose up --build
 
 ## 工程审计
 
-毕设完成后做了十三轮审计与修复，逐轮的问题、根因与实测数字见 **[CHANGELOG.md](CHANGELOG.md)**。
+毕设完成后做了十四轮审计与修复，逐轮的问题、根因与实测数字见 **[CHANGELOG.md](CHANGELOG.md)**。
 几条影响最大的：
 
 - **TextCNN 在推理模式下坍缩**：BatchNorm 的 running stats 追不上持续更新的嵌入层，`eval()` 下
