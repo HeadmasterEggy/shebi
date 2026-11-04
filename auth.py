@@ -1,4 +1,5 @@
 import functools
+import os
 import re
 import threading
 import time
@@ -88,6 +89,21 @@ class LoginThrottle:
 
 login_throttle = LoginThrottle()
 
+# 注册限流：按 IP 计每一次注册提交（不论成败）。原来注册不设任何限制，单个 IP 2.9 秒注册 20 个
+# 账号（实测），每个账号还要做一次 ~100ms 的密码哈希；"用户名已被使用"的提示也可用来枚举用户名。
+register_throttle = LoginThrottle(
+    max_failures=int(os.environ.get('SHEBI_REGISTER_PER_HOUR', '5')), window_s=3600)
+
+
+def registration_enabled():
+    """SHEBI_ALLOW_REGISTRATION=0 时关闭自助注册，账号只能由管理员创建。"""
+    return os.environ.get('SHEBI_ALLOW_REGISTRATION', '1') != '0'
+
+
+@auth.app_context_processor
+def _inject_registration_flag():
+    return {'registration_enabled': registration_enabled()}
+
 
 @login_manager.unauthorized_handler
 def unauthorized():
@@ -156,7 +172,18 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
+    if not registration_enabled():
+        flash('本站已关闭自助注册，请联系管理员开通账号')
+        return redirect(url_for('auth.login'))
+
     if request.method == 'POST':
+        throttle_key = request.remote_addr or ''
+        wait = register_throttle.retry_after(throttle_key)
+        if wait:
+            flash(f'注册过于频繁，请 {max(1, wait // 60)} 分钟后再试')
+            return render_template('register.html'), 429
+        register_throttle.failure(throttle_key)  # 每次提交都计数，不论成败
+
         data = request.form
         username = (data.get('username') or '').strip()
         email = (data.get('email') or '').strip()
