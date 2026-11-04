@@ -88,14 +88,18 @@ def test_analyst_only_gets_the_polarity_tool():
     assert "list_experiments" in roles.COLLECTOR.tools, "取数属于取证阶段"
 
 
-@needs_w2v
-def test_collector_findings_reach_the_analyst(db):
+def test_collector_findings_reach_the_analyst(db, monkeypatch):
     """取证者跑出来的统计结果必须转交给分析师。
 
     这条锁的是一个真实踩过的坑：collector_note 和方面统计当时算完就丢了，
     分析师只拿到评论原文、拿不到任何数字，于是自己重新取一遍——
     token 翻五倍，还经常撞预算上限。
+
+    这里测的是黑板交接，不是模型判得准不准，所以把情感分类换成固定桩。
+    （以前在没有权重的 CI 上，它其实一直跑在一个随机初始化的模型上。）
     """
+    monkeypatch.setattr(tools, "classify_sentiment", lambda texts, model=None: {
+        "results": [{"sentiment": "消极", "confidence": 0.9} for _ in texts]})
     script = [PLAN,
               LLMResponse(tool_calls=[ToolCall("c1", "extract_aspects",
                                                {"product_id": "p", "min_mentions": 1})],

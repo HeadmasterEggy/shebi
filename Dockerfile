@@ -21,6 +21,8 @@ EXPOSE 5003
 ENV HOST=0.0.0.0 PORT=5003
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s \
-    CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:5003/api/info')" || exit 1
+    CMD python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:5003/healthz')" || exit 1
 
-CMD ["python", "app.py"]
+# 单 worker 多线程：训练进程管理器与模型缓存是进程内状态，见 wsgi.py
+CMD ["gunicorn", "--bind", "0.0.0.0:5003", "--workers", "1", "--threads", "8", \
+     "--timeout", "120", "--access-logfile", "-", "wsgi:app"]

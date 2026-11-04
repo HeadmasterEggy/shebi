@@ -19,7 +19,6 @@
   - `profile.js`：个人资料页逻辑。
   - `settings.js`：设置页逻辑。
   - `training.js`：模型训练参数配置与进度展示。
-  - `webscraper.js`：网络爬虫相关功能。
   - `shared.js`：通用工具函数。
 
 - `index.html`  

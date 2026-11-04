@@ -453,80 +453,62 @@ function initSentimentScatterChart(data) {
 }
 
 /**
- * 初始化混淆矩阵
+ * 初始化混淆矩阵：展示模型在测试集上的真实混淆矩阵。
+ *
+ * 原实现用「本次输入里各类句子数 × 测试集准确率」现算一个矩阵。用户输入根本没有
+ * 真实标签，那四个格子是编出来的；坐标轴还接反了（提示框把预测类当成了真实类）。
+ * 现在只画 evaluate.py 在测试集上实测的矩阵，没有就不画。
  */
 function initConfusionMatrix(data) {
-    const confusionMatrixChart = echarts.init(document.getElementById('confusionMatrixChart'));
-    const confusionData = [
-        [Math.round(data.sentences.filter(s => s.sentiment === '消极').length * data.modelMetrics.accuracy),
-            Math.round(data.sentences.filter(s => s.sentiment === '消极').length * (1 - data.modelMetrics.accuracy))],
-        [Math.round(data.sentences.filter(s => s.sentiment === '积极').length * (1 - data.modelMetrics.accuracy)),
-            Math.round(data.sentences.filter(s => s.sentiment === '积极').length * data.modelMetrics.accuracy)]
-    ];
+    const container = document.getElementById('confusionMatrixChart');
+    const cm = data && data.modelMetrics && data.modelMetrics.confusionMatrix;
+    const wrapper = container && container.closest('.chart-wrapper');
+    if (!Array.isArray(cm) || cm.length !== 2) {
+        if (wrapper) wrapper.style.display = 'none';
+        return null;
+    }
+    if (wrapper) wrapper.style.display = '';
+    const title = wrapper && wrapper.querySelector('h5');
+    if (title) {
+        title.textContent = `测试集混淆矩阵（${Number(data.modelMetrics.sampleCount) || '?'} 条）`;
+    }
 
-    const confusionOption = {
+    const labels = ['消极', '积极'];
+    const cells = [];
+    for (let actual = 0; actual < 2; actual++) {
+        for (let predicted = 0; predicted < 2; predicted++) {
+            // heatmap 数据项为 [x, y, 值]：x 轴是预测，y 轴是真实
+            cells.push([predicted, actual, Number(cm[actual][predicted]) || 0]);
+        }
+    }
+
+    const chart = echarts.init(container);
+    chart.setOption({
         tooltip: {
             position: 'top',
-            formatter: function (params) {
-                const labels = ['真实消极', '真实积极'];
-                const predictions = ['预测消极', '预测积极'];
-                return `${labels[params.data[0]]}<br>${predictions[params.data[1]]}<br>数量: ${params.data[2]}`;
-            }
+            formatter: params => `真实${labels[params.data[1]]} → 预测${labels[params.data[0]]}<br>数量: ${params.data[2]}`
         },
-        grid: {
-            left: '3%',
-            right: '7%',
-            bottom: '3%',
-            containLabel: true
-        },
-        xAxis: {
-            type: 'category',
-            data: ['预测消极', '预测积极'],
-            splitArea: {
-                show: true
-            }
-        },
-        yAxis: {
-            type: 'category',
-            data: ['真实消极', '真实积极'],
-            splitArea: {
-                show: true
-            }
-        },
+        grid: {left: '3%', right: '7%', bottom: '15%', containLabel: true},
+        xAxis: {type: 'category', name: '预测', data: labels.map(l => '预测' + l), splitArea: {show: true}},
+        yAxis: {type: 'category', name: '真实', data: labels.map(l => '真实' + l), splitArea: {show: true}},
         visualMap: {
             min: 0,
-            max: Math.max(...confusionData.flat()) || 10,
+            max: Math.max(...cells.map(c => c[2])) || 10,
             calculable: true,
             orient: 'horizontal',
             left: 'center',
             bottom: '0%',
-            inRange: {
-                color: ['#f2f2f2', '#5470c6', '#91cc75']
-            }
+            inRange: {color: ['#f2f2f2', '#5470c6', '#91cc75']}
         },
         series: [{
             name: '混淆矩阵',
             type: 'heatmap',
-            data: [
-                [0, 0, confusionData[0][0]],
-                [0, 1, confusionData[0][1]],
-                [1, 0, confusionData[1][0]],
-                [1, 1, confusionData[1][1]]
-            ],
-            label: {
-                show: true
-            },
-            emphasis: {
-                itemStyle: {
-                    shadowBlur: 10,
-                    shadowColor: 'rgba(0, 0, 0, 0.5)'
-                }
-            }
+            data: cells,
+            label: {show: true},
+            emphasis: {itemStyle: {shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.5)'}}
         }]
-    };
-    confusionMatrixChart.setOption(confusionOption);
-
-    return confusionMatrixChart;
+    });
+    return chart;
 }
 
 /**

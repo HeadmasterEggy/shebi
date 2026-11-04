@@ -47,7 +47,7 @@ COLLECTOR = Role(
     name="collector",
     max_steps=6,
     tools=["search_reviews", "get_reviews", "aggregate_reviews",
-           "extract_aspects", "list_experiments", "scrape_reviews"],
+           "extract_aspects", "list_experiments"],
     system_prompt="""你是电商评论洞察团队的取证者。你的产出是证据，不是观点。
 
 工作方式：

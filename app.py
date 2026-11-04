@@ -15,12 +15,12 @@ from werkzeug.utils import secure_filename
 
 from auth import auth, login_manager, admin_required, validate_account_fields
 from config import Config
-from data_Process import clean_text, sentences_to_array, tokenize
+from data_Process import clean_text, load_stopwords, sentences_to_array, tokenize
 # 导入用户模型和认证模块
 from models import db, User
-from scraper_api import scraper_bp
 from inference import engine
 from metrics_store import load_model_metrics
+from utils import ModelNotAvailable
 from training_control import (
     TERMINAL_STATUSES,
     atomic_write_json,
@@ -80,7 +80,6 @@ login_manager.init_app(app)
 
 # 注册认证蓝图
 app.register_blueprint(auth, url_prefix='/auth')
-app.register_blueprint(scraper_bp)
 
 # /api/analyze 单次请求的上限：整段文本会被逐句分词并一次性送进模型，
 # 不设上限时一个请求就能把服务进程的内存和 CPU 占满
@@ -141,11 +140,7 @@ def predict_sentences(word2id, model, seq_length, sentences, model_type=None):
     }
 
 
-# 读取停用词
-stopwords = []
-with open(Config.stopword_path, "r", encoding="utf-8") as f:
-    for line in f.readlines():
-        stopwords.append(line.strip())
+stopwords = load_stopwords()
 
 # 删除 @app.before_first_request 装饰器及其函数，改为在启动前初始化
 # 创建数据表和初始化管理员账户
@@ -160,6 +155,20 @@ with app.app_context():
             "数据库中没有管理员账户。请运行："
             "ADMIN_USERNAME=... ADMIN_EMAIL=... ADMIN_PASSWORD=... python init_db.py"
         )
+
+
+@app.route('/healthz')
+def healthz():
+    """存活探针，无需登录。
+
+    Dockerfile 的 HEALTHCHECK 原来探测 /api/info——那是个需要登录的调试接口，
+    后来被删掉了，容器会因此一直被判为 unhealthy。
+    """
+    return jsonify({
+        'status': 'ok',
+        'default_model': Config.default_model,
+        'model_loaded': Config.default_model in engine._models,
+    })
 
 
 @app.route('/')
@@ -278,6 +287,10 @@ def analyze():
         result['modelInfo'] = {'type': (model_type or Config.default_model).upper()}
         return jsonify(result), 200
 
+    except ModelNotAvailable:
+        logger.warning('模型 %s 不可用', model_type or Config.default_model, exc_info=True)
+        return jsonify({'error': f'{(model_type or Config.default_model).upper()} 模型尚未训练或权重不可用，'
+                                 '请先在「模型训练」中训练，或选择其他模型'}), 503
     except Exception:
         # 异常详情只进服务端日志，不回给客户端（可能含文件路径等内部信息）
         logger.exception('分析时出错')

@@ -3,7 +3,7 @@
 
 分层：
   registry.py     工具注册表——pydantic schema、JSON Schema 导出、参数校验与自修复
-  tools.py        具体工具实现（本地情感模型、检索、方面统计、爬虫、训练、导出）
+  tools.py        具体工具实现（本地情感模型、检索、方面统计、训练、导出）
   llm.py          LLM provider 抽象（OpenAI 兼容协议，可切 DeepSeek / Qwen / Kimi）
   budget.py       步数 / token / 成本预算，含给单个角色的子预算
   trace.py        全链路执行轨迹（带角色标签）

@@ -17,7 +17,7 @@ import time
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, f1_score, recall_score
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, recall_score
 from torch.utils.data import DataLoader
 
 from config import Config
@@ -57,6 +57,8 @@ def evaluate_model(model_type, batch_size=256):
     # 预测分布是判断模型是否坍缩的最直接信号：
     # 如果全部落在一个类上，说明推理通路有问题，而不是模型"学得不好"。
     dist = np.bincount(preds, minlength=Config.n_class).tolist()
+    # 行 = 真实标签，列 = 预测标签（0 消极 / 1 积极）
+    cm = confusion_matrix(golds, preds, labels=list(range(Config.n_class))).tolist()
     collapsed = bool(min(dist) == 0)
 
     per_sample_ms = float(np.mean(batch_times) * 1000)
@@ -66,6 +68,7 @@ def evaluate_model(model_type, batch_size=256):
         sample_count=int(len(golds)),
         extra={
             "prediction_distribution": dist,
+            "confusion_matrix": cm,
             "collapsed": collapsed,
             "per_sample_ms": round(per_sample_ms, 4),
         },

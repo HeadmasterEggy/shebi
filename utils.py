@@ -101,6 +101,10 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
     return model
 
 
+class ModelNotAvailable(FileNotFoundError):
+    """权重文件缺失或无法加载（例如只拉到了 Git LFS 指针文件）。"""
+
+
 def initialize_model(model_type, w2vec, device=torch.device('cpu')):
     """
     初始化模型并加载最优模型。
@@ -124,20 +128,23 @@ def initialize_model(model_type, w2vec, device=torch.device('cpu')):
 
     logging.info(f"模型文件路径: {best_model_path}")
 
-    # 加载最优模型
-    if os.path.exists(best_model_path):
-        try:
-            loaded_model = torch.load(best_model_path, map_location=device, weights_only=False)
-            if isinstance(loaded_model, dict):
-                model.load_state_dict(loaded_model)
-            else:
-                model = loaded_model
-            logging.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
-        except Exception as e:
-            logging.error(f"加载模型失败: {e}")
-            logging.warning(f"使用未初始化的 {model_type} 模型")
+    # 加载最优模型。
+    #
+    # 原实现在文件缺失或加载失败时只打一条警告，然后返回一个随机初始化的模型——
+    # 线上照常给出看起来很像样的置信度，实际是随机数。刚 clone 下来、Git LFS 只拉到
+    # 133 字节指针文件时，五个模型全部是这种状态。现在宁可报错也不给假结果。
+    if not os.path.exists(best_model_path):
+        raise ModelNotAvailable(f"{model_type} 模型尚未训练（找不到 {best_model_path}）")
+    try:
+        loaded_model = torch.load(best_model_path, map_location=device, weights_only=False)
+    except Exception as e:
+        raise ModelNotAvailable(f"{model_type} 模型权重无法加载（{e}），"
+                                f"可能只拉到了 Git LFS 指针文件，请重新训练或 git lfs pull") from e
+    if isinstance(loaded_model, dict):
+        model.load_state_dict(loaded_model)
     else:
-        logging.warning(f"找不到 {model_type.upper()} 最佳模型，请确保模型文件存在: {best_model_path}")
+        model = loaded_model
+    logging.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
 
     model.to(device)
     model.eval()  # 设置为评估模式

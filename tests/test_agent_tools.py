@@ -34,7 +34,7 @@ def test_all_tools_expose_valid_schemas():
 
 def test_side_effect_tools_require_confirmation():
     """发外部请求、占算力的工具必须显式标记，不能默默执行。"""
-    for name in ("scrape_reviews", "train_model"):
+    for name in ("train_model",):
         assert registry.get(name).requires_confirmation, f"{name} 应当需要人工确认"
 
 
@@ -154,11 +154,6 @@ def test_export_report_marks_fabricated_ids_instead_of_silently_dropping(db, mon
 
 
 # ---------------- 副作用工具 ----------------
-def test_scrape_rejects_non_url():
-    res = registry.invoke("scrape_reviews", {"product_url": "不是链接"})
-    assert res.ok is False and res.repair_hint
-
-
 def test_train_rejects_out_of_range_epochs():
     res = registry.invoke("train_model", {"model": "cnn", "epochs": 9999})
     assert res.ok is False and res.repair_hint

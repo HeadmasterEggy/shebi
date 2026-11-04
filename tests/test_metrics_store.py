@@ -60,3 +60,14 @@ def test_corrupt_file_degrades_to_none(store):
 def test_file_is_human_readable(store):
     metrics_store.save_model_metrics("cnn", 0.5, 0.5, 0.5)
     assert isinstance(json.loads(store.read_text(encoding="utf-8")), dict)
+
+
+def test_confusion_matrix_is_passed_through_when_recorded(tmp_path, monkeypatch):
+    """前端的混淆矩阵只画测试集实测值；旧记录没有这个字段时为 None，前端隐藏图表。"""
+    import metrics_store
+    monkeypatch.setattr(metrics_store, "METRICS_PATH", str(tmp_path / "m.json"))
+    metrics_store.save_model_metrics("cnn", 0.9, 0.9, 0.9, sample_count=4,
+                                     extra={"confusion_matrix": [[2, 0], [1, 1]]})
+    assert metrics_store.load_model_metrics("cnn")["confusionMatrix"] == [[2, 0], [1, 1]]
+    metrics_store.save_model_metrics("lstm", 0.8, 0.8, 0.8)
+    assert metrics_store.load_model_metrics("lstm")["confusionMatrix"] is None
