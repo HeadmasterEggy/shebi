@@ -20,7 +20,7 @@ def pretrained_weight_size(w2vec):
 
 
 def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=None,
-                 num_layers=None, dropout=None):
+                 num_layers=None, dropout=None, num_filters=None, filter_sizes=None):
     """
     根据模型类型创建对应的模型实例
 
@@ -57,6 +57,8 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
     hidden_dim = hidden_dim if hidden_dim is not None else Config.hidden_dim
     num_layers = num_layers if num_layers is not None else Config.num_layers
     dropout = dropout if dropout is not None else Config.dropout
+    num_filters = num_filters if num_filters is not None else Config.num_filters
+    filter_sizes = tuple(filter_sizes) if filter_sizes else tuple(Config.filter_sizes)
 
     if model_type == 'bilstm_attention':
         model = LSTM_attention(
@@ -87,8 +89,8 @@ def create_model(model_type, w2vec, device=None, embedding_dim=None, hidden_dim=
             dropout,
             vocab_size,
             Config.pad_size,
-            Config.filter_sizes,
-            Config.num_filters,
+            filter_sizes,
+            num_filters,
             w2vec,
             embedding_dim,
             Config.n_class
@@ -105,6 +107,49 @@ class ModelNotAvailable(FileNotFoundError):
     """权重文件缺失或无法加载（例如只拉到了 Git LFS 指针文件）。"""
 
 
+# 决定权重张量形状的结构超参。训练时随权重一起落盘，加载时据此重建同样结构的模型。
+#
+# 原来加载一律按 Config 默认值建模型：在网页上把 LSTM 的 hidden_dim 改成 64 训练，
+# 产出的权重就再也装不进那个按 128 建出来的模型（load_state_dict 报 size mismatch）。
+ARCH_KEYS = ("hidden_dim", "num_layers", "num_filters", "filter_sizes", "embedding_dim")
+
+
+def arch_path(weight_path):
+    """权重文件对应的结构描述文件：cnn_model_best.pkl -> cnn_model_best.arch.json"""
+    root, _ = os.path.splitext(weight_path)
+    return root + ".arch.json"
+
+
+def save_checkpoint(state_dict, weight_path, arch):
+    """原子地保存权重与结构描述。
+
+    先写结构、后写权重：推理引擎按权重文件的指纹判断是否重载，权重落盘的那一刻
+    结构描述已经是新的。两者都先写临时文件再 os.replace，Web 进程不会读到写了一半的文件。
+    """
+    import json
+
+    arch = {k: (list(v) if isinstance(v, tuple) else v) for k, v in arch.items() if k in ARCH_KEYS}
+    tmp = arch_path(weight_path) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(arch, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, arch_path(weight_path))
+
+    tmp = weight_path + ".tmp"
+    torch.save(state_dict, tmp)
+    os.replace(tmp, weight_path)
+
+
+def load_arch(weight_path):
+    import json
+
+    try:
+        with open(arch_path(weight_path), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}  # 旧权重没有结构描述：按 Config 默认值建模
+    return {k: v for k, v in data.items() if k in ARCH_KEYS}
+
+
 def initialize_model(model_type, w2vec, device=torch.device('cpu')):
     """
     初始化模型并加载最优模型。
@@ -119,12 +164,13 @@ def initialize_model(model_type, w2vec, device=torch.device('cpu')):
     """
     logging.info(f"使用 {model_type.upper()} 模型")
 
-    # 创建模型实例
-    model = create_model(model_type, w2vec, device)
-
-    # 构建模型文件路径
     model_filename = f"{model_type.lower()}_model_best.pkl"
     best_model_path = os.path.join(Config.model_dir, model_filename)
+
+    # 按训练时记录的结构建模型，没有记录就用 Config 默认值
+    arch = load_arch(best_model_path)
+    model = create_model(model_type, w2vec, device, **arch)
+
 
     logging.info(f"模型文件路径: {best_model_path}")
 
@@ -145,7 +191,14 @@ def initialize_model(model_type, w2vec, device=torch.device('cpu')):
                                 f"可能只拉到了 Git LFS 指针文件，请重新训练或 git lfs pull") from e
     if not isinstance(state_dict, dict):
         raise ModelNotAvailable(f"{best_model_path} 不是 state_dict，请用 main.py 重新训练")
-    model.load_state_dict(state_dict)
+    try:
+        model.load_state_dict(state_dict)
+    except RuntimeError as e:
+        # 结构对不上（size mismatch / missing keys）。原来这个异常会原样冒出去，
+        # 接口只能返回一个笼统的 500。
+        raise ModelNotAvailable(
+            f"{model_type} 权重与模型结构不匹配（结构参数 {arch or 'Config 默认值'}），"
+            f"请重新训练：{str(e).splitlines()[0]}") from e
     logging.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
 
     model.to(device)

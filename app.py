@@ -672,6 +672,9 @@ def _num(data, key, default, cast, lo, hi):
     return value
 
 
+TRAIN_OPTIMIZERS = ('adam', 'sgd', 'rmsprop')
+
+
 def parse_training_params(data):
     """校验前端传来的训练参数，返回写入 params.json 的字典。"""
     model_type = str(data.get('model_type', 'cnn')).lower()
@@ -684,13 +687,22 @@ def parse_training_params(data):
         'epochs': _num(data, 'epochs', 10, int, 1, 1000),
         'dropout': _num(data, 'dropout', 0.5, float, 0.0, 0.95),
         'weight_decay': _num(data, 'weight_decay', 1e-4, float, 0.0, 1.0),
-        'optimizer': str(data.get('optimizer', 'adam')),
+        'optimizer': str(data.get('optimizer', 'adam')).lower(),
     }
+    if params['optimizer'] not in TRAIN_OPTIMIZERS:
+        raise ValueError(f"不支持的优化器: {params['optimizer']}（可选 {', '.join(TRAIN_OPTIMIZERS)}）")
     if 'learning_rate' in data:
         params['learning_rate'] = _num(data, 'learning_rate', Config.lr, float, 1e-7, 1.0)
 
     if model_type == 'cnn':
         params['num_filters'] = _num(data, 'num_filters', Config.num_filters, int, 1, 1024)
+        # 前端以 kernel_sizes 提交卷积核尺寸；原来后端不认这个字段，选什么都按 (2, 3, 4) 训练
+        sizes = data.get('kernel_sizes', data.get('filter_sizes'))
+        if sizes is not None:
+            if (not isinstance(sizes, list) or not sizes
+                    or not all(isinstance(k, int) and not isinstance(k, bool) and 1 <= k <= 10 for k in sizes)):
+                raise ValueError('kernel_sizes 必须是 1-10 之间整数组成的非空列表')
+            params['filter_sizes'] = sorted(set(sizes))
     else:
         params['hidden_dim'] = _num(data, 'hidden_dim', Config.hidden_dim, int, 1, 2048)
         params['num_layers'] = _num(data, 'num_layers', Config.num_layers, int, 1, 8)

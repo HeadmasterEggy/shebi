@@ -209,6 +209,10 @@ def train_env(app_module, tmp_path, monkeypatch):
     {"model_type": "cnn", "batch_size": True},
     {"model_type": "lstm", "num_layers": 99},
     {"model_type": "cnn", "dropout": 1.5},
+    {"model_type": "cnn", "optimizer": "lbfgs"},
+    {"model_type": "cnn", "kernel_sizes": []},
+    {"model_type": "cnn", "kernel_sizes": [0, 3]},
+    {"model_type": "cnn", "kernel_sizes": "2,3"},
 ])
 def test_train_start_validates_params(admin, train_env, payload):
     mgr, _ = train_env
@@ -436,3 +440,19 @@ def test_analyze_returns_503_when_model_untrained(user, app_module, monkeypatch)
     resp = user.post("/api/analyze", json={"text": "质量很好", "model_type": "lstm"})
     assert resp.status_code == 503
     assert "尚未训练" in resp.get_json()["error"]
+
+
+def test_train_start_passes_cnn_kernel_sizes_and_optimizer(admin, train_env):
+    """前端提交的 kernel_sizes 与优化器原来被后端丢弃，选什么都按 (2,3,4) + Adam 训练。"""
+    _, tmp = train_env
+    resp = admin.post("/api/train/start", json={"model_type": "cnn", "kernel_sizes": [5, 2, 2],
+                                                "optimizer": "SGD", "num_filters": 64})
+    assert resp.status_code == 200, resp.get_json()
+    params = json.loads((tmp / "params.json").read_text())
+    assert params["filter_sizes"] == [2, 5]
+    assert params["optimizer"] == "sgd" and params["num_filters"] == 64
+
+
+def test_server_and_trainer_agree_on_optimizers(app_module):
+    import main
+    assert tuple(app_module.TRAIN_OPTIMIZERS) == tuple(main.OPTIMIZERS)
