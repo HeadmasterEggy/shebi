@@ -10,7 +10,7 @@ import re
 import jieba
 import torch
 from flask import Flask, jsonify, send_from_directory, render_template, request  # 添加request导入
-from flask_login import login_required, current_user
+from flask_login import current_user, login_required, login_user
 from werkzeug.utils import secure_filename
 
 from auth import auth, login_manager, admin_required, validate_account_fields, wants_json
@@ -446,6 +446,9 @@ def update_user(user_id):
         return jsonify({'error': error}), status
 
     db.session.commit()
+    # 改了密码就会作废该用户的所有会话；管理员改的是自己时，重新签发当前会话
+    if user.id == current_user.id and data.get('password'):
+        login_user(user, remember=bool(request.cookies.get('remember_token')))
     return jsonify({'message': '用户更新成功', 'user': _user_json(user)})
 
 
@@ -559,6 +562,11 @@ def update_profile():
         current_user.set_password(new_password)
 
     db.session.commit()
+    if changing_password:
+        # 改密码会作废所有既有会话（见 User.get_id），当前这个也不例外，这里按新指纹重新签发；
+        # 原来勾选过"记住我"的，新的 Cookie 也照样记住
+        login_user(current_user._get_current_object(),
+                   remember=bool(request.cookies.get('remember_token')))
     return jsonify({'message': '个人资料更新成功'})
 
 
