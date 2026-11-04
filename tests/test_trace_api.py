@@ -91,3 +91,4 @@ def test_saved_trace_is_readable_end_to_end(client, tmp_path, monkeypatch):
     data = resp.get_json()
     assert data["task"] == "差评集中在哪"
     assert data["steps"][0]["role"] == "planner"
+
