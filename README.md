@@ -283,6 +283,34 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
 
 ---
 
+## 第五轮：依赖漏洞清零
+
+GitHub 在默认分支上报了 21 个 Dependabot 告警（1 个严重、2 个高危）。本地用 `pip-audit`
+对实际安装的环境复核，共 **29 个已知漏洞**：
+
+| 包 | 原版本 | 漏洞数 | 处理 |
+|---|---|---|---|
+| torch | 2.4.1 | 24 | 升级到 2.15.0 |
+| Werkzeug | 3.0.3 | 11 | 升级到 3.1.9 |
+| Flask | 3.0.3 | 2 | 升级到 3.1.3 |
+| pytest | 8.3.3 | 2 | 升级到 9.2.0 |
+| Flask-Cors / requests / lxml | — | 4 | 第三、四轮已删除这三个依赖 |
+
+升级后复核：**No known vulnerabilities found**。只升有漏洞的包，其余版本不动，
+在新版本上重新训练、评测、跑全量测试均通过。
+
+顺带两处：
+
+- **权重加载不再做任意 pickle 反序列化**。原来 `torch.load(..., weights_only=False)`，
+  换掉一个 `.pkl` 就能在服务进程里执行代码。`main.py` 一直只保存 `state_dict`
+  （仓库里的权重也是在这之后提交的），改为 `weights_only=True`；有回归测试往权重文件里
+  塞一个会写文件的 pickle，断言加载失败且文件没被写出
+- **CI 加依赖漏洞审计**：有已知漏洞就变红。CPU 版 torch 的版本号带 `+cpu`，PyPI 上查不到会被
+  `pip-audit` 跳过——而 torch 恰恰是漏洞最多的那个，所以按基础版本号单独审计一次。
+  静态检查也从只查根目录扩到 `agent/ evals/ scripts/ tests/`
+
+---
+
 ## Agent 层
 
 把这套情感分析能力包成工具，交给一个手写的 ReAct 循环来编排。
@@ -533,7 +561,7 @@ python -m evals --md report.md     # 结果写成 Markdown
 SHEBI_ALLOW_DEV_SECRET=1 python -m pytest
 ```
 
-246 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
+247 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
 预训练词向量不被模型加载改写、路径可移植性、指标不可编造、推理缓存与死锁、
 端到端情感判定与鉴权；agent 层的 schema 校验与自修复、角色/全局两级预算终止、
 副作用拦截、trace 落盘；检索层的词级 MaxSim 排序、索引按库隔离、增量编码；

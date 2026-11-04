@@ -123,3 +123,24 @@ def test_missing_or_pointer_weights_raise_instead_of_serving_random_model(tmp_pa
         "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 123\n")
     with pytest.raises(ModelNotAvailable, match="LFS"):
         initialize_model("cnn", w2v)
+
+
+def test_weights_are_loaded_without_arbitrary_unpickling(tmp_path, monkeypatch):
+    """权重文件里塞一个会执行代码的 pickle，加载时不能被执行。"""
+    import os
+    import pickle
+    import torch
+    from utils import ModelNotAvailable, initialize_model
+
+    marker = tmp_path / "pwned"
+
+    class Evil:
+        def __reduce__(self):
+            return (open, (str(marker), "w"))
+
+    monkeypatch.setattr(Config, "model_dir", str(tmp_path))
+    with open(tmp_path / "cnn_model_best.pkl", "wb") as f:
+        pickle.dump(Evil(), f)
+    with pytest.raises(ModelNotAvailable):
+        initialize_model("cnn", torch.zeros(10, Config.embedding_dim))
+    assert not os.path.exists(marker), "恶意 pickle 在加载时被执行了"

@@ -24,7 +24,18 @@ jobs:
           pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
 
       - name: 静态检查
-        run: python -m pyflakes *.py
+        run: python -m pyflakes *.py agent evals scripts tests
+
+      # 依赖里有已知漏洞时让 CI 变红，而不是等 Dependabot 事后提醒。
+      # 曾经一次积攒了 29 个（Flask / Werkzeug / torch / pytest / Flask-Cors 等）。
+      - name: 依赖漏洞审计
+        run: |
+          pip install pip-audit
+          pip-audit --progress-spinner off
+          # CPU 版 torch 的版本号带 "+cpu"，PyPI 上查不到会被跳过；按基础版本号单独审计
+          TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+          echo "torch==${TORCH_VERSION}" > /tmp/torch-req.txt
+          pip-audit --progress-spinner off --no-deps --disable-pip -r /tmp/torch-req.txt
 
       - name: 重建预训练词向量
         run: python scripts/rebuild_pretrained_w2v.py
