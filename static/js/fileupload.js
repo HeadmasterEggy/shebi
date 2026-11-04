@@ -54,7 +54,7 @@ function initFileUpload() {
             </div>
             <div class="card-body guide-content">
                 <ul class="guide-tips">
-                    <li>仅支持 <strong>.txt</strong> 格式的纯文本文件，推荐使用 UTF-8 编码</li>
+                    <li>仅支持 <strong>.txt</strong> 格式的纯文本文件，UTF-8 与 GBK 编码均可自动识别</li>
                     <li>推荐将每个句子放在单独的一行，便于系统分析</li>
                     <li>文件大小建议不超过 2MB</li>
                     <li>句子长度建议在 5-100 个字符之间，过长或过短可能影响分析效果</li>
@@ -95,11 +95,17 @@ function initFileUpload() {
         fileInfo.textContent = `已选择: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
         fileViewBtn.disabled = false;
 
-        // 读取文件内容
+        // 读取文件内容。按字节读入后自己解码：先严格按 UTF-8，失败再按 GB18030（GBK 的超集）。
+        // 原来固定 readAsText(file, 'UTF-8')：旧版记事本和很多导出工具存的是 GBK，
+        // 读进来每个汉字都变成 "�"，模型照样给出一个"分析结果"。
         const reader = new FileReader();
         reader.onload = function (e) {
-            currentFileContent = e.target.result;
-            
+            const decoded = decodeTextFile(e.target.result);
+            currentFileContent = decoded.text;
+            if (decoded.encoding !== 'utf-8') {
+                fileInfo.textContent += `（按 ${decoded.encoding.toUpperCase()} 编码读取）`;
+            }
+
             // 保存到历史记录
             saveFileToHistory(file.name, currentFileContent);
         };
@@ -107,7 +113,7 @@ function initFileUpload() {
             showError('读取文件失败，请重试');
             currentFileContent = '';
         };
-        reader.readAsText(file, 'UTF-8');
+        reader.readAsArrayBuffer(file);
     });
 
     // 预览文件内容
@@ -449,6 +455,20 @@ function showFileHistory() {
     } catch (error) {
         console.error('显示文件历史记录失败:', error);
         showToast('无法加载历史文件记录', 'error');
+    }
+}
+
+/**
+ * 把文本文件的字节解码成字符串：去掉 UTF-8 BOM；严格 UTF-8 解码失败时回退到 GB18030。
+ * @param {ArrayBuffer} buffer
+ * @returns {{text: string, encoding: string}}
+ */
+function decodeTextFile(buffer) {
+    try {
+        // fatal: 遇到非法 UTF-8 字节序列直接抛错，而不是静默替换成 "�"；默认会去掉 BOM
+        return {text: new TextDecoder('utf-8', {fatal: true}).decode(buffer), encoding: 'utf-8'};
+    } catch (e) {
+        return {text: new TextDecoder('gb18030').decode(buffer), encoding: 'gb18030'};
     }
 }
 
