@@ -339,6 +339,8 @@ def prepare_data(w2id, train_path, val_path, test_path, seq_length):
 
 
 if __name__ == "__main__":
+    # 日志配置只在作为脚本运行时设置；被 import 时不改写调用方的全局日志配置
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # preview data
     train_df = data_preview(Config.train_path)
     test_df = data_preview(Config.test_path)
@@ -371,10 +373,7 @@ if __name__ == "__main__":
         seq_length=Config.max_sen_len,
     )
 
-    np.savetxt("./word2vec/train_data.txt", train_array, fmt="%d")
-    np.savetxt("./word2vec/val_data.txt", val_array, fmt="%d")
-    np.savetxt("./word2vec/test_data.txt", test_array, fmt="%d")
-    np.savetxt("./word2vec/train_label.txt", train_label, fmt="%d")
-    np.savetxt("./word2vec/val_label.txt", val_label, fmt="%d")
-    np.savetxt("./word2vec/test_label.txt", test_label, fmt="%d")
+    # 原来还会把这六个矩阵导出成 word2vec/{train,val,test}_{data,label}.txt（共约 12MB
+    # 并提交进了仓库），但没有任何代码读取它们：训练和评测都直接从 data/*.txt 现算。
+    logging.info("train %s / val %s / test %s", train_array.shape, val_array.shape, test_array.shape)
     logging.info("数据处理完成。")
