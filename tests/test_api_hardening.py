@@ -541,3 +541,43 @@ def test_forwarded_for_is_ignored_without_trusted_proxy(app_module, users, resto
     resp = c.post("/auth/login", data={"username": name, "password": "wrong"},
                   headers={"X-Forwarded-For": "203.0.113.99"})
     assert resp.status_code == 429, "伪造 X-Forwarded-For 绕过了登录限流"
+
+
+# ---------------------------------------------------------------------------
+# 注册限流 / 关闭注册
+# ---------------------------------------------------------------------------
+def test_registration_is_throttled_per_ip(app_module, monkeypatch):
+    """原来不限：单个 IP 2.9 秒注册 20 个账号，每个还要做 ~100ms 的密码哈希。"""
+    from auth import LoginThrottle
+    from models import User
+    monkeypatch.setattr("auth.register_throttle", LoginThrottle(max_failures=3, window_s=3600))
+    tag = uuid.uuid4().hex[:6]
+    c = app_module.app.test_client()
+    codes = [c.post("/auth/register", data={"username": f"rg{tag}{i}", "email": f"rg{tag}{i}@example.invalid",
+                                            "password": "register-pass-1"}).status_code for i in range(4)]
+    try:
+        assert codes == [302, 302, 302, 429]
+        with app_module.app.app_context():
+            assert User.query.filter(User.username.like(f"rg{tag}%")).count() == 3
+    finally:
+        with app_module.app.app_context():
+            from models import db
+            User.query.filter(User.username.like(f"rg{tag}%")).delete(synchronize_session=False)
+            db.session.commit()
+
+
+def test_registration_can_be_disabled(app_module, monkeypatch):
+    from models import User
+    monkeypatch.setenv("SHEBI_ALLOW_REGISTRATION", "0")
+    c = app_module.app.test_client()
+    name = f"nr_{uuid.uuid4().hex[:6]}"
+    resp = c.post("/auth/register", data={"username": name, "email": f"{name}@example.invalid",
+                                          "password": "register-pass-1"})
+    assert resp.status_code == 302 and "/auth/login" in resp.headers["Location"]
+    with app_module.app.app_context():
+        assert User.query.filter_by(username=name).first() is None
+    assert "立即注册" not in c.get("/auth/login").get_data(as_text=True), "关闭注册后登录页不应再显示注册入口"
+
+
+def test_register_link_shown_by_default(app_module):
+    assert "立即注册" in app_module.app.test_client().get("/auth/login").get_data(as_text=True)

@@ -58,7 +58,9 @@
             </form>
         </div>
         <div class="card-footer text-center">
+            {% if registration_enabled %}
             <p class="mb-0">还没有账号？<a href="{{ url_for('auth.register') }}" class="fw-bold">立即注册</a></p>
+            {% endif %}
         </div>
     </div>
 </div>

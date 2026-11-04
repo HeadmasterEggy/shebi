@@ -14,6 +14,8 @@ services:
       SHEBI_TRUSTED_PROXIES: ${SHEBI_TRUSTED_PROXIES:-0}
       # 走 HTTPS 时设为 1，登录态 Cookie 只经 HTTPS 发送
       SHEBI_SECURE_COOKIES: ${SHEBI_SECURE_COOKIES:-0}
+      # 设为 0 关闭自助注册（账号只由管理员创建）；注册默认按 IP 每小时限 5 次
+      SHEBI_ALLOW_REGISTRATION: ${SHEBI_ALLOW_REGISTRATION:-1}
       PORT: 5003
     volumes:
       # 用户库与训练产物留在宿主机，容器重建不丢
