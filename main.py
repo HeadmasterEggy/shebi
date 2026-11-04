@@ -35,7 +35,7 @@ from data_Process import (
 )
 from training_control import ControlPoller, atomic_write_json, clear_command
 # 导入模型工具模块
-from utils import create_model
+from utils import create_model, save_checkpoint
 
 
 def set_seed(seed):
@@ -76,6 +76,34 @@ def val_accuracy(model, val_dataloader, device, criterion):
     return 100 * correct / max(total, 1), total_loss / max(len(val_dataloader), 1)
 
 
+OPTIMIZERS = ("adam", "sgd", "rmsprop")
+
+
+def build_optimizer(name, parameters, lr, weight_decay):
+    """按名称构造优化器。
+
+    原实现无论网页上选什么都用 Adam——优化器下拉框是摆设。
+    """
+    name = (name or "adam").lower()
+    if name == "adam":
+        return optim.Adam(parameters, lr=lr, weight_decay=weight_decay)
+    if name == "sgd":
+        return optim.SGD(parameters, lr=lr, momentum=0.9, weight_decay=weight_decay)
+    if name == "rmsprop":
+        return optim.RMSprop(parameters, lr=lr, weight_decay=weight_decay)
+    raise ValueError(f"不支持的优化器: {name}（可选 {', '.join(OPTIMIZERS)}）")
+
+
+def parse_filter_sizes(value):
+    """'2,3,4' / [2, 3, 4] -> (2, 3, 4)"""
+    if isinstance(value, str):
+        value = [v for v in value.replace(" ", "").split(",") if v]
+    sizes = tuple(sorted({int(v) for v in value}))
+    if not sizes or min(sizes) < 1:
+        raise ValueError(f"卷积核尺寸不合法: {value}")
+    return sizes
+
+
 def train(train_dataloader, model, device, epoches, lr, patience):
     """训练模型函数
 
@@ -107,11 +135,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
     update_training_progress(0, epoches, None, None, None, 'running', "训练开始")
 
     # 定义优化器和损失函数
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=lr,
-        weight_decay=args.weight_decay,
-    )
+    optimizer = build_optimizer(args.optimizer, model.parameters(), lr, args.weight_decay)
     criterion = nn.CrossEntropyLoss()
     # 余弦退火学习率调整：在每个周期内学习率从初始值余弦衰减到最小值
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -241,7 +265,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
                 best_acc = acc
                 counter = 0  # 重置早停计数器
 
-                torch.save(model.state_dict(), model_path)
+                save_checkpoint(model.state_dict(), model_path, model_arch)
                 print(f'最佳模型已保存，准确率为: {best_acc:.4f}%')
             else:
                 counter += 1  # 增加早停计数器
@@ -412,6 +436,11 @@ if __name__ == "__main__":
                             help='LSTM层数 (默认: Config.num_layers)')
         parser.add_argument('--num-filters', type=int, default=params.get('num_filters', Config.num_filters),
                             help='卷积核数量 (默认: Config.num_filters)')
+        parser.add_argument('--filter-sizes', type=str,
+                            default=','.join(str(k) for k in params.get('filter_sizes', Config.filter_sizes)),
+                            help='TextCNN 卷积核尺寸，逗号分隔 (默认: 2,3,4)')
+        parser.add_argument('--optimizer', type=str, default=params.get('optimizer', 'adam'),
+                            choices=OPTIMIZERS, help='优化器 (默认: adam)')
         parser.add_argument('--patience', type=int, default=params.get('patience', Config.patience),
                             help='早停耐心值 (默认: 10)')
         parser.add_argument('--learning-rate', type=float, default=params.get('learning_rate', Config.lr),
@@ -481,15 +510,15 @@ if __name__ == "__main__":
         test_dataloader = DataLoader(test_loader, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
         # 使用导入的创建模型函数，传入args参数
-        model = create_model(
-            args.model,
-            w2vec,
-            device=device,
-            embedding_dim=args.embedding_dim,
-            hidden_dim=args.hidden_dim,
-            num_layers=args.num_layers,
-            dropout=args.dropout
-        )
+        # 决定权重形状的结构参数：建模型用它，保存权重时也原样记下来，
+        # 推理端据此重建同样结构的模型（见 utils.save_checkpoint / load_arch）
+        model_arch = {"embedding_dim": args.embedding_dim}
+        if args.model == "cnn":
+            model_arch.update(num_filters=args.num_filters,
+                              filter_sizes=parse_filter_sizes(args.filter_sizes))
+        else:
+            model_arch.update(hidden_dim=args.hidden_dim, num_layers=args.num_layers)
+        model = create_model(args.model, w2vec, device=device, dropout=args.dropout, **model_arch)
         print(f'使用 {args.model.upper()} 模型训练')
 
         # 保存模型（根据模型名字保存，并添加缓存）
