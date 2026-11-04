@@ -98,9 +98,17 @@ def unauthorized():
 
 
 @login_manager.user_loader
-def load_user(user_id):
-    """加载用户"""
-    return db.session.get(User, int(user_id))
+def load_user(session_id):
+    """按会话里的 "id:密码指纹" 加载用户；指纹对不上（密码已改）视为未登录。"""
+    import hmac
+
+    user_id, _, token = str(session_id).partition(":")
+    if not user_id.isdigit() or not token:
+        return None  # 旧格式（只有 id）的会话一律要求重新登录
+    user = db.session.get(User, int(user_id))
+    if user is None or not hmac.compare_digest(user.session_token, token):
+        return None
+    return user
 
 
 @auth.route('/login', methods=['GET', 'POST'])
