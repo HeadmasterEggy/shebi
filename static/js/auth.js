@@ -55,6 +55,12 @@ async function fetchUserInfo() {
  * 更新界面以反映用户登录状态
  */
 function updateUserInterface() {
+    // Agent 执行轨迹只对管理员开放（服务端同样做了限制），普通用户不显示入口
+    const tracesLink = document.getElementById('navbarTraces');
+    if (tracesLink && !isAdmin) {
+        (tracesLink.closest('li') || tracesLink).remove();
+    }
+
     // 更新顶部导航栏用户信息
     const navbarUsername = document.getElementById('navbarUsername');
     if (navbarUsername) {

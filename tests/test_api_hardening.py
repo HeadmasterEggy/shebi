@@ -486,3 +486,11 @@ def test_max_length_text_still_fits_under_body_cap(user, app_module, monkeypatch
     text = "好" * app_module.MAX_ANALYZE_CHARS
     resp = user.post("/api/analyze", json={"text": text})
     assert resp.status_code != 413, "合法长度的文本被请求体上限误拦"
+
+
+def test_traces_are_admin_only(user, admin):
+    """注册是开放的：普通用户不能读到运营者的 agent 运行轨迹（问题、工具参数、检索到的评论原文）。"""
+    assert user.get("/api/traces").status_code == 403
+    assert user.get("/api/traces/abcdef123456").status_code == 403
+    assert user.get("/traces").status_code == 302
+    assert admin.get("/api/traces").status_code == 200

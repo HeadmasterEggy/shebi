@@ -907,14 +907,16 @@ def save_model():
 # 轨迹本来就一直在往 runtime/traces/ 落盘，但只有能读 JSON 的人看得懂。
 # 把它画成一条时间线之后，"这个 agent 到底做了什么"从一句话变成一屏可点开的
 # 证据——每一步的思考、调了哪个工具、传了什么参数、拿回什么、花了多少钱。
+# 轨迹页与接口仅管理员可见：注册是开放的，任何人注册一个账号就能读到运营者每一次 agent
+# 运行的问题、工具调用参数与检索到的评论原文。这是运维观测工具，不是面向普通用户的功能。
 @app.route('/traces')
-@login_required
+@admin_required
 def traces_page():
     return render_template('traces.html')
 
 
 @app.route('/api/traces', methods=['GET'])
-@login_required
+@admin_required
 def api_traces():
     """轨迹列表，最新的在前。"""
     from agent.trace import list_traces, load_trace
@@ -944,7 +946,7 @@ def api_traces():
 
 
 @app.route('/api/traces/<run_id>', methods=['GET'])
-@login_required
+@admin_required
 def api_trace_detail(run_id):
     from agent.trace import load_trace
 
