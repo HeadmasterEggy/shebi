@@ -1,11 +1,15 @@
 """
 日志分析工具 - 用于对比不同模型的训练性能
 """
+import argparse
 import glob
 import os
 import re
 
-import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("Agg")  # 只写文件、不弹窗口；无显示器的服务器 / CI 上也能跑
+import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd
 import seaborn as sns
 from matplotlib.font_manager import FontProperties
@@ -637,16 +641,22 @@ def generate_html_report(output_dir):
 </html>
     """
 
-    with open(os.path.join(output_dir, "model_comparison_report.html"), "w") as f:
+    # 显式 UTF-8：原来用平台默认编码，Windows（GBK）上中文报告会乱码
+    with open(os.path.join(output_dir, "model_comparison_report.html"), "w", encoding="utf-8") as f:
         f.write(html_content)
 
     print(f"HTML报告已生成至 {os.path.join(output_dir, 'model_comparison_report.html')}")
 
 
 if __name__ == "__main__":
-    # 设置路径
-    log_dir = "log"
-    output_dir = "model_comparison_results"
+    from config import Config
+
+    # 路径以项目根为基准：原来写死相对路径 "log"，换个目录运行就找不到日志
+    parser = argparse.ArgumentParser(description="训练日志分析与可视化")
+    parser.add_argument("--log-dir", default=os.path.join(Config.base_dir, "log"))
+    parser.add_argument("--output-dir", default=os.path.join(Config.base_dir, "model_comparison_results"))
+    cli = parser.parse_args()
+    log_dir, output_dir = cli.log_dir, cli.output_dir
 
     print("开始分析日志文件...")
     log_data = read_log_files(log_dir)
