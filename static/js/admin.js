@@ -406,56 +406,10 @@ async function createUser() {
 async function editUser(userId) {
     console.log('编辑用户:', userId);
     try {
-        // 尝试多种可能的API端点路径，找到正确的一个
-        const possibleEndpoints = [
-            `/api/admin/user/${userId}`,
-            `/api/admin/users/${userId}`,
-            `/api/users/${userId}`,
-            `/api/admin/get_user/${userId}`
-        ];
-
-        console.log('尝试以下API端点:');
-        console.log(possibleEndpoints);
-
-        // 依次尝试各个端点
-        let response = null;
-        let endpointUsed = '';
-
-        for (const endpoint of possibleEndpoints) {
-            console.log(`尝试API端点: ${endpoint}`);
-            try {
-                const resp = await fetch(endpoint, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                console.log(`端点 ${endpoint} 返回状态: ${resp.status}`);
-
-                if (resp.ok) {
-                    response = resp;
-                    endpointUsed = endpoint;
-                    console.log(`成功: 使用端点 ${endpoint}`);
-                    break;
-                }
-            } catch (e) {
-                console.log(`端点 ${endpoint} 请求失败:`, e);
-            }
-        }
-
-        // 如果所有端点都失败，使用第一个端点的响应，以便显示错误信息
-        if (!response) {
-            response = await fetch(possibleEndpoints[0], {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-        }
-
-        console.log('最终使用的API端点:', endpointUsed || possibleEndpoints[0]);
-        console.log('获取用户信息响应状态:', response.status);
+        // 原实现依次试探四个"可能的"端点（其中三个从来不存在），失败时还要再请求一次，
+        // 每点一次编辑就在服务端留下三条 404。接口只有这一个。
+        const endpoint = `/api/admin/user/${Number(userId)}`;
+        const response = await fetch(endpoint, {headers: {'Accept': 'application/json'}});
 
         if (response.ok) {
             const user = await response.json();
@@ -497,15 +451,8 @@ async function editUser(userId) {
                 alert('无法显示编辑用户对话框');
             }
         } else {
-            // 增强错误处理，显示可能的API路径
-            console.error('获取用户数据失败:', response.status);
-            console.error('尝试使用的API端点:', endpointUsed || possibleEndpoints[0]);
-            const responseText = await response.text();
-            console.error('错误响应内容:', responseText);
-
-            alert(`获取用户信息失败: 服务器返回状态 ${response.status}。请联系管理员检查API端点。`);
-            alert(`尝试使用API端点: ${possibleEndpoints.join(', ')}`);
-
+            const body = await response.json().catch(() => ({}));
+            alert(`获取用户信息失败: ${body.error || '服务器返回状态 ' + response.status}`);
         }
     } catch (error) {
         console.error('编辑用户出错:', error);
@@ -564,64 +511,19 @@ async function deleteUser() {
             console.error('解析用户数据失败:', e);
         }
 
-        // 尝试多种可能的API端点路径
-        const possibleEndpoints = [
-            `/api/admin/delete_user/${userId}`,
-            `/api/admin/users/${userId}`,
-            `/api/admin/user/${userId}`
-        ];
-
-        console.log('尝试以下删除API端点:');
-        console.log(possibleEndpoints);
-
-        // 依次尝试各个端点
-        let response = null;
-        let endpointUsed = '';
-
-        for (const endpoint of possibleEndpoints) {
-            console.log(`尝试删除API端点: ${endpoint}`);
-            try {
-                const resp = await fetch(endpoint, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                console.log(`删除端点 ${endpoint} 返回状态: ${resp.status}`);
-
-                if (resp.ok) {
-                    response = resp;
-                    endpointUsed = endpoint;
-                    console.log(`成功: 使用删除端点 ${endpoint}`);
-                    break;
-                }
-            } catch (e) {
-                console.log(`删除端点 ${endpoint} 请求失败:`, e);
-            }
-        }
-
-        // 如果所有端点都失败，使用第一个端点的响应
-        if (!response) {
-            response = await fetch(possibleEndpoints[0], {
-                method: 'DELETE',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-        }
-
-        console.log('最终使用的删除API端点:', endpointUsed || possibleEndpoints[0]);
-        console.log('删除用户响应状态:', response.status);
+        // 原实现依次向三个"可能的"地址发 DELETE，被正常拒绝（如"不能删除最后一个管理员"）
+        // 后还会再补发一次 DELETE。删除接口只有这一个。
+        const response = await fetch(`/api/admin/delete_user/${Number(userId)}`, {method: 'DELETE'});
 
         if (response.ok) {
             // 记录操作用于撤销
             recordOperation('delete', {
                 userId: userId,
+                // 不记录密码：原实现写死 "tempPassword123"，撤销删除后账号的密码
+                // 就是仓库里公开的这个字符串。恢复时另行生成随机密码，见 undoDelete
                 userData: {
                     username: userData.username,
                     email: userData.email,
-                    password: "tempPassword123", // 临时密码
                     is_admin: userData.is_admin
                 }
             });
@@ -699,59 +601,11 @@ async function updateUser() {
 
         console.log('更新用户请求体:', JSON.stringify(requestBody));
 
-        // 尝试多种可能的API端点路径
-        const possibleEndpoints = [
-            `/api/admin/update_user/${userId}`,
-            `/api/admin/users/${userId}`,
-            `/api/admin/user/${userId}`
-        ];
-
-        console.log('尝试以下更新API端点:');
-        console.log(possibleEndpoints);
-
-        // 依次尝试各个端点
-        let response = null;
-        let endpointUsed = '';
-
-        for (const endpoint of possibleEndpoints) {
-            console.log(`尝试更新API端点: ${endpoint}`);
-            try {
-                const resp = await fetch(endpoint, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-
-                console.log(`更新端点 ${endpoint} 返回状态: ${resp.status}`);
-
-                if (resp.ok) {
-                    response = resp;
-                    endpointUsed = endpoint;
-                    console.log(`成功: 使用更新端点 ${endpoint}`);
-                    break;
-                }
-            } catch (e) {
-                console.log(`更新端点 ${endpoint} 请求失败:`, e);
-            }
-        }
-
-        // 如果所有端点都失败，使用第一个端点的响应
-        if (!response) {
-            response = await fetch(possibleEndpoints[0], {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify(requestBody)
-            });
-        }
-
-        console.log('最终使用的更新API端点:', endpointUsed || possibleEndpoints[0]);
-        console.log('更新用户响应状态:', response.status);
+        const response = await fetch(`/api/admin/update_user/${Number(userId)}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(requestBody)
+        });
 
         const responseText = await response.text();
         console.log('更新用户响应内容:', responseText);
@@ -925,6 +779,16 @@ async function undoUpdate(data) {
 }
 
 /**
+ * 生成随机密码（浏览器 CSPRNG），去掉容易混淆的 0/O、1/l/I
+ */
+function randomPassword(length = 16) {
+    const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => charset[b % charset.length]).join('');
+}
+
+/**
  * 撤销删除用户操作
  */
 async function undoDelete(data) {
@@ -932,13 +796,14 @@ async function undoDelete(data) {
         throw new Error('缺少用户数据，无法恢复删除的用户');
     }
     
-    // 重新创建已删除的用户
+    // 原密码的哈希随账号一起删掉了，无法还原。生成一个随机密码，只向管理员显示一次。
+    const password = randomPassword();
     const response = await fetch('/api/admin/create_user', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data.userData)
+        body: JSON.stringify({...data.userData, password})
     });
     
     if (!response.ok) {
@@ -946,7 +811,8 @@ async function undoDelete(data) {
         throw new Error(errorData.error || '恢复失败');
     }
     
-    alert(`已恢复: 删除的用户 "${data.userData.username}"`);
+    alert(`已恢复: 删除的用户 "${data.userData.username}"\n\n` +
+          `原密码无法还原，已设置新的随机密码（只显示这一次，请转交用户并提醒其修改）：\n${password}`);
 }
 
 // 确保全局可访问
