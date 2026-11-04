@@ -494,3 +494,50 @@ def test_traces_are_admin_only(user, admin):
     assert user.get("/api/traces/abcdef123456").status_code == 403
     assert user.get("/traces").status_code == 302
     assert admin.get("/api/traces").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 反向代理与登录限流
+# ---------------------------------------------------------------------------
+PROXY = {"REMOTE_ADDR": "10.0.0.1"}
+
+
+def _fail_then_login(app_module, name, attacker_ip, victim_ip):
+    from auth import LoginThrottle
+    import auth
+    auth.login_throttle = LoginThrottle(max_failures=3, window_s=600)
+    att = app_module.app.test_client()
+    for _ in range(3):
+        att.post("/auth/login", data={"username": name, "password": "wrong"},
+                 headers={"X-Forwarded-For": attacker_ip}, environ_base=PROXY)
+    vic = app_module.app.test_client()
+    return vic.post("/auth/login", data={"username": name, "password": PASSWORD},
+                    headers={"X-Forwarded-For": victim_ip}, environ_base=PROXY).status_code
+
+
+@pytest.fixture
+def restore_wsgi(app_module, monkeypatch):
+    import auth
+    monkeypatch.setattr(app_module.app, "wsgi_app", app_module.app.wsgi_app)
+    monkeypatch.setattr(auth, "login_throttle", auth.login_throttle)
+
+
+def test_behind_proxy_attacker_cannot_lock_out_other_clients(app_module, users, restore_wsgi):
+    """配置了可信代理后，按真实客户端 IP 限流：攻击者连错只锁住自己。"""
+    app_module.configure_trusted_proxies(app_module.app, 1)
+    assert _fail_then_login(app_module, users["user"]["name"], "203.0.113.66", "198.51.100.7") == 302
+
+
+def test_forwarded_for_is_ignored_without_trusted_proxy(app_module, users, restore_wsgi):
+    """没有配置代理时不信任 X-Forwarded-For：伪造它不能绕过限流。"""
+    from auth import LoginThrottle
+    import auth
+    auth.login_throttle = LoginThrottle(max_failures=3, window_s=600)
+    c = app_module.app.test_client()
+    name = users["user"]["name"]
+    for i in range(3):
+        c.post("/auth/login", data={"username": name, "password": "wrong"},
+               headers={"X-Forwarded-For": f"203.0.113.{i}"})
+    resp = c.post("/auth/login", data={"username": name, "password": "wrong"},
+                  headers={"X-Forwarded-For": "203.0.113.99"})
+    assert resp.status_code == 429, "伪造 X-Forwarded-For 绕过了登录限流"

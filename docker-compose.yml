@@ -9,6 +9,11 @@ services:
       # 写在源码里的公开字符串，任何人都能伪造登录态。
       SECRET_KEY: ${SECRET_KEY:?请设置 SECRET_KEY，例如 SECRET_KEY=$(openssl rand -hex 32)}
       HOST: 0.0.0.0
+      # 部署在 nginx / 云负载均衡之后时设为代理层数（通常 1），否则登录限流按代理 IP 计数，
+      # 攻击者可以让某个用户名对所有人都登录不上；直连部署保持 0，不信任 X-Forwarded-For
+      SHEBI_TRUSTED_PROXIES: ${SHEBI_TRUSTED_PROXIES:-0}
+      # 走 HTTPS 时设为 1，登录态 Cookie 只经 HTTPS 发送
+      SHEBI_SECURE_COOKIES: ${SHEBI_SECURE_COOKIES:-0}
       PORT: 5003
     volumes:
       # 用户库与训练产物留在宿主机，容器重建不丢

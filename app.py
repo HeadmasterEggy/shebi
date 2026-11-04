@@ -81,10 +81,29 @@ def _security_headers(resp):
     return resp
 
 
+def configure_trusted_proxies(flask_app, hops):
+    """部署在 hops 层反向代理（nginx / 云负载均衡）之后时，从 X-Forwarded-* 还原客户端真实 IP 与协议。
+
+    不配置时，代理后面所有请求的 remote_addr 都是代理自己的地址：登录限流按 (IP, 用户名) 计数，
+    攻击者对某个用户名连错 5 次，所有人都登不上这个账号（实测返回 429）。
+    反过来，没有代理时绝不能信任这些头——否则谁都能伪造 X-Forwarded-For 绕过限流。
+    所以只在显式配置了代理层数时才启用。
+    """
+    if hops > 0:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        flask_app.wsgi_app = ProxyFix(flask_app.wsgi_app, x_for=hops, x_proto=hops, x_host=hops)
+
+
+configure_trusted_proxies(app, int(os.environ.get('SHEBI_TRUSTED_PROXIES', '0')))
+
 # 初始化扩展
 # 不再全局开启 CORS：前端与 API 同源，不需要跨域；原来的 CORS(app) 对任意来源
 # 放行所有接口，等于允许任何网站在用户浏览器里调用本站 API。
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+# 走 HTTPS 部署时设 SHEBI_SECURE_COOKIES=1，登录态 Cookie 不会在明文 HTTP 上发送
+_secure_cookies = os.environ.get('SHEBI_SECURE_COOKIES') == '1'
+app.config['SESSION_COOKIE_SECURE'] = _secure_cookies
+app.config['REMEMBER_COOKIE_SECURE'] = _secure_cookies
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
