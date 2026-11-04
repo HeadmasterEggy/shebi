@@ -1353,13 +1353,14 @@ function formatOverallResults(data, format) {
             csv += `召回率,${(data.modelMetrics.recall * 100).toFixed(2)}%\n`;
         }
         
-        // 添加混淆矩阵数据（如果有）
-        if (data.modelMetrics?.confusion_matrix) {
-            const cm = data.modelMetrics.confusion_matrix;
-            csv += '\n混淆矩阵:\n';
-            csv += ',预测积极,预测消极\n';
-            csv += `实际积极,${cm[0][0]},${cm[0][1]}\n`;
-            csv += `实际消极,${cm[1][0]},${cm[1][1]}\n`;
+        // 测试集混淆矩阵。原来读的是 confusion_matrix，接口给的是 confusionMatrix，
+        // 所以一直导不出来；行列标签也接反了（第 0 行是真实消极，不是真实积极）
+        const cm = data.modelMetrics?.confusionMatrix;
+        if (Array.isArray(cm) && cm.length === 2) {
+            csv += `\n测试集混淆矩阵（${data.modelMetrics.sampleCount || '?'} 条）:\n`;
+            csv += ',预测消极,预测积极\n';
+            csv += `真实消极,${cm[0][0]},${cm[0][1]}\n`;
+            csv += `真实积极,${cm[1][0]},${cm[1][1]}\n`;
         }
         
         return csv;
@@ -1377,20 +1378,33 @@ function formatOverallResults(data, format) {
             txt += `召回率: ${(data.modelMetrics.recall * 100).toFixed(2)}%\n\n`;
         }
         
-        // 添加混淆矩阵数据（如果有）
-        if (data.modelMetrics?.confusion_matrix) {
-            const cm = data.modelMetrics.confusion_matrix;
-            txt += '-------------- 混淆矩阵 --------------\n\n';
-            txt += '             | 预测积极 | 预测消极 \n';
+        const cm = data.modelMetrics?.confusionMatrix;
+        if (Array.isArray(cm) && cm.length === 2) {
+            txt += `-------------- 测试集混淆矩阵（${data.modelMetrics.sampleCount || '?'} 条） --------------\n\n`;
+            txt += '         | 预测消极 | 预测积极 \n';
             txt += '-------------------------------\n';
-            txt += `实际积极 |    ${cm[0][0]}    |    ${cm[0][1]}    \n`;
-            txt += `实际消极 |    ${cm[1][0]}    |    ${cm[1][1]}    \n\n`;
+            txt += `真实消极 |    ${cm[0][0]}    |    ${cm[0][1]}    \n`;
+            txt += `真实积极 |    ${cm[1][0]}    |    ${cm[1][1]}    \n\n`;
         }
         
         txt += `分析时间: ${new Date().toLocaleString()}\n`;
         txt += '==========================================\n';
         return txt;
     }
+}
+
+/**
+ * 生成一个 CSV 单元格：转义引号，并中和公式注入。
+ *
+ * 句子原文可能来自别人提供的文件。以 = + - @ 开头的单元格会被 Excel / WPS 当成公式执行
+ * （例如 =HYPERLINK(...) 或 =cmd|...），导出后一打开就触发。前面加一个单引号让它按文本显示。
+ */
+function csvCell(value) {
+    let text = String(value ?? '');
+    if (/^[=+\-@\t\r]/.test(text)) {
+        text = "'" + text;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
 }
 
 /**
@@ -1408,7 +1422,7 @@ function formatSentencesResults(sentences, format) {
         let csv = '序号,句子内容,情感倾向,积极概率,消极概率\n';
         sentences.forEach((sentence, index) => {
             // 处理CSV中的引号和逗号
-            const content = `"${sentence.text.replace(/"/g, '""')}"`;
+            const content = csvCell(sentence.text);
             const sentiment = sentence.sentiment || 'N/A';
             const positive = (sentence.probabilities?.positive || 0).toFixed(2);
             const negative = (sentence.probabilities?.negative || 0).toFixed(2);
@@ -1449,7 +1463,7 @@ function formatWordFreqResults(wordFreq, format) {
     if (format === 'csv') {
         let csv = '排名,词语,出现次数\n';
         sortedWordFreq.forEach((item, index) => {
-            const word = `"${item.word.replace(/"/g, '""')}"`;
+            const word = csvCell(item.word);
             csv += `${index + 1},${word},${item.count}\n`;
         });
         return csv;
