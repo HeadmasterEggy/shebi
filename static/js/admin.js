@@ -506,18 +506,6 @@ async function editUser(userId) {
             alert(`获取用户信息失败: 服务器返回状态 ${response.status}。请联系管理员检查API端点。`);
             alert(`尝试使用API端点: ${possibleEndpoints.join(', ')}`);
 
-            // 获取API信息以辅助调试
-            try {
-                const infoResponse = await fetch('/api/info');
-                if (infoResponse.ok) {
-                    const apiInfo = await infoResponse.json();
-                    console.log('API信息:', apiInfo);
-                } else {
-                    console.log('无法获取API信息, 状态码:', infoResponse.status);
-                }
-            } catch (e) {
-                console.log('获取API信息时出错:', e);
-            }
         }
     } catch (error) {
         console.error('编辑用户出错:', error);

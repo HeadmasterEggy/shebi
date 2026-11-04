@@ -1,3 +1,5 @@
+import functools
+import re
 from urllib.parse import urlparse  # Replace werkzeug.urls import
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
@@ -12,6 +14,42 @@ auth = Blueprint('auth', __name__)
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = '请先登录以访问此页面'
+
+USERNAME_RE = re.compile(r'^[\w\u4e00-\u9fff.-]{2,32}$')
+EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+MIN_PASSWORD_LEN = 8
+
+
+def validate_account_fields(username=None, email=None, password=None):
+    """校验注册 / 管理员建号时的字段，返回错误信息；全部合法时返回 None。
+
+    传 None 表示不校验该字段（例如更新时没有改用户名）。
+    """
+    if username is not None and not USERNAME_RE.match(username):
+        return '用户名须为 2-32 位中文、字母、数字、下划线、点或连字符'
+    if email is not None and (len(email) > 120 or not EMAIL_RE.match(email)):
+        return '邮箱格式不正确'
+    if password is not None and len(password) < MIN_PASSWORD_LEN:
+        return f'密码至少 {MIN_PASSWORD_LEN} 位'
+    return None
+
+
+def wants_json():
+    """API 请求返回 JSON 错误而不是重定向到登录页 / 首页。
+
+    前端用 fetch 调 /api/*，原实现对未登录 / 非管理员一律 302 到 HTML 页面，
+    fetch 跟随重定向后拿到一整页 HTML，再 response.json() 就抛解析异常，
+    界面上只剩一句莫名其妙的 "Unexpected token <"。
+    """
+    return request.path.startswith('/api/') or request.is_json
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    if wants_json():
+        return jsonify({'error': '请先登录'}), 401
+    flash(login_manager.login_message)
+    return redirect(url_for('auth.login', next=request.full_path if request.query_string else request.path))
 
 
 @login_manager.user_loader
@@ -40,7 +78,10 @@ def login():
 
         login_user(user, remember=remember)
         next_page = request.args.get('next')
-        if not next_page or urlparse(next_page).netloc != '':  # Updated to use urlparse
+        # 只允许站内相对路径。仅判断 netloc 不够："\\evil.com" 与 "/\\evil.com"
+        # 的 netloc 为空，但浏览器会把它们当成 //evil.com，形成开放重定向。
+        if (not next_page or not next_page.startswith('/') or next_page.startswith('//')
+                or '\\' in next_page or urlparse(next_page).netloc or urlparse(next_page).scheme):
             next_page = url_for('index')
 
         return redirect(next_page)
@@ -56,9 +97,14 @@ def register():
 
     if request.method == 'POST':
         data = request.form
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
+        username = (data.get('username') or '').strip()
+        email = (data.get('email') or '').strip()
+        password = data.get('password') or ''
+
+        error = validate_account_fields(username, email, password)
+        if error:
+            flash(error)
+            return redirect(url_for('auth.register'))
 
         # 检查用户名是否已存在
         user = User.query.filter_by(username=username).first()
@@ -91,26 +137,18 @@ def logout():
     return redirect(url_for('index'))
 
 
-@auth.route('/api/user')
-@login_required
-def get_user():
-    """获取当前用户信息API"""
-    return jsonify({
-        'username': current_user.username,
-        'is_admin': current_user.is_admin
-    })
-
-
 # 管理员权限检查装饰器
 def admin_required(f):
     """检查用户是否为管理员的装饰器"""
 
+    @functools.wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
         if not current_user.is_admin:
+            if wants_json():
+                return jsonify({'error': '需要管理员权限'}), 403
             flash('需要管理员权限')
             return redirect(url_for('index'))
         return f(*args, **kwargs)
 
-    decorated_function.__name__ = f.__name__
     return decorated_function

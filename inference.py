@@ -57,6 +57,8 @@ class InferenceEngine:
         self._word2id = None
         self._w2vec = None
         self._models = {}
+        # 每个已加载模型对应的权重文件指纹 (mtime_ns, size)
+        self._fingerprints = {}
 
     # ---------- 词表 ----------
     @property
@@ -80,20 +82,40 @@ class InferenceEngine:
         return self._w2vec
 
     # ---------- 模型 ----------
+    @staticmethod
+    def weight_path(model_type):
+        return os.path.join(Config.model_dir, f"{model_type}_model_best.pkl")
+
+    @classmethod
+    def _fingerprint(cls, model_type):
+        try:
+            st = os.stat(cls.weight_path(model_type))
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
     def get_model(self, model_type=None):
+        """取模型；权重文件在磁盘上变了（重新训练过）就重新加载。
+
+        原实现加载一次就永久缓存：在 Web 界面里训练完一个新模型，线上推理用的
+        仍然是进程启动时那份旧权重，直到重启服务。现在每次取模型时 stat 一下
+        权重文件（微秒级），指纹变了才重载。
+        """
         model_type = (model_type or Config.default_model).lower()
         if model_type not in Config.model_choices:
             raise ValueError(f"不支持的模型类型: {model_type}")
 
+        fingerprint = self._fingerprint(model_type)
         model = self._models.get(model_type)
-        if model is None:
+        if model is None or self._fingerprints.get(model_type) != fingerprint:
             with self._lock:
                 model = self._models.get(model_type)
-                if model is None:
-                    logger.info("首次加载模型：%s", model_type)
+                if model is None or self._fingerprints.get(model_type) != fingerprint:
+                    logger.info("%s模型：%s", "重新加载" if model is not None else "首次加载", model_type)
                     model = initialize_model(model_type, self.w2vec, self.device)
                     model.eval()
                     self._models[model_type] = model
+                    self._fingerprints[model_type] = fingerprint
         return model
 
     def invalidate_model(self, model_type=None):
@@ -101,8 +123,10 @@ class InferenceEngine:
         with self._lock:
             if model_type:
                 self._models.pop(model_type.lower(), None)
+                self._fingerprints.pop(model_type.lower(), None)
             else:
                 self._models.clear()
+                self._fingerprints.clear()
 
     def warmup(self, model_type=None):
         """启动时预热，把首个请求的冷启动成本挪到进程启动阶段。"""
