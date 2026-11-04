@@ -1,5 +1,8 @@
 import functools
 import re
+import threading
+import time
+from collections import defaultdict, deque
 from urllib.parse import urlparse  # Replace werkzeug.urls import
 
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
@@ -44,6 +47,48 @@ def wants_json():
     return request.path.startswith('/api/') or request.is_json
 
 
+class LoginThrottle:
+    """同一 (IP, 用户名) 在窗口期内失败次数过多时暂时拒绝登录。
+
+    原实现对失败登录不设任何限制，可以无限次猜密码。进程内计数即可：
+    服务本来就只跑一个 worker（见 wsgi.py）。
+    """
+
+    def __init__(self, max_failures=5, window_s=600):
+        self.max_failures = max_failures
+        self.window_s = window_s
+        self._failures = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def _prune(self, key, now):
+        q = self._failures[key]
+        while q and now - q[0] > self.window_s:
+            q.popleft()
+        if not q:
+            self._failures.pop(key, None)
+        return q
+
+    def retry_after(self, key):
+        """仍被锁定时返回需等待的秒数，否则返回 0。"""
+        now = time.monotonic()
+        with self._lock:
+            q = self._prune(key, now)
+            if len(q) < self.max_failures:
+                return 0
+            return max(1, int(self.window_s - (now - q[0])))
+
+    def failure(self, key):
+        with self._lock:
+            self._failures[key].append(time.monotonic())
+
+    def reset(self, key):
+        with self._lock:
+            self._failures.pop(key, None)
+
+
+login_throttle = LoginThrottle()
+
+
 @login_manager.unauthorized_handler
 def unauthorized():
     if wants_json():
@@ -70,12 +115,20 @@ def login():
         password = data.get('password')
         remember = True if data.get('remember') else False
 
+        throttle_key = (request.remote_addr or '', (username or '').strip().lower())
+        wait = login_throttle.retry_after(throttle_key)
+        if wait:
+            flash(f'登录失败次数过多，请 {max(1, wait // 60)} 分钟后再试')
+            return render_template('login.html'), 429
+
         user = User.query.filter_by(username=username).first()
 
-        if not user or not user.verify_password(password):
+        if not user or not user.verify_password(password or ''):
+            login_throttle.failure(throttle_key)
             flash('用户名或密码错误')
             return redirect(url_for('auth.login'))
 
+        login_throttle.reset(throttle_key)
         login_user(user, remember=remember)
         next_page = request.args.get('next')
         # 只允许站内相对路径。仅判断 netloc 不够："\\evil.com" 与 "/\\evil.com"

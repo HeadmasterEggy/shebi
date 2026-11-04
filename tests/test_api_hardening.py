@@ -390,3 +390,49 @@ def test_session_cookie_is_httponly_and_samesite(app_module, users):
     resp = c.post("/auth/login", data={"username": users["user"]["name"], "password": PASSWORD})
     cookie = resp.headers.get("Set-Cookie", "")
     assert "HttpOnly" in cookie and "SameSite=Lax" in cookie
+
+
+# ---------------------------------------------------------------------------
+# 登录限流 / 健康检查 / 爬虫已移除
+# ---------------------------------------------------------------------------
+def test_login_is_throttled_after_repeated_failures(app_module, users, monkeypatch):
+    from auth import LoginThrottle
+    monkeypatch.setattr("auth.login_throttle", LoginThrottle(max_failures=3, window_s=600))
+    c = app_module.app.test_client()
+    name = users["user"]["name"]
+    for _ in range(3):
+        assert c.post("/auth/login", data={"username": name, "password": "wrong"}).status_code == 302
+    # 第 4 次即便密码正确也被拒
+    resp = c.post("/auth/login", data={"username": name, "password": PASSWORD})
+    assert resp.status_code == 429
+
+
+def test_successful_login_resets_failure_count():
+    from auth import LoginThrottle
+    t = LoginThrottle(max_failures=2, window_s=600)
+    t.failure("k")
+    t.reset("k")
+    t.failure("k")
+    assert t.retry_after("k") == 0
+    t.failure("k")
+    assert t.retry_after("k") > 0
+
+
+def test_healthz_needs_no_login(app_module):
+    resp = app_module.app.test_client().get("/healthz")
+    assert resp.status_code == 200 and resp.get_json()["status"] == "ok"
+
+
+def test_scraper_endpoint_is_gone(user):
+    assert user.post("/api/scrape/product", json={"url": "https://item.jd.com/1.html"}).status_code == 404
+
+
+def test_analyze_returns_503_when_model_untrained(user, app_module, monkeypatch):
+    from utils import ModelNotAvailable
+
+    def missing(model_type=None):
+        raise ModelNotAvailable("lstm 模型尚未训练")
+    monkeypatch.setattr(app_module.engine, "get_model", missing)
+    resp = user.post("/api/analyze", json={"text": "质量很好", "model_type": "lstm"})
+    assert resp.status_code == 503
+    assert "尚未训练" in resp.get_json()["error"]

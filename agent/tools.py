@@ -58,8 +58,13 @@ def classify_sentiment(texts: List[str], model: Optional[str] = None) -> Dict[st
     from data_Process import clean_text, tokenize
     from inference import engine
 
+    from utils import ModelNotAvailable
+
     model_type = (model or Config.default_model).lower()
-    net = engine.get_model(model_type)
+    try:
+        net = engine.get_model(model_type)
+    except ModelNotAvailable as e:
+        raise ToolError(str(e), retryable=False)
     word2id = engine.word2id
 
     stopwords = _stopwords()
@@ -100,14 +105,14 @@ def classify_sentiment(texts: List[str], model: Optional[str] = None) -> Dict[st
     }
 
 
-_STOPWORDS: Optional[List[str]] = None
+_STOPWORDS: Optional[frozenset] = None
 
 
-def _stopwords() -> List[str]:
+def _stopwords() -> frozenset:
     global _STOPWORDS
     if _STOPWORDS is None:
-        with open(Config.stopword_path, encoding="utf-8") as f:
-            _STOPWORDS = [line.strip() for line in f]
+        from data_Process import load_stopwords
+        _STOPWORDS = load_stopwords()
     return _STOPWORDS
 
 
@@ -182,7 +187,7 @@ def extract_aspects(product_id: Optional[str] = None, sample_limit: int = 200,
                     min_mentions: int = 2, model: Optional[str] = None) -> Dict[str, Any]:
     rows = store.fetch(limit=sample_limit, product_id=product_id)
     if not rows:
-        raise ToolError("评论库里没有匹配的数据，先用 scrape_reviews 采集或检查 product_id",
+        raise ToolError("评论库里没有匹配的数据，检查 product_id 是否正确",
                         retryable=False)
 
     # 一次前向把所有评论的情感算完，不要按方面分组后逐组调用
@@ -313,7 +318,7 @@ def aggregate_reviews(product_id: Optional[str] = None, sample_limit: int = 200,
                       model: Optional[str] = None) -> Dict[str, Any]:
     rows = store.fetch(limit=sample_limit, product_id=product_id)
     if not rows:
-        raise ToolError("评论库里没有匹配的数据，先用 scrape_reviews 采集或检查 product_id", retryable=False)
+        raise ToolError("评论库里没有匹配的数据，检查 product_id 是否正确", retryable=False)
 
     out = classify_sentiment([r["text"] for r in rows], model=model)
     total = out["count"]
@@ -325,50 +330,6 @@ def aggregate_reviews(product_id: Optional[str] = None, sample_limit: int = 200,
         "negative": out["negative"],
         "positive_rate": round(out["positive"] / total * 100, 2) if total else 0.0,
         "model": out["model"],
-    }
-
-
-# --------------------------------------------------------------------------
-# scrape_reviews —— 有副作用，需人工确认
-# --------------------------------------------------------------------------
-class ScrapeArgs(BaseModel):
-    product_url: str = Field(..., description="京东商品页链接")
-    pages: int = Field(1, ge=1, le=10, description="抓取页数")
-
-    @field_validator("product_url")
-    @classmethod
-    def _check_url(cls, v):
-        from scraper_api import extract_product_id
-        if not extract_product_id(v):
-            raise ValueError("product_url 必须是京东商品页链接，如 https://item.jd.com/100008348542.html")
-        return v
-
-
-@registry.register(
-    name="scrape_reviews",
-    description="抓取指定京东商品的评论并去重入库，返回新增条数与示例 review_id。"
-                "会启动浏览器发起外部网络请求，需要人工确认后才执行。",
-    args_model=ScrapeArgs,
-    requires_confirmation=True,
-    tags=["side-effect", "network"],
-)
-def scrape_reviews(product_url: str, pages: int = 1) -> Dict[str, Any]:
-    from scraper_api import ScrapeError, extract_product_id, scrape
-
-    pid = extract_product_id(product_url)
-    try:
-        # 一"页"约等于滚动一轮评论区
-        result = scrape(pid, rounds=pages * 2)
-    except ScrapeError as e:
-        raise ToolError(f"{e}。可先用 search_reviews / aggregate_reviews 在已有评论库上工作。",
-                        retryable=e.status == 409)
-    return {
-        "product_id": pid,
-        "scraped": result["count"],
-        "new_reviews": len(result["new_review_ids"]),
-        "cached": result["cached"],
-        "sample_review_ids": result["new_review_ids"][:10],
-        "hint": f"用 search_reviews(product_id='{pid}') 检索这些评论",
     }
 
 

@@ -41,6 +41,8 @@ def load_model_metrics(model_type=None):
         "evaluatedAt": entry.get("evaluated_at"),
         "sampleCount": entry.get("sample_count"),
         "dataset": entry.get("dataset", "test"),
+        # 测试集上的真实混淆矩阵（行 = 真实，列 = 预测）；旧记录里没有就是 None
+        "confusionMatrix": entry.get("confusion_matrix"),
     }
 
 

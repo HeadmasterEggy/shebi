@@ -264,17 +264,22 @@ function displayResults(data) {
     }
 
     // 处理模型评估指标
-    if (data.modelMetrics) {
-        document.getElementById('accuracy').textContent = (data.modelMetrics.accuracy * 100).toFixed(2);
-        document.getElementById('f1Score').textContent = (data.modelMetrics.f1_score * 100).toFixed(2);
-        document.getElementById('recall').textContent = (data.modelMetrics.recall * 100).toFixed(2);
-
-        // 初始化混淆矩阵
-        try {
-            initConfusionMatrix(data);
-        } catch (e) {
-            console.error('初始化混淆矩阵失败:', e);
+    // 指标为 null 表示该模型还没在测试集上评测过：显示「未评测」，不留一个光秃秃的 "%"
+    const metricIds = {accuracy: 'accuracy', f1_score: 'f1Score', recall: 'recall'};
+    Object.entries(metricIds).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const value = data.modelMetrics ? data.modelMetrics[key] : null;
+        el.textContent = typeof value === 'number' ? (value * 100).toFixed(2) : '未评测';
+        const unit = el.nextSibling;
+        if (unit && unit.nodeType === Node.TEXT_NODE) {
+            unit.textContent = typeof value === 'number' ? '%' : '';
         }
+    });
+    try {
+        initConfusionMatrix(data);
+    } catch (e) {
+        console.error('初始化混淆矩阵失败:', e);
     }
 
     try {

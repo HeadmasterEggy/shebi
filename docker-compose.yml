@@ -4,9 +4,10 @@ services:
     ports:
       - "5003:5003"
     environment:
-      # 生产环境请换成随机值：openssl rand -hex 32
-      SECRET_KEY: ${SECRET_KEY:-}
-      SHEBI_ALLOW_DEV_SECRET: ${SHEBI_ALLOW_DEV_SECRET:-1}
+      # 必须提供：SECRET_KEY=$(openssl rand -hex 32) docker compose up
+      # 原来默认开启 SHEBI_ALLOW_DEV_SECRET=1，不设密钥也能起，会话签名用的是
+      # 写在源码里的公开字符串，任何人都能伪造登录态。
+      SECRET_KEY: ${SECRET_KEY:?请设置 SECRET_KEY，例如 SECRET_KEY=$(openssl rand -hex 32)}
       HOST: 0.0.0.0
       PORT: 5003
     volumes:

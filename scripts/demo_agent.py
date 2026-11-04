@@ -25,13 +25,12 @@ script = [
     LLMResponse(tool_calls=[ToolCall("c2", "classify_sentiment", {
         "texts": ["物流太慢了", "包装破损严重", "发货很快包装完好"]})],
                 usage=Usage(1800, 60)),
-    # 4) 想跑爬虫 —— 有副作用，应被拦下
-    LLMResponse(tool_calls=[ToolCall("c3", "scrape_reviews",
-                                     {"product_url": "https://item.jd.com/100008348542.html"})],
+    # 4) 想重新训练模型 —— 有副作用，应被拦下
+    LLMResponse(tool_calls=[ToolCall("c3", "train_model", {"model": "cnn", "epochs": 6})],
                 usage=Usage(2000, 50)),
     # 5) 给出带引用的答案
     LLMResponse(content="差评集中在物流与包装两类问题上 [review_id: 1, 2]。"
-                        "抓取新商品评论需要你授权后才能执行。", usage=Usage(2200, 90)),
+                        "重新训练模型需要你授权后才能执行。", usage=Usage(2200, 90)),
 ]
 
 agent = ReActAgent(ScriptedClient(script, model="gpt-4o-mini"), budget=Budget(max_steps=10))

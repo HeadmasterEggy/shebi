@@ -106,3 +106,20 @@ def test_loading_a_model_does_not_mutate_the_pretrained_vectors():
     assert torch.equal(before, engine.w2vec), "预训练词向量被模型加载改写了"
     assert model.embedding.weight.data_ptr() != engine.w2vec.data_ptr(), \
         "模型 embedding 不应与 engine.w2vec 共享存储"
+
+
+def test_missing_or_pointer_weights_raise_instead_of_serving_random_model(tmp_path, monkeypatch):
+    """原实现找不到权重或加载失败时返回随机初始化的模型，线上照常出"置信度"。"""
+    import torch
+    from utils import ModelNotAvailable, initialize_model
+
+    monkeypatch.setattr(Config, "model_dir", str(tmp_path))
+    w2v = torch.zeros(10, Config.embedding_dim)
+    with pytest.raises(ModelNotAvailable):
+        initialize_model("cnn", w2v)
+
+    # Git LFS 指针文件
+    (tmp_path / "cnn_model_best.pkl").write_text(
+        "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 123\n")
+    with pytest.raises(ModelNotAvailable, match="LFS"):
+        initialize_model("cnn", w2v)

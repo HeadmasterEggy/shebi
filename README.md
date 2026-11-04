@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HeadmasterEggy/shebi)
 
 基于 PyTorch 的中文文本情感分析平台，支持 TextCNN / LSTM / BiLSTM / LSTM+Attention /
-BiLSTM+Attention 五种模型，含京东评论爬虫、训练调度、日志分析与 Web 服务。
+BiLSTM+Attention 五种模型，含训练调度、日志分析、Web 服务与一层 Agent。
 
 > **分支说明**
 > - `main` —— 当前开发分支。在毕设基础上做了一轮工程审计与修复（见下方「本轮修复」），
@@ -43,8 +43,15 @@ SECRET_KEY=$(openssl rand -hex 32) python app.py
 ### Docker
 
 ```bash
-docker compose up --build
+SECRET_KEY=$(openssl rand -hex 32) docker compose up --build
 ```
+
+容器内用 gunicorn 提供服务（`wsgi.py`，单 worker 多线程），健康检查走无需登录的 `/healthz`。
+
+> **不能部署到 Vercel。** 依赖装完约 1.3GB（torch 一项就 723MB），远超 Vercel Python 函数
+> 250MB 的上限；服务还需要可写磁盘（SQLite、训练进度、模型权重）和长时间运行的训练子进程，
+> 这些 serverless 都不提供。仓库里的 `vercel.json` 关掉了 Git 自动部署，免得每次提交都挂一个
+> 永远红的检查。请部署到能跑容器的地方（任意云主机、Render、Fly.io、Railway 等）。
 
 ---
 
@@ -186,6 +193,8 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
 
 ## 第三轮修复：爬虫、前端 XSS 与跨域
 
+> 爬虫模块已在第四轮整体删除，下面「爬虫」一节仅作历史记录。
+
 ### 爬虫：匿名 SSRF
 
 `/api/scrape/product` **不需要登录**，并把请求里的 URL 原样交给服务器上的 Chromium 打开。
@@ -225,6 +234,52 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
   同时跑、同时覆盖同一份权重。现在与 Web 端共用 `training_control.manager`
 - `main.py` 原来无条件读取 `runtime/params.json` 作为默认值，命令行直接训练会悄悄继承 Web 端上一次
   的超参。现在只有显式传 `--params` 时才读
+
+---
+
+## 第四轮：删掉爬虫、不再给假结果、能正经部署
+
+### 删除爬虫
+
+项目的核心是本地情感模型与基于它的分析，评论来源是用户粘贴 / 上传的文本和自带的数据集，
+不需要现场去电商网站抓。爬虫带来的只有负担：一个要在服务器上驱动真实 Chromium 的接口
+（上一轮刚修完它的 SSRF）、一个约 2MB 的浏览器自动化依赖和三个从未被导入的 HTTP/HTML 解析库。
+
+删除：`scraper_api.py`、`static/js/webscraper.js`、前端的商品链接输入面板与样式、agent 的
+`scrape_reviews` 工具、`DrissionPage` / `requests` / `beautifulsoup4` / `lxml` 四个依赖。
+`scripts/demo_agent.py` 里演示"副作用工具被拦下"的那一步改用 `train_model`。
+
+### 不再用随机模型冒充结果
+
+权重文件缺失或加载失败时，`initialize_model` 原来只打一条警告，然后返回**随机初始化的模型**——
+接口照常返回看起来像样的置信度。刚 clone、Git LFS 只拉到 133 字节指针文件时，五个模型全是这样。
+现在抛 `ModelNotAvailable`，`/api/analyze` 返回 503 并提示去训练，agent 工具返回明确的错误。
+
+这一改还揪出一条测试：`test_collector_findings_reach_the_analyst` 在没有权重的 CI 上
+其实一直跑在随机模型上。它测的是黑板交接，现在把分类换成了固定桩。
+
+### 混淆矩阵是编的
+
+界面上的混淆矩阵用「本次输入里各类句子数 × 测试集准确率」现算——用户输入没有真实标签，
+四个格子是编出来的，坐标轴还接反了。现在 `evaluate.py` 记录测试集上的真实混淆矩阵，
+界面只画它并标明「测试集混淆矩阵（N 条）」；没评测过就隐藏图表，指标卡显示「未评测」
+（原来显示一个光秃秃的 `%`）。
+
+### 部署
+
+- **Dockerfile 的健康检查一直是坏的**：探测的 `/api/info` 需要登录，第二轮又把它删了。
+  新增无需登录的 `/healthz`
+- `python app.py` 是 Flask 开发服务器；容器改用 gunicorn（`wsgi.py`，单 worker 多线程——
+  训练进程管理器与模型缓存是进程内状态）
+- `docker-compose.yml` 原来默认 `SHEBI_ALLOW_DEV_SECRET=1`，不设密钥也能起，会话签名用的是
+  源码里的公开字符串，等于谁都能伪造登录态。现在必须提供 `SECRET_KEY`
+- `vercel.json` 关闭 Vercel 自动部署，原因见「快速开始 → Docker」
+
+### 其他
+
+- 登录限流：同一 IP + 用户名 10 分钟内失败 5 次后暂时拒绝（429）
+- 停用词改用集合、清洗正则改为模块级预编译：2000 条评论清洗 + 分词 1.40s → 0.66s
+- `data_Process.py` 不再在导入时调用 `logging.basicConfig` 改写全局日志配置
 
 ---
 
@@ -274,11 +329,10 @@ AGENT_API_KEY=sk-...            AGENT_MODEL=qwen-plus       AGENT_BASE_URL=https
 | `extract_aspects` | 方面级统计：十类方面的提及量、负面率与代表性 id | — |
 | `export_report` | 导出 Markdown 报告，引用自动展开成原文附录 | — |
 | `list_experiments` | 各模型在测试集上的真实指标 | — |
-| `scrape_reviews` | 抓取京东商品评论并去重入库 | 需人工确认 |
 | `train_model` | 按超参训练模型 | 需人工确认 |
 
 三条设计规则：**批量优先**（`texts` 是数组，不是单条）、**可溯源**（返回评论一律带 id）、
-**副作用显式标记**（发网络请求 / 占算力的工具默认拦下，由调用方放行）。
+**副作用显式标记**（占算力的工具默认拦下，由调用方放行）。
 
 ### 循环里的工程约束
 
@@ -479,7 +533,7 @@ python -m evals --md report.md     # 结果写成 Markdown
 SHEBI_ALLOW_DEV_SECRET=1 python -m pytest
 ```
 
-264 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
+246 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
 预训练词向量不被模型加载改写、路径可移植性、指标不可编造、推理缓存与死锁、
 端到端情感判定与鉴权；agent 层的 schema 校验与自修复、角色/全局两级预算终止、
 副作用拦截、trace 落盘；检索层的词级 MaxSim 排序、索引按库隔离、增量编码；
@@ -521,7 +575,7 @@ shebi/
 ├── lstm_model.py         # LSTM / BiLSTM / +Attention
 ├── data_Process.py       # 分词、词表、序列化
 ├── compare_logs.py       # 训练日志分析与可视化
-├── scraper_api.py        # 京东评论爬虫：URL 白名单 / 抓取 / 解析 / 入库
+├── wsgi.py               # 生产入口（gunicorn wsgi:app）
 ├── models.py / auth.py   # 用户模型与认证
 ├── config.py             # 全局配置（路径以项目根为基准）
 ├── agent/
