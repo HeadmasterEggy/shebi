@@ -234,7 +234,7 @@ function applySettingsToForms(settings) {
     
     // 默认模型选择
     document.getElementById('defaultModelSelect').value = settings.general.defaultModel;
-    const modelRadio = document.querySelector(`input[name="defaultModel"][value="${settings.general.defaultModel}"]`);
+    const modelRadio = document.querySelector(`input[name="defaultModel"][value="${CSS.escape(String(settings.general.defaultModel))}"]`);
     if (modelRadio) {
         modelRadio.checked = true;
     }
@@ -243,7 +243,7 @@ function applySettingsToForms(settings) {
     document.getElementById('confirmExitSwitch').checked = settings.general.confirmExit;
     
     // 外观设置
-    const themeRadio = document.querySelector(`input[name="theme"][value="${settings.appearance.theme}"]`);
+    const themeRadio = document.querySelector(`input[name="theme"][value="${CSS.escape(String(settings.appearance.theme))}"]`);
     if (themeRadio) {
         themeRadio.checked = true;
     }
@@ -251,7 +251,7 @@ function applySettingsToForms(settings) {
     document.getElementById('fontSizeRange').value = settings.appearance.fontSize;
     updateFontSizePreview();
     
-    const sidebarRadio = document.querySelector(`input[name="sidebarPosition"][value="${settings.appearance.sidebarPosition}"]`);
+    const sidebarRadio = document.querySelector(`input[name="sidebarPosition"][value="${CSS.escape(String(settings.appearance.sidebarPosition))}"]`);
     if (sidebarRadio) {
         sidebarRadio.checked = true;
     }

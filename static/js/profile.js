@@ -360,6 +360,9 @@ async function changePassword() {
 /**
  * 添加活动到时间线
  */
+const TIMELINE_COLORS = ['bg-primary', 'bg-success', 'bg-info', 'bg-warning'];
+const TIMELINE_ICONS = ['bi-bell', 'bi-pencil', 'bi-shield-lock', 'bi-box-arrow-in-right'];
+
 function addTimelineActivity(title, time, description) {
     const timeline = document.querySelector('.timeline');
     if (!timeline) return;
@@ -391,11 +394,11 @@ function addTimelineActivity(title, time, description) {
         </div>
         <div class="timeline-content">
             <div class="timeline-header">
-                <div class="timeline-title">${title}</div>
-                <div class="timeline-time">${time}</div>
+                <div class="timeline-title">${escapeHtml(title)}</div>
+                <div class="timeline-time">${escapeHtml(time)}</div>
             </div>
             <div class="timeline-body">
-                ${description}
+                ${escapeHtml(description)}
             </div>
         </div>
     `;
@@ -476,17 +479,20 @@ function loadUserActivities() {
                 const timelineItem = document.createElement('div');
                 timelineItem.className = 'timeline-item';
                 
+                // 活动记录来自 localStorage，任何字段都可能被改写，类名只放行白名单
+                const color = TIMELINE_COLORS.includes(activity.color) ? activity.color : 'bg-primary';
+                const icon = TIMELINE_ICONS.includes(activity.icon) ? activity.icon : 'bi-bell';
                 timelineItem.innerHTML = `
-                    <div class="timeline-marker ${activity.color}">
-                        <i class="bi ${activity.icon}"></i>
+                    <div class="timeline-marker ${color}">
+                        <i class="bi ${icon}"></i>
                     </div>
                     <div class="timeline-content">
                         <div class="timeline-header">
                             <div class="timeline-title">${escapeHtml(activity.title)}</div>
-                            <div class="timeline-time">${activity.time}</div>
+                            <div class="timeline-time">${escapeHtml(activity.time)}</div>
                         </div>
                         <div class="timeline-body">
-                            ${activity.description}
+                            ${escapeHtml(activity.description)}
                         </div>
                     </div>
                 `;
