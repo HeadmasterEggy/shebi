@@ -7,6 +7,9 @@ gunicorn==23.0.0
 
 # --- ML / NLP ---
 torch==2.15.0
+# torch 只要求 setuptools>=77.0.3，环境里预装的旧版会被直接沿用（CI 镜像里是 79.0.1，
+# 有 PYSEC-2026-3447 / GHSA-xmj3-9gf7-h52w），所以显式抬高下限
+setuptools>=84.1.0
 numpy==1.26.4
 pandas==2.2.2
 gensim==4.3.3
