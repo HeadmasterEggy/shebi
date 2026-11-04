@@ -13,7 +13,7 @@ from flask import Flask, jsonify, send_from_directory, render_template, request 
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from auth import auth, login_manager, admin_required, validate_account_fields
+from auth import auth, login_manager, admin_required, validate_account_fields, wants_json
 from config import Config
 from data_Process import clean_text, load_stopwords, sentences_to_array, tokenize
 # 导入用户模型和认证模块
@@ -56,7 +56,20 @@ if not _secret:
 app.config['SECRET_KEY'] = _secret
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# 请求体大小上限。原来没设，Flask 会把任意大的请求体整个读进内存再解析——
+# /api/analyze 的 5 万字上限只在解析完之后才检查，而 /auth/login 连登录都不需要，
+# 一个匿名的多 GB 请求就能把服务进程的内存打满。2MB 足够容纳上限内的文本。
+app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('SHEBI_MAX_REQUEST_BYTES', 2 * 1024 * 1024))
 
+
+
+@app.errorhandler(413)
+def _request_too_large(_e):
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] / 1024 / 1024
+    msg = f'请求体过大（上限 {limit_mb:g} MB）'
+    if wants_json():
+        return jsonify({'error': msg}), 413
+    return msg, 413
 
 
 @app.after_request

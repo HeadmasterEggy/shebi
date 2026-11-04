@@ -456,3 +456,33 @@ def test_train_start_passes_cnn_kernel_sizes_and_optimizer(admin, train_env):
 def test_server_and_trainer_agree_on_optimizers(app_module):
     import main
     assert tuple(app_module.TRAIN_OPTIMIZERS) == tuple(main.OPTIMIZERS)
+
+
+# ---------------------------------------------------------------------------
+# 请求体大小
+# ---------------------------------------------------------------------------
+def test_request_body_size_is_capped(app_module):
+    """原来没有 MAX_CONTENT_LENGTH：匿名请求也会把任意大的请求体整个读进内存。"""
+    limit = app_module.app.config["MAX_CONTENT_LENGTH"]
+    assert limit and limit <= 10 * 1024 * 1024
+    c = app_module.app.test_client()
+    resp = c.post("/auth/login", data=b"username=" + b"x" * (limit + 1),
+                  content_type="application/x-www-form-urlencoded")
+    assert resp.status_code == 413
+
+
+def test_oversized_api_request_gets_json_413(user, app_module):
+    limit = app_module.app.config["MAX_CONTENT_LENGTH"]
+    resp = user.post("/api/analyze", data=b'{"text":"' + b"a" * limit + b'"}',
+                     content_type="application/json")
+    assert resp.status_code == 413
+    assert "请求体过大" in resp.get_json()["error"]
+
+
+def test_max_length_text_still_fits_under_body_cap(user, app_module, monkeypatch):
+    """上限内最长的分析文本（全是三字节的汉字）必须能通过请求体上限，到达文本长度校验。"""
+    monkeypatch.setattr(app_module.engine, "get_model",
+                        lambda model_type=None: (_ for _ in ()).throw(RuntimeError("stop here")))
+    text = "好" * app_module.MAX_ANALYZE_CHARS
+    resp = user.post("/api/analyze", json={"text": text})
+    assert resp.status_code != 413, "合法长度的文本被请求体上限误拦"
