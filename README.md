@@ -132,6 +132,58 @@ val.txt 6334 行并回写磁盘）→ 把三个数据集全部转成索引矩阵
 
 ---
 
+## 第二轮修复：Web 层与训练调度
+
+第一轮修的是模型和推理；这一轮把 Web 层和训练调度从头审了一遍，下面每一条都有对应的回归测试
+（`tests/test_api_hardening.py`、`tests/test_training_control.py`）。
+
+### 训练调度：暂停是假的，停止永远 404，跑久了会卡死
+
+| 现象 | 根因 | 修复 |
+|---|---|---|
+| 训练跑一会儿就不动了 | 子进程 `stdout=PIPE` 但没人读，tqdm 写满 64KB 管道缓冲后阻塞在 `write()` | 输出重定向到 `runtime/training.log`，进度接口读它的末尾 |
+| 暂停按钮无效 | 只改了 progress.json 的 status，`main.py` 从不读 | 新增控制文件 `runtime/train_control.json`，训练循环在 batch 之间响应暂停 / 继续 / 停止 |
+| 停止接口永远 404 | 去取 `app.config['TRAINING_PROCESS']`，这个键从没人写过 | `training_control.TrainingProcessManager` 持有进程句柄；默认优雅停止，`{"force": true}` 强杀 |
+| 进程崩溃后界面一直"训练中" | `/api/train/progress` 注册了两次，带退出检测的那个永远路由不到 | 合并为一个，进程退出而状态未到终态时按退出码改成 completed / failed |
+| 线上用的是 last 而不是 best | 训练结束后把最后一轮权重写回 `*_model_best.pkl` | 删掉这次覆盖，best 只在验证集准确率创新高时保存 |
+| 训练完线上还是旧模型 | 推理单例加载一次永久缓存 | 按权重文件 (mtime, size) 指纹检测变化，自动重载 |
+| 普通用户能启动训练 | `/api/train/start` 只要求登录 | 改为管理员；参数做类型与范围校验；同一时刻只允许一个训练进程 |
+| 进度接口偶发"格式错误" | Web 与训练进程同时读写 progress.json | 所有 JSON 一律先写临时文件再 `os.replace` |
+| `val_loss` 15.1 对着 `train_loss` 0.35 | 验证损失返回的是全部 batch 之和 | 改为平均每 batch |
+
+### `/api/analyze`：结果与原文错位
+
+清洗后为空的句子（纯标点、表情、数字、停用词）会被丢掉，但原实现按下标把原文回填到结果上——
+输入「！！！\n质量很差」，「质量很差」的判定被贴到了「！！！」头上，后面每一句都错位一格。
+现在逐句记住原文下标，被跳过的句子放进 `skipped` 字段；全部为空时返回 400。
+
+顺带：推理不再经过临时文件中转（原来模型加载失败时临时文件不会被删），
+请求体做类型校验，文本 / 句子数有上限，500 不再把异常原文回给客户端。
+
+### 鉴权与账号
+
+- `/api/*` 未登录返回 **401 JSON**、非管理员返回 **403 JSON**。原先一律 302 到 HTML 页面，
+  前端 `fetch` 跟随重定向后 `response.json()` 抛 "Unexpected token <"
+- 登录的 `next` 参数只接受站内相对路径（`//evil.com`、`/\evil.com` 曾能形成开放重定向）
+- **改一次密码丢一次邮箱**：改密码的请求不带 email，旧代码 `email != current_user.email` 成立，
+  把邮箱写成了 None。管理员接口同理：只改密码时 `is_admin` 默认成 False，顺手把对方降级
+- 不能取消自己的管理员权限，也不能降级最后一个管理员
+- 注册 / 建号校验用户名、邮箱格式与密码长度（≥ 8）
+- 另存模型的文件名经 `secure_filename`，`../../app` 不再能写到仓库任意位置
+- 用户设置只接受标量值、限制键名与大小，落盘到 `runtime/user_settings/`
+
+### 删掉的代码
+
+| 删除 | 理由 |
+|---|---|
+| `eval.py` | 只有 `val_accuracy` 被用到（已挪进 `main.py` 并修正）；其余与 `evaluate.py` 重复，且每次验证都往 `metrics_log.csv` 追加——正是早期界面编造指标的数据源 |
+| `web.py` | 交互式 `input()` 爬虫脚本，与 `scraper_api.py` 重复 |
+| `/api/info`、`/auth/api/user` | 调试用的端点清单（内容早已过时）与重复路由 |
+| `torch.serialization.add_safe_globals(...)` | 加载走 `weights_only=False`，这段从未生效 |
+| `User.is_administrator / check_password / generate_password_hash` | 与 `is_admin / verify_password / set_password` 重复 |
+
+---
+
 ## Agent 层
 
 把这套情感分析能力包成工具，交给一个手写的 ReAct 循环来编排。
@@ -383,13 +435,14 @@ python -m evals --md report.md     # 结果写成 Markdown
 SHEBI_ALLOW_DEV_SECRET=1 python -m pytest
 ```
 
-179 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
+235 个用例，覆盖：归一化层的 train/eval 一致性、eval 下不坍缩、padding_idx、
 预训练词向量不被模型加载改写、路径可移植性、指标不可编造、推理缓存与死锁、
 端到端情感判定与鉴权；agent 层的 schema 校验与自修复、角色/全局两级预算终止、
 副作用拦截、trace 落盘；检索层的词级 MaxSim 排序、索引按库隔离、增量编码；
 Critic 五道关卡各自的拦截行为与修订闭环；
 以及评测层的指标口径（拒答题不计入完成率、无期望工具的任务不计入工具正确率）
-与轨迹接口的路径穿越防护。
+与轨迹接口的路径穿越防护；Web 层的参数校验、权限码、开放重定向、结果对齐，
+训练控制通道的暂停 / 停止 / 大输出不死锁 / 单实例约束。
 缺少模型权重时相关用例自动跳过。
 
 ---
@@ -414,7 +467,8 @@ python compare_logs.py             # 训练日志分析与可视化
 ```
 shebi/
 ├── app.py                # Flask 后端与 REST API
-├── inference.py          # 推理资源单例（词表 / 词向量 / 模型）
+├── inference.py          # 推理资源单例（词表 / 词向量 / 模型），权重变化自动重载
+├── training_control.py   # Web ↔ 训练进程控制通道（暂停 / 停止 / 日志 / 单实例）
 ├── evaluate.py           # 测试集评测，产出真实指标
 ├── metrics_store.py      # 按模型分开保存的评测结果
 ├── main.py               # 训练主程序

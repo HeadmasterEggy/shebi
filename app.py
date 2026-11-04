@@ -1,33 +1,36 @@
 import datetime
-import json
 import logging
 import os
 import shutil
-import subprocess  # 用于调用 main.py
 import time
-import traceback
 import uuid
 
 import re
 
 import jieba
 import torch
-import torch.nn as nn
 from flask import Flask, jsonify, send_from_directory, render_template, request  # 添加request导入
 from flask_cors import CORS
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 
-from auth import auth, login_manager, admin_required
-from cnn_model import TextCNN
+from auth import auth, login_manager, admin_required, validate_account_fields
 from config import Config
-from data_Process import text_to_array_nolabel
-from data_Process import tokenize, clean_text
-from lstm_model import LSTM_attention, LSTMModel
+from data_Process import clean_text, sentences_to_array, tokenize
 # 导入用户模型和认证模块
 from models import db, User
 from scraper_api import scraper_bp
 from inference import engine
 from metrics_store import load_model_metrics
+from training_control import (
+    TERMINAL_STATUSES,
+    atomic_write_json,
+    manager as train_manager,
+    read_command,
+    read_json,
+    send_command,
+    tail_log,
+)
 
 # 配置日志
 logging.basicConfig(
@@ -64,185 +67,62 @@ login_manager.init_app(app)
 app.register_blueprint(auth, url_prefix='/auth')
 app.register_blueprint(scraper_bp)
 
-# 添加安全全局类
-torch.serialization.add_safe_globals([
-    nn.Embedding,
-    nn.LSTM,
-    nn.Linear,
-    nn.Dropout,
-    nn.Sequential,
-    nn.Module,
-    LSTM_attention,
-    LSTMModel,
-    TextCNN
-])
+# /api/analyze 单次请求的上限：整段文本会被逐句分词并一次性送进模型，
+# 不设上限时一个请求就能把服务进程的内存和 CPU 占满
+MAX_ANALYZE_CHARS = int(os.environ.get('SHEBI_MAX_ANALYZE_CHARS', 50000))
+MAX_ANALYZE_SENTENCES = int(os.environ.get('SHEBI_MAX_ANALYZE_SENTENCES', 2000))
 
-# 全局设备变量
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# 训练进程 PID 文件
-TRAIN_PID_PATH = os.path.join(Config.runtime_dir, 'train_pid.txt')
+# 用户手动另存的模型副本与用户设置，都属于运行时数据
+SAVED_MODELS_DIR = os.path.join(Config.runtime_dir, 'saved_models')
+USER_SETTINGS_DIR = os.path.join(Config.runtime_dir, 'user_settings')
 
 
-def pre(word2id, model, seq_length, path, model_type=None):
+def predict_sentences(word2id, model, seq_length, sentences, model_type=None):
+    """对已分词的句子做情感判定，返回逐句结果、整体倾向、词频与模型指标。
+
+    原实现先把句子写进临时文件、再读回来转索引：多一次磁盘往返，且模型加载失败时
+    临时文件不会被删除。现在全程在内存里完成。
     """
-    给定文本，预测其情感标签。
+    word_freq = {}
+    sentence_results = []
+    for sentence in sentences:
+        for word in sentence.split():
+            if len(word) > 1:
+                word_freq[word] = word_freq.get(word, 0) + 1
 
-    参数:
-        word2id (dict): 语料文本中包含的词汇字典（词和ID映射关系）。
-        model (Object): 情感分析模型（Seq2Seq）。
-        seq_length (int): 序列的固定长度。
-        path (str): 数据文件路径。
+    input_ids = torch.from_numpy(sentences_to_array(word2id, seq_length, sentences))
+    with torch.no_grad():
+        probs = torch.softmax(model(input_ids), dim=1).tolist()
 
-    返回:
-        dict: 包含预测结果和详细信息的字典。
-    """
-    model.cpu()  # 确保模型使用CPU
+    for sentence, (neg, pos) in zip(sentences, probs):
+        sentence_results.append({
+            "text": sentence,
+            "sentiment": "积极" if pos > neg else "消极",
+            "confidence": max(pos, neg) * 100,
+            "probabilities": {"positive": pos * 100, "negative": neg * 100},
+        })
 
-    # 读取文件中的文本
-    with open(path, "r", encoding="utf-8") as file:
-        texts = file.readlines()
-
-    predictions = []  # 用于存储预测的标签
-    probabilities = []  # 用于存储预测的概率
-    word_freq = {}  # 用于存储词频统计
-    sentence_results = []  # 用于存储每个句子的分析结果
-
-    try:
-        with torch.no_grad():  # 禁用梯度计算
-            # 将文本转换为索引数字
-            input_array = text_to_array_nolabel(word2id, seq_length, path)
-
-            # 检查输入数组是否为空
-            if len(input_array) == 0:
-                logger.error("转换后的输入数组为空")
-                return {
-                    "overall": {
-                        "sentiment": "未知",
-                        "confidence": 0,
-                        "probabilities": {"positive": 0, "negative": 0}
-                    },
-                    "sentences": [],
-                    "modelMetrics": None,
-                    "wordFreq": []
-                }
-
-            sen_p = torch.tensor(input_array, dtype=torch.long)
-
-            # 获取模型预测的输出
-            output_p = model(sen_p)
-
-            # 获取概率分布
-            probs = torch.softmax(output_p, dim=1)
-
-            # 获取每个文本的预测类别
-            _, pred = torch.max(output_p, 1)
-
-            for i in range(min(pred.size(0), len(texts))):  # 使用最小值避免索引越界
-                prediction = pred[i].item()
-                prob = probs[i].tolist()
-                predictions.append(prediction)
-                probabilities.append(prob)
-
-                # 分词并统计词频
-                text = texts[i].strip()
-                if text:  # 只处理非空文本
-                    words = jieba.lcut(text)
-                    for word in words:
-                        if len(word) > 1:  # 只统计长度大于1的词
-                            word_freq[word] = word_freq.get(word, 0) + 1
-
-                    # 在终端输出预测结果
-                    sentiment = "积极" if prediction == 1 else "消极"
-                    confidence = max(prob) * 100
-                    pos_prob = prob[1] * 100 if len(prob) > 1 else 0  # 确保索引存在
-                    neg_prob = prob[0] * 100
-
-                    logger.info("-" * 50)
-                    logger.info(f"输入文本: {text}")
-                    logger.info(f"情感倾向: {sentiment}")
-                    logger.info(f"预测置信度: {confidence:.2f}%")
-                    logger.info(f"积极概率: {pos_prob:.2f}%")
-                    logger.info(f"消极概率: {neg_prob:.2f}%")
-
-                    # 保存每个句子的分析结果
-                    sentence_results.append({
-                        "text": text,
-                        "sentiment": sentiment,
-                        "confidence": confidence,
-                        "probabilities": {
-                            "positive": pos_prob,
-                            "negative": neg_prob
-                        }
-                    })
-    except Exception as e:
-        logger.error(f"预测过程中出错: {str(e)}")
-        # 返回一个默认的结果结构
-        return {
-            "overall": {
-                "sentiment": "未知",
-                "confidence": 0,
-                "probabilities": {"positive": 0, "negative": 0}
-            },
-            "sentences": [],
-            "modelMetrics": None,
-            "wordFreq": []
-        }
-
-    # 模型评估指标。
-    #
-    # 原实现有两个问题：一是读取全局 metrics_log.csv，里面混着所有模型最近一次的
-    # 验证结果，取 iloc[-1] 拿到的未必是当前模型的；二是读不到时回落到写死的
-    # 0.85 / 0.84 / 0.83，等于在界面上展示一组从未测过的数字。
-    #
-    # 现在只认 evaluate.py 在测试集上跑出来的、按模型分开存的真实指标；
+    # 模型评估指标只认 evaluate.py 在测试集上跑出来的、按模型分开存的真实结果；
     # 没有就返回 None，由前端显示「未评测」，绝不编造。
+    model_type = model_type or Config.default_model
     model_metrics = load_model_metrics(model_type)
     if model_metrics is None:
         logger.warning("模型 %s 尚无评测记录，请先运行 python evaluate.py --model %s",
                        model_type, model_type)
 
-    # 将词频统计转换为列表格式
-    word_freq_list = [{"word": word, "count": count} for word, count in word_freq.items()]
-    word_freq_list.sort(key=lambda x: x["count"], reverse=True)  # 按词频降序排序
-
-    # 输出高频词统计
-    logger.info("-" * 50)
-    logger.info("高频词统计 (Top 10):")
-    for item in word_freq_list[:10]:
-        logger.info(f"词语: {item['word']}, 出现次数: {item['count']}")
-    logger.info("-" * 50)
-
-    # 计算整体情感倾向
-    if probabilities:  # 确保有概率数据
-        try:
-            total_pos_prob = sum(prob[1] for prob in probabilities) / len(probabilities) * 100
-            total_neg_prob = sum(prob[0] for prob in probabilities) / len(probabilities) * 100
-            overall_sentiment = "积极" if total_pos_prob > total_neg_prob else "消极"
-            overall_confidence = max(total_pos_prob, total_neg_prob)
-        except IndexError:
-            logger.error("计算整体情感倾向时索引错误")
-            total_pos_prob = total_neg_prob = 50.0
-            overall_sentiment = "未知"
-            overall_confidence = 0
-    else:
-        logger.warning("没有概率数据，使用默认值")
-        total_pos_prob = total_neg_prob = 50.0
-        overall_sentiment = "未知"
-        overall_confidence = 0
-
+    total_pos = sum(p for _, p in probs) / len(probs) * 100
+    total_neg = 100 - total_pos
+    word_freq_list = sorted(({"word": w, "count": c} for w, c in word_freq.items()),
+                            key=lambda x: x["count"], reverse=True)
     return {
         "overall": {
-            "sentiment": overall_sentiment,
-            "confidence": overall_confidence,
-            "probabilities": {
-                "positive": total_pos_prob,
-                "negative": total_neg_prob
-            }
+            "sentiment": "积极" if total_pos > total_neg else "消极",
+            "confidence": max(total_pos, total_neg),
+            "probabilities": {"positive": total_pos, "negative": total_neg},
         },
-        "sentences": sentence_results,  # 每个句子的分析结果
+        "sentences": sentence_results,
         "modelMetrics": model_metrics,
-        "wordFreq": word_freq_list[:20] if word_freq_list else []  # 只返回前20个高频词，确保有数据
+        "wordFreq": word_freq_list[:20],
     }
 
 
@@ -324,74 +204,69 @@ def get_models():
 @login_required
 def analyze():
     """文本分析API (需要登录)"""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
+    text = data.get('text', '')
+    model_type = data.get('model_type') or ''
+    if not isinstance(text, str) or not isinstance(model_type, str):
+        return jsonify({'error': 'text 与 model_type 必须是字符串'}), 400
+    model_type = model_type.lower()
+    if not text.strip():
+        return jsonify({'error': '请输入要分析的文本'}), 400
+    if len(text) > MAX_ANALYZE_CHARS:
+        return jsonify({'error': f'文本过长，单次最多 {MAX_ANALYZE_CHARS} 个字符'}), 413
+
+    # 验证模型类型
+    if model_type and model_type not in Config.model_choices:
+        return jsonify({'error': '不支持的模型类型，请选择有效的模型类型'}), 400
+
     try:
-        data = request.get_json()
-        text = data.get('text', '')
-        model_type = data.get('model_type', '').lower()  # 获取模型类型参数
-        if not text:
-            return jsonify({'error': '请输入要分析的文本'}), 400
-
-        # 验证模型类型
-        if (model_type and model_type not in ['bilstm_attention', 'bilstm', 'lstm_attention', 'lstm', 'cnn']):
-            return jsonify({'error': '不支持的模型类型，请选择有效的模型类型'}), 400
-
-        logger.info("=" * 80)
-        logger.info("收到新的分析请求")
-        logger.info(f"设备: {device}")
-        logger.info(f"模型类型: {model_type if model_type else '默认'}")
-
         # 按回车分割句子
         original_sentences = [s.strip() for s in text.split('\n') if s.strip()]
 
-        # 处理每个句子
+        if len(original_sentences) > MAX_ANALYZE_SENTENCES:
+            return jsonify({'error': f'句子过多，单次最多 {MAX_ANALYZE_SENTENCES} 句'}), 413
+
+        # 处理每个句子。
+        #
+        # 清洗 + 去停用词之后为空的句子（纯标点、纯表情、纯数字、全是停用词）不送进模型，
+        # 但必须记住每条结果对应的是哪一句原文。原实现丢掉空句后按下标回填原文：
+        # 输入「！！！\n质量很差」时，「质量很差」的预测结果被贴到了「！！！」头上，
+        # 后面每一句都错位一格。
         processed_sentences = []
-        for sentence in original_sentences:
-            # 清洗文本
-            cleaned_text = clean_text(sentence)
-            # 分词处理
-            tokenized_text = tokenize(cleaned_text, stopwords)
-            if tokenized_text.strip():  # 只添加非空句子
+        kept_indices = []
+        skipped_sentences = []
+        for idx, sentence in enumerate(original_sentences):
+            tokenized_text = tokenize(clean_text(sentence), stopwords)
+            if tokenized_text.strip():
                 processed_sentences.append(tokenized_text)
+                kept_indices.append(idx)
+            else:
+                skipped_sentences.append(sentence)
 
-        # 每个请求写自己的临时文件，避免并发请求互相覆盖 data/pre.txt
-        pre_file = os.path.join(Config.runtime_dir, f'pre_{uuid.uuid4().hex}.txt')
-        with open(pre_file, 'w', encoding='utf-8') as file:
-            for sentence in processed_sentences:
-                file.write(sentence + '\n')
+        if not processed_sentences:
+            return jsonify({
+                'error': '输入内容清洗后为空（只有标点、表情、数字或停用词），无法判断情感',
+                'skipped': skipped_sentences,
+            }), 400
 
-        # 词表、词向量与模型都是进程内单例，只在首次请求（或启动预热）时加载
-        word2id = engine.word2id
         model = engine.get_model(model_type)
+        result = predict_sentences(engine.word2id, model, Config.max_sen_len,
+                                   processed_sentences, model_type)
 
-        logger.info("开始进行情感分析...")
-        # 获取预测结果
-        try:
-            result = pre(word2id, model, Config.max_sen_len, pre_file, model_type)
-        finally:
-            if os.path.exists(pre_file):
-                os.remove(pre_file)
+        # 把结果对回各自的原文
+        for sentence_result, idx in zip(result['sentences'], kept_indices):
+            sentence_result['text'] = original_sentences[idx]
+        result['skipped'] = skipped_sentences
 
-        # 更新结果中的文本为原始句子
-        for i, sentence_result in enumerate(result['sentences']):
-            if i < len(original_sentences):  # 确保索引有效
-                sentence_result['text'] = original_sentences[i]
-
-        # 添加使用的模型信息到结果中
-        used_model = (model_type or Config.default_model).upper()
-        result['modelInfo'] = {
-            'type': used_model
-        }
-
-        logger.info("分析完成")
-        logger.info("=" * 80)
-
+        result['modelInfo'] = {'type': (model_type or Config.default_model).upper()}
         return jsonify(result), 200
 
-    except Exception as e:
-        error_msg = f'分析时出错: {str(e)}'
-        logger.error(error_msg)
-        logger.error("=" * 80)
-        return jsonify({'error': error_msg}), 500
+    except Exception:
+        # 异常详情只进服务端日志，不回给客户端（可能含文件路径等内部信息）
+        logger.exception('分析时出错')
+        return jsonify({'error': '分析时出错，详见服务端日志'}), 500
 
 
 @app.route('/api/admin/users', methods=['GET'])
@@ -411,36 +286,103 @@ def get_users():
     })
 
 
+def _user_json(user):
+    return {'id': user.id, 'username': user.username, 'email': user.email, 'is_admin': user.is_admin}
+
+
+def _json_body():
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
+def _str_field(data, key):
+    """取字符串字段：缺省 / null 返回 None，非字符串抛 ValueError，其余去掉首尾空白。"""
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f'{key} 必须是字符串')
+    return value.strip()
+
+
+def _apply_user_update(user, data):
+    """管理员更新用户的公共逻辑。返回 (错误信息, HTTP 状态码)；成功时返回 (None, None)。
+
+    原实现有三个坑：
+    - 请求里不带 email 时把邮箱改成 None；不带 is_admin 时默认 False，
+      管理员只想改个密码，结果顺手把对方（或自己）降成了普通用户
+    - 可以把系统里最后一个管理员降级，之后再没人能进管理后台
+    - 用户名 / 邮箱 / 密码不做任何格式校验
+    """
+    try:
+        username = _str_field(data, 'username')
+        email = _str_field(data, 'email')
+        password = data.get('password')
+        if password is not None and not isinstance(password, str):
+            raise ValueError('password 必须是字符串')
+    except ValueError as e:
+        return str(e), 400
+
+    username = username or None
+    email = email or None
+    password = password if password and password.strip() else None
+
+    error = validate_account_fields(username, email, password)
+    if error:
+        return error, 400
+
+    if username and username != user.username:
+        if User.query.filter(User.username == username, User.id != user.id).first():
+            return '用户名已被使用', 400
+        user.username = username
+
+    if email and email != user.email:
+        if User.query.filter(User.email == email, User.id != user.id).first():
+            return '邮箱已被注册', 400
+        user.email = email
+
+    if 'is_admin' in data:
+        is_admin = bool(data['is_admin'])
+        if user.is_admin and not is_admin:
+            if user.id == current_user.id:
+                return '不能取消自己的管理员权限', 400
+            if User.query.filter_by(is_admin=True).count() <= 1:
+                return '系统必须保留至少一个管理员账户', 400
+        user.is_admin = is_admin
+
+    if password:
+        user.set_password(password)
+    return None, None
+
+
 @app.route('/api/admin/create_user', methods=['POST'])
 @admin_required
 def create_user():
     """创建新用户 (仅限管理员)"""
-    data = request.get_json()
+    data = _json_body()
+    if data is None:
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
 
-    username = data.get('username')
-    email = data.get('email')
+    try:
+        username = _str_field(data, 'username')
+        email = _str_field(data, 'email')
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     password = data.get('password')
-    is_admin = data.get('is_admin', False)
-
-    if not all([username, email, password]):
+    if not all([username, email, password]) or not isinstance(password, str):
         return jsonify({'error': '缺少必要参数'}), 400
 
-    # 检查用户名是否已存在
+    error = validate_account_fields(username, email, password)
+    if error:
+        return jsonify({'error': error}), 400
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': '用户名已被使用'}), 400
-
-    # 检查邮箱是否已存在
     if User.query.filter_by(email=email).first():
         return jsonify({'error': '邮箱已被注册'}), 400
 
-    # 创建新用户
-    new_user = User(
-        username=username,
-        email=email,
-        password=password,
-        is_admin=is_admin
-    )
-
+    new_user = User(username=username, email=email, password=password,
+                    is_admin=bool(data.get('is_admin', False)))
     db.session.add(new_user)
     db.session.commit()
 
@@ -448,54 +390,22 @@ def create_user():
 
 
 @app.route('/api/admin/update_user/<int:user_id>', methods=['PUT'])
+@app.route('/api/admin/user/<int:user_id>', methods=['PUT'])
 @admin_required
 def update_user(user_id):
-    """更新用户信息 (仅限管理员)"""
-    user = User.query.get_or_404(user_id)
-    data = request.get_json()
+    """更新用户信息 (仅限管理员)。字段均可选，没传的字段保持不变。"""
+    user = db.get_or_404(User, user_id)
+    data = _json_body()
+    if data is None:
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
 
-    # 获取请求数据
-    username = data.get('username')
-    email = data.get('email')
-    is_admin = data.get('is_admin', False)
-    password = data.get('password')  # 可选，如果提供则更新密码
-
-    # 只有在提供了有效的用户名时才检查和更新
-    if username and username.strip():
-        # 检查用户名是否与其他用户重复
-        if username != user.username:
-            existing_user = User.query.filter_by(username=username).first()
-            if existing_user:
-                return jsonify({'error': '用户名已被使用'}), 400
-        
-        # 更新用户名
-        user.username = username
-
-    # 检查邮箱是否与其他用户重复
-    if email != user.email:
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
-            return jsonify({'error': '邮箱已被注册'}), 400
-
-    # 更新用户信息
-    user.email = email
-    user.is_admin = is_admin
-
-    # 如果提供了新密码则更新
-    if password and password.strip():
-        user.password_hash = User.generate_password_hash(password)
+    error, status = _apply_user_update(user, data)
+    if error:
+        db.session.rollback()
+        return jsonify({'error': error}), status
 
     db.session.commit()
-
-    return jsonify({
-        'message': '用户更新成功',
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'is_admin': user.is_admin
-        }
-    })
+    return jsonify({'message': '用户更新成功', 'user': _user_json(user)})
 
 
 @app.route('/api/admin/delete_user/<int:user_id>', methods=['DELETE'])
@@ -506,7 +416,7 @@ def delete_user(user_id):
     if user_id == current_user.id:
         return jsonify({'error': '不能删除当前登录的管理员账户'}), 400
 
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
 
     # 确保系统中至少保留一个管理员账户
     if user.is_admin and User.query.filter_by(is_admin=True).count() <= 1:
@@ -518,52 +428,11 @@ def delete_user(user_id):
     return jsonify({'message': f'用户 {user.username} 已成功删除'})
 
 
-@app.route('/api/admin/user/<int:user_id>', methods=['GET', 'PUT'])  # 添加PUT方法支持
+@app.route('/api/admin/user/<int:user_id>', methods=['GET'])
 @admin_required
 def get_user_by_id(user_id):
-    """获取单个用户信息或更新用户信息 (仅限管理员)"""
-    user = User.query.get_or_404(user_id)
-    
-    if request.method == 'GET':
-        return jsonify({
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'is_admin': user.is_admin
-        })
-    elif request.method == 'PUT':
-        data = request.get_json()
-
-        # 获取请求数据
-        email = data.get('email')
-        is_admin = data.get('is_admin', False)
-        password = data.get('password')  # 可选，如果提供则更新密码
-
-        # 检查邮箱是否与其他用户重复
-        if email != user.email:
-            existing_user = User.query.filter_by(email=email).first()
-            if existing_user and existing_user.id != user.id:
-                return jsonify({'error': '邮箱已被注册'}), 400
-
-        # 更新用户信息
-        user.email = email
-        user.is_admin = is_admin
-
-        # 如果提供了新密码则更新
-        if password and password.strip():
-            user.password_hash = User.generate_password_hash(password)
-
-        db.session.commit()
-
-        return jsonify({
-            'message': '用户更新成功',
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'is_admin': user.is_admin
-            }
-        })
+    """获取单个用户信息 (仅限管理员)"""
+    return jsonify(_user_json(db.get_or_404(User, user_id)))
 
 
 @app.route('/api/user')
@@ -605,508 +474,369 @@ def get_profile():
 @app.route('/api/profile/update', methods=['POST'])
 @login_required
 def update_profile():
-    """更新用户个人资料"""
-    data = request.get_json()
+    """更新用户个人资料。改密码需要验证当前密码。
 
-    # 获取要更新的数据
-    email = data.get('email')
-    current_password = data.get('current_password')
-    new_password = data.get('new_password')
+    原实现：修改密码的请求里不带 email 字段，于是 `email != current_user.email`
+    成立，邮箱被顺手改成了 None——每改一次密码就丢一次邮箱；只传 new_password
+    不传 current_password 时静默忽略，却仍然返回"更新成功"。
+    """
+    data = _json_body()
+    if data is None:
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
+    try:
+        email = _str_field(data, 'email')
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    current_password = data.get('current_password') or ''
+    new_password = data.get('new_password') or ''
+    if not isinstance(current_password, str) or not isinstance(new_password, str):
+        return jsonify({'error': '密码必须是字符串'}), 400
 
-    # 验证当前密码
-    if current_password and not current_user.verify_password(current_password):
-        return jsonify({'error': '当前密码不正确'}), 400
+    changing_email = bool(email) and email != current_user.email
+    changing_password = bool(new_password)
+    if not (changing_email or changing_password):
+        return jsonify({'message': '没有需要更新的内容'})
 
-    # 检查邮箱是否已被其他用户使用
-    if email != current_user.email:
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user and existing_user.id != current_user.id:
+    if changing_password:
+        if not current_password:
+            return jsonify({'error': '请输入当前密码'}), 400
+        if not current_user.verify_password(current_password):
+            return jsonify({'error': '当前密码不正确'}), 400
+
+    error = validate_account_fields(
+        email=email if changing_email else None,
+        password=new_password if changing_password else None,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    if changing_email:
+        if User.query.filter(User.email == email, User.id != current_user.id).first():
             return jsonify({'error': '该邮箱已被其他用户使用'}), 400
         current_user.email = email
-
-    # 如果提供了新密码，则更新密码
-    if current_password and new_password:
-        current_user.password_hash = User.generate_password_hash(new_password)
+    if changing_password:
+        current_user.set_password(new_password)
 
     db.session.commit()
     return jsonify({'message': '个人资料更新成功'})
 
 
+DEFAULT_SETTINGS = {
+    'theme': 'light',
+    'language': 'zh_CN',
+    'notifications_enabled': True,
+    'sidebar_position': 'left',
+    'font_size': 14,
+    'auto_save': True,
+    'confirm_exit': True,
+    'session_timeout': 30,
+    'admin_notification': False,
+    'system_updates_notification': True,
+    'analysis_complete_notification': True,
+}
+# 单个设置值的大小上限：设置文件按用户落盘，不设限等于给每个账号一块无限大的磁盘
+_MAX_SETTING_VALUE_LEN = 1000
+_MAX_SETTINGS_KEYS = 64
+
+
+def _settings_path(user_id):
+    return os.path.join(USER_SETTINGS_DIR, f'{int(user_id)}.json')
+
+
+def _load_user_settings(user_id):
+    data = read_json(_settings_path(user_id))
+    return data if isinstance(data, dict) else {}
+
+
+def _validate_settings(data):
+    """只接受标量值，键名与长度有上限。返回错误信息或 None。"""
+    if len(data) > _MAX_SETTINGS_KEYS:
+        return '设置项过多'
+    for key, value in data.items():
+        if not isinstance(key, str) or not re.fullmatch(r'[A-Za-z0-9_]{1,64}', key):
+            return f'非法的设置项名称: {key!r}'
+        if value is not None and not isinstance(value, (str, int, float, bool)):
+            return f'设置项 {key} 的值必须是字符串、数字或布尔值'
+        if isinstance(value, str) and len(value) > _MAX_SETTING_VALUE_LEN:
+            return f'设置项 {key} 的值过长'
+    return None
+
+
 @app.route('/api/settings', methods=['GET'])
 @login_required
 def get_settings():
-    """获取用户设置"""
-    # 创建一个User_Settings模型或在User模型中添加settings字段
-    # 这里简化处理，使用用户ID为键的文件来存储设置
-    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
-
-    # 默认设置
-    default_settings = {
-        'theme': 'light',
-        'language': 'zh_CN',
-        'notifications_enabled': True,
-        'sidebar_position': 'left',
-        'font_size': 14,
-        'auto_save': True,
-        'confirm_exit': True,
-        'session_timeout': 30,
-        'admin_notification': False,
-        'system_updates_notification': True,
-        'analysis_complete_notification': True
-    }
-
-    # 如果设置文件存在，加载其中的设置
-    if os.path.exists(settings_file):
-        try:
-            with open(settings_file, 'r', encoding='utf-8') as f:
-                user_settings = json.load(f)
-                # 合并用户设置和默认设置
-                settings = {**default_settings, **user_settings}
-        except Exception as e:
-            logger.error(f"读取用户设置出错: {str(e)}")
-            settings = default_settings
-    else:
-        settings = default_settings
-
-    return jsonify(settings)
+    """获取用户设置（用户保存的值覆盖默认值）"""
+    return jsonify({**DEFAULT_SETTINGS, **_load_user_settings(current_user.id)})
 
 
 @app.route('/api/settings/update', methods=['POST'])
 @login_required
 def update_settings():
     """更新用户设置"""
-    data = request.get_json()
+    data = _json_body()
+    if data is None:
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
+    error = _validate_settings(data)
+    if error:
+        return jsonify({'error': error}), 400
 
-    # 确保user_settings目录存在
-    os.makedirs('user_settings', exist_ok=True)
-    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
-
-    # 读取现有设置，如果存在
-    existing_settings = {}
-    if os.path.exists(settings_file):
-        try:
-            with open(settings_file, 'r', encoding='utf-8') as f:
-                existing_settings = json.load(f)
-        except Exception as e:
-            logger.error(f"读取现有用户设置出错: {str(e)}")
-
-    # 更新设置
-    updated_settings = {**existing_settings, **data}
-
-    # 保存设置
+    updated = {**_load_user_settings(current_user.id), **data}
+    if len(updated) > _MAX_SETTINGS_KEYS:
+        return jsonify({'error': '设置项过多'}), 400
     try:
-        with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(updated_settings, f, ensure_ascii=False, indent=2)
-        logger.info(f"用户 {current_user.username} 设置已更新")
-        return jsonify({'message': '设置更新成功'})
-    except Exception as e:
-        logger.error(f"保存用户设置出错: {str(e)}")
+        os.makedirs(USER_SETTINGS_DIR, exist_ok=True)
+        atomic_write_json(_settings_path(current_user.id), updated, indent=2)
+    except OSError:
+        logger.exception('保存用户设置出错')
         return jsonify({'error': '保存设置失败'}), 500
+    logger.info(f"用户 {current_user.username} 设置已更新")
+    return jsonify({'message': '设置更新成功'})
 
 
 @app.route('/api/settings/reset', methods=['POST'])
 @login_required
 def reset_settings():
     """重置用户设置"""
-    settings_file = os.path.join('user_settings', f'{current_user.id}.json')
-
-    # 如果设置文件存在，删除它
-    if (os.path.exists(settings_file)):
-        try:
-            os.remove(settings_file)
-            logger.info(f"用户 {current_user.username} 设置已重置")
-        except Exception as e:
-            logger.error(f"重置用户设置出错: {str(e)}")
-            return jsonify({'error': '重置设置失败'}), 500
-
+    try:
+        os.remove(_settings_path(current_user.id))
+        logger.info(f"用户 {current_user.username} 设置已重置")
+    except FileNotFoundError:
+        pass
+    except OSError:
+        logger.exception('重置用户设置出错')
+        return jsonify({'error': '重置设置失败'}), 500
     return jsonify({'message': '设置已重置为默认值'})
 
 
+# ---------------------------------------------------------------------------
+# 训练调度
+# ---------------------------------------------------------------------------
+# 训练会占满 CPU 数十分钟并覆盖线上正在使用的权重文件，属于有副作用的操作，
+# 与暂停 / 停止一样只对管理员开放（原实现启动接口只要求登录，任何注册用户都能
+# 反复触发训练）。agent 层的 train_model 工具同样被标记为"需人工确认"。
+
+def _initial_progress(total_epochs=0, status='initializing', message=None):
+    data = {
+        'status': status,
+        'current_epoch': 0,
+        'total_epochs': total_epochs,
+        'train_loss': 0,
+        'val_loss': 0,
+        'val_acc': 0,
+        'history': {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []},
+    }
+    if message:
+        data['message'] = message
+    return data
+
+
+def _num(data, key, default, cast, lo, hi):
+    """取一个数值参数并做范围校验；不合法时抛 ValueError（由调用方转成 400）。"""
+    value = data.get(key, default)
+    if isinstance(value, bool):
+        raise ValueError(f'参数 {key} 必须是数字')
+    try:
+        value = cast(value)
+    except (TypeError, ValueError):
+        raise ValueError(f'参数 {key} 必须是数字')
+    if not (lo <= value <= hi):
+        raise ValueError(f'参数 {key} 超出范围 [{lo}, {hi}]')
+    return value
+
+
+def parse_training_params(data):
+    """校验前端传来的训练参数，返回写入 params.json 的字典。"""
+    model_type = str(data.get('model_type', 'cnn')).lower()
+    if model_type not in Config.model_choices:
+        raise ValueError(f'不支持的模型类型: {model_type}')
+
+    params = {
+        'model_type': model_type,
+        'batch_size': _num(data, 'batch_size', 128, int, 1, 4096),
+        'epochs': _num(data, 'epochs', 10, int, 1, 1000),
+        'dropout': _num(data, 'dropout', 0.5, float, 0.0, 0.95),
+        'weight_decay': _num(data, 'weight_decay', 1e-4, float, 0.0, 1.0),
+        'optimizer': str(data.get('optimizer', 'adam')),
+    }
+    if 'learning_rate' in data:
+        params['learning_rate'] = _num(data, 'learning_rate', Config.lr, float, 1e-7, 1.0)
+
+    if model_type == 'cnn':
+        params['num_filters'] = _num(data, 'num_filters', Config.num_filters, int, 1, 1024)
+    else:
+        params['hidden_dim'] = _num(data, 'hidden_dim', Config.hidden_dim, int, 1, 2048)
+        params['num_layers'] = _num(data, 'num_layers', Config.num_layers, int, 1, 8)
+
+    if data.get('early_stopping'):
+        params['early_stopping'] = True
+        params['patience'] = _num(data, 'patience', 5, int, 1, 1000)
+    return params
+
+
+def _read_progress():
+    return read_json(Config.progress_path)
+
+
+def _sync_progress_with_process(progress):
+    """训练进程已退出但状态还停在 running / paused 时（被 kill、OOM、崩溃），
+    依据退出码把状态改成终态，否则前端会一直显示"训练中"。"""
+    if progress is None or progress.get('status') in TERMINAL_STATUSES:
+        return progress
+    if not train_manager.has_handle() or train_manager.is_running():
+        return progress
+    code = train_manager.returncode()
+    if code == 0:
+        progress['status'] = 'completed'
+        progress.setdefault('message', '训练已完成')
+    else:
+        progress['status'] = 'failed'
+        progress['error'] = f'训练进程异常退出，返回码: {code}'
+    atomic_write_json(Config.progress_path, progress)
+    return progress
+
+
 @app.route('/api/train/start', methods=['POST'])
-@login_required
+@admin_required
 def start_training():
     """启动模型训练任务"""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': '请求体必须是 JSON 对象'}), 400
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Invalid JSON data'}), 400
+        params = parse_training_params(data)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
-        # 获取训练参数
-        model_type = data.get('model_type', 'cnn')
-        batch_size = data.get('batch_size', 256)
-        epochs = data.get('epochs', 10)
-        dropout = data.get('dropout', 0.5)
-        optimizer = data.get('optimizer', 'adam')
-        weight_decay = data.get('weight_decay', 0.0001)
+    if train_manager.is_running():
+        return jsonify({'error': '已有训练任务正在运行，请先停止或等待其结束'}), 409
 
-        # 保存训练参数到配置文件
-        params = {
-            'model_type': model_type,
-            'batch_size': batch_size,
-            'epochs': epochs,
-            'dropout': dropout,
-            'optimizer': optimizer,
-            'weight_decay': weight_decay
-        }
+    try:
+        atomic_write_json(Config.params_path, params)
+        atomic_write_json(Config.progress_path, _initial_progress(params['epochs']))
+        pid = train_manager.start()
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 409
+    except Exception:
+        logger.exception('启动训练出错')
+        return jsonify({'error': '启动训练失败，详见服务端日志'}), 500
 
-        # 确保配置目录存在
-        os.makedirs('config', exist_ok=True)
-
-        # 模型特定参数
-        if model_type.lower() in ['lstm', 'bilstm', 'lstm_attention', 'bilstm_attention']:
-            params['hidden_dim'] = data.get('hidden_dim', 128)
-            params['num_layers'] = data.get('num_layers', 2)
-        elif model_type.lower() == 'cnn':
-            params['num_filters'] = data.get('num_filters', 128)
-
-        # 早停参数
-        if data.get('early_stopping'):
-            params['early_stopping'] = True
-            params['patience'] = data.get('patience', 5)
-
-        # 保存参数到配置文件
-        with open(Config.params_path, 'w') as f:
-            json.dump(params, f)
-
-        # 重置训练进度文件
-        with open(Config.progress_path, 'w') as f:
-            json.dump({
-                'status': 'initializing',
-                'current_epoch': 0,
-                'total_epochs': epochs,
-                'train_loss': 0,
-                'val_loss': 0,
-                'val_acc': 0,
-                'history': {
-                    'train_loss': [],
-                    'val_loss': [],
-                    'train_acc': [],
-                    'val_acc': []
-                }
-            }, f)
-
-        # 确保日志目录存在
-        os.makedirs('log', exist_ok=True)
-
-        # 启动训练进程
-        train_process = subprocess.Popen(['python', 'main.py'],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.STDOUT,
-                                         universal_newlines=True)
-
-        # 记录训练进程PID
-        with open(TRAIN_PID_PATH, 'w') as f:
-            f.write(str(train_process.pid))
-
-        return jsonify({
-            'success': True,
-            'message': '训练任务已启动',
-            'pid': train_process.pid,
-            'training_id': str(uuid.uuid4())
-        })
-    except Exception as e:
-        app.logger.error(f"启动训练出错: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+    # 新权重写盘后，推理引擎会按文件修改时间自动重新加载，这里无需手动失效缓存
+    logger.info('训练任务已启动 pid=%s params=%s', pid, params)
+    return jsonify({
+        'success': True,
+        'message': '训练任务已启动',
+        'pid': pid,
+        'training_id': str(uuid.uuid4()),
+        'params': params,
+    })
 
 
 @app.route('/api/train/progress', methods=['GET'])
 @login_required
 def get_training_progress():
-    """获取训练进度"""
-    try:
-        progress_file = Config.progress_path
+    """获取训练进度。
 
-        # 确保文件存在
-        if not os.path.exists(progress_file):
-            # 如果文件不存在，返回初始状态
-            return jsonify({
-                'status': 'initializing',
-                'current_epoch': 0,
-                'total_epochs': 0,
-                'train_loss': 0,
-                'val_loss': 0,
-                'val_acc': 0,
-                'history': {
-                    'train_loss': [],
-                    'val_loss': [],
-                    'train_acc': [],
-                    'val_acc': []
-                },
-                'message': '等待训练开始'
-            })
+    原文件里这个 URL 注册了两次：第二个（带进程退出检测的那个）永远不会被路由到，
+    于是训练进程崩溃后进度一直停在 running。现在合并成一个。
+    """
+    progress = _read_progress()
+    if progress is None:
+        if os.path.exists(Config.progress_path):
+            # 原子写入后理论上不会出现半截文件，这里兜底手工改坏的情况
+            return jsonify({'status': 'error', 'message': '进度文件格式错误',
+                            'error': '无法解析进度文件'})
+        progress = _initial_progress(message='等待训练开始')
+    else:
+        progress = _sync_progress_with_process(progress)
 
-        # 读取进度文件
-        try:
-            with open(progress_file, 'r') as f:
-                progress_data = json.load(f)
-        except json.JSONDecodeError:
-            app.logger.error(f"进度文件格式错误: {progress_file}")
-            # 返回错误格式的提示，但仍然是JSON格式响应
-            return jsonify({
-                'status': 'error',
-                'message': '进度文件格式错误',
-                'error': '无法解析进度文件'
-            })
-
-        # 添加日志
-        progress_data['recent_logs'] = get_recent_training_logs()
-
-        # 添加时间戳 - 修复 datetime 使用问题
-        progress_data['timestamp'] = datetime.datetime.now().isoformat()
-
-        # 添加内容类型头
-        response = jsonify(progress_data)
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    except Exception as e:
-        app.logger.error(f"获取训练进度出错: {str(e)}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({
-            'status': 'error',
-            'message': '获取训练进度出错',
-            'error': str(e)
-        }), 500
+    progress['running'] = train_manager.is_running()
+    progress['recent_logs'] = get_recent_training_logs()
+    progress['timestamp'] = datetime.datetime.now().isoformat()
+    return jsonify(progress)
 
 
 def get_recent_training_logs(max_lines=10):
-    """获取最近的训练日志"""
-    try:
-        log_file = os.path.join('log', 'training.log')
-        if not os.path.exists(log_file):
-            return []
+    """训练子进程输出的末尾几行。
 
-        # 读取最后几行日志
-        with open(log_file, 'r') as f:
-            lines = f.readlines()
-            return [line.strip() for line in lines[-max_lines:] if line.strip()]
-    except Exception as e:
-        app.logger.error(f"读取训练日志出错: {str(e)}")
-        return []
-
-
-@app.route('/api/train/progress', methods=['GET'])
-@admin_required
-def check_training_progress():
-    """获取训练进度"""
-    try:
-        logger.info("正在检查训练进度...")
-        progress_file = Config.progress_path
-
-        if not os.path.exists(progress_file):
-            logger.warning("未找到进度文件，没有正在进行的训练任务")
-            print("未找到进度文件，没有正在进行的训练任务", flush=True)
-            return jsonify({
-                'status': 'not_started',
-                'message': '没有正在进行的训练任务'
-            })
-
-        # 读取进度文件
-        with open(progress_file, 'r') as f:
-            progress = json.load(f)
-            logger.info(
-                f"当前训练状态: {progress['status']}, 进度: {progress.get('current_epoch', 0)}/{progress.get('total_epochs', 0)}")
-            print(
-                f"当前训练状态: {progress['status']}, 进度: {progress.get('current_epoch', 0)}/{progress.get('total_epochs', 0)}",
-                flush=True)
-
-        # 检查训练进程是否还在运行
-        training_process = app.config.get('TRAINING_PROCESS')
-        if training_process:
-            # 检查进程是否仍在运行
-            if training_process.poll() is not None:  # 如果poll()返回值不是None，表示进程已结束
-                return_code = training_process.poll()
-                logger.info(f"训练进程已结束，返回码: {return_code}")
-                print(f"训练进程已结束，返回码: {return_code}", flush=True)
-
-                # 进程已结束但状态可能没有更新
-                if progress['status'] not in ['completed', 'failed', 'stopped']:
-                    # 查看退出码以确定状态
-                    if return_code == 0:
-                        progress['status'] = 'completed'
-                        progress['message'] = '训练已完成'
-                        logger.info("训练成功完成")
-                        print("训练成功完成", flush=True)
-                    else:
-                        progress['status'] = 'failed'
-                        progress['error'] = f'训练进程异常退出，返回码: {return_code}'
-                        logger.error(f"训练失败，返回码: {return_code}")
-                        print(f"训练失败，返回码: {return_code}", flush=True)
-
-                    # 更新进度文件
-                    with open(progress_file, 'w') as f:
-                        json.dump(progress, f)
-                        logger.info("已更新进度文件")
-                        print("已更新进度文件", flush=True)
-
-        # 读取训练日志末尾的几行用于显示
-        log_dir = os.path.join('log')
-        recent_logs = []
-        try:
-            if os.path.exists(log_dir):
-                log_files = [f for f in os.listdir(log_dir) if f.startswith('training_') and f.endswith('.log')]
-                if log_files:
-                    latest_log = max(log_files, key=lambda x: os.path.getmtime(os.path.join(log_dir, x)))
-                    log_path = os.path.join(log_dir, latest_log)
-                    logger.info(f"读取最新日志文件: {latest_log}")
-                    print(f"读取最新日志文件: {latest_log}", flush=True)
-
-                    with open(log_path, 'r') as log_file:
-                        # 读取最后10行日志
-                        lines = log_file.readlines()[-10:]
-                        recent_logs = [line.strip() for line in lines]
-
-                        # 在终端实时显示最新日志
-                        print("\n----- 最新训练日志 -----")
-                        for line in recent_logs:
-                            print(line, flush=True)
-                        print("-----------------------\n", flush=True)
-
-            progress['recent_logs'] = recent_logs
-        except Exception as e:
-            error_msg = f"读取日志文件时出错: {str(e)}"
-            logger.error(error_msg)
-            print(error_msg, flush=True)
-
-        # 返回进度数据
-        logger.info("成功获取训练进度")
-        return jsonify(progress)
-
-    except Exception as e:
-        error_msg = f'获取训练进度出错: {str(e)}'
-        logger.exception(error_msg)
-        print(error_msg, flush=True)
-        return jsonify({
-            'error': str(e),
-            'status': 'error',
-            'message': '获取进度信息时发生错误'
-        }), 500
+    原实现读 log/training.log，但从来没有任何代码写这个文件——子进程的输出
+    进了一个没人读的管道。现在子进程的 stdout 直接重定向到 runtime/training.log。
+    """
+    return tail_log(max_lines)
 
 
 @app.route('/api/train/pause', methods=['POST'])
 @admin_required
 def pause_training():
-    """暂停/继续训练进程"""
-    try:
-        # 由于Python的subprocess没有直接暂停功能，这里我们通过更新状态文件来模拟
-        progress_file = Config.progress_path
+    """暂停 / 继续训练（切换）。指令写入控制文件，训练进程在 batch 之间响应。"""
+    if not train_manager.is_running():
+        return jsonify({'error': '没有正在进行的训练任务'}), 404
 
-        if not os.path.exists(progress_file):
-            return jsonify({'error': '没有正在进行的训练任务'}), 404
-
-        with open(progress_file, 'r+') as f:
-            progress = json.load(f)
-
-            if progress['status'] == 'running':
-                progress['status'] = 'paused'
-                result = {'status': 'paused'}
-            elif progress['status'] == 'paused':
-                progress['status'] = 'running'
-                result = {'status': 'resumed'}
-            else:
-                return jsonify({'error': '训练任务不在可暂停/继续状态'}), 400
-
-            f.seek(0)
-            json.dump(progress, f)
-            f.truncate()
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.exception('暂停/继续训练出错')
-        return jsonify({'error': str(e)}), 500
+    if read_command() == 'pause':
+        send_command('resume')
+        return jsonify({'status': 'resumed'})
+    send_command('pause')
+    return jsonify({'status': 'paused'})
 
 
 @app.route('/api/train/stop', methods=['POST'])
 @admin_required
 def stop_training():
-    """停止训练进程"""
-    try:
-        process = app.config.get('TRAINING_PROCESS')
+    """停止训练。
 
-        if not process:
-            return jsonify({'error': '没有正在进行的训练任务'}), 404
+    默认优雅停止：训练进程在下一个 batch 前退出，已保存的最佳权重不受影响。
+    传 {"force": true} 时直接终止进程（训练进程卡死时使用）。
+    """
+    if not train_manager.is_running():
+        return jsonify({'error': '没有正在进行的训练任务'}), 404
 
-        # 尝试终止进程
-        process.terminate()
+    data = request.get_json(silent=True) or {}
+    if isinstance(data, dict) and data.get('force'):
+        train_manager.terminate()
+        progress = _read_progress() or _initial_progress()
+        progress['status'] = 'stopped'
+        progress['message'] = '训练已被强制终止'
+        atomic_write_json(Config.progress_path, progress)
+        return jsonify({'status': 'stopped'})
 
-        # 更新进度文件
-        progress_file = Config.progress_path
-
-        if os.path.exists(progress_file):
-            with open(progress_file, 'r+') as f:
-                progress = json.load(f)
-                progress['status'] = 'stopped'
-                f.seek(0)
-                json.dump(progress, f)
-                f.truncate()
-
-        return jsonify({'status': 'stopping'})
-
-    except Exception as e:
-        logger.exception('停止训练出错')
-        return jsonify({'error': str(e)}), 500
+    send_command('stop')
+    return jsonify({'status': 'stopping'})
 
 
 @app.route('/api/train/save_model', methods=['POST'])
 @admin_required
 def save_model():
-    """保存训练好的模型"""
+    """把最近一次训练的最佳权重另存一份副本。"""
+    data = request.get_json(silent=True) or {}
+    raw_name = str(data.get('name') or f'model_{int(time.time())}')
+    # name 会被拼进文件路径：原实现直接拼接，传 "../../app" 就能写到仓库任意位置
+    name = secure_filename(raw_name)
+    if not name:
+        return jsonify({'error': '模型名称不合法'}), 400
+
+    params = read_json(Config.params_path)
+    if not params:
+        return jsonify({'error': '找不到训练参数文件'}), 404
+
+    model_type = str(params.get('model_type', 'cnn')).lower()
+    if model_type not in Config.model_choices:
+        return jsonify({'error': f'参数文件中的模型类型非法: {model_type}'}), 400
+    source_path = os.path.join(Config.model_dir, f"{model_type}_model_best.pkl")
+    if not os.path.exists(source_path):
+        return jsonify({'error': '找不到模型文件'}), 404
+
+    os.makedirs(SAVED_MODELS_DIR, exist_ok=True)
+    target_filename = f"{name}.pkl"
+    target_path = os.path.join(SAVED_MODELS_DIR, target_filename)
     try:
-        data = request.get_json()
-        name = data.get('name', f'model_{int(time.time())}')
-
-        # 检查最近训练的模型文件
-        model_dir = 'models'
-        os.makedirs(model_dir, exist_ok=True)
-
-        # 从params.json获取模型类型
-        params_file = Config.params_path
-
-        if not os.path.exists(params_file):
-            return jsonify({'error': '找不到训练参数文件'}), 404
-
-        with open(params_file, 'r') as f:
-            params = json.load(f)
-
-        model_type = params.get('model_type', 'cnn')
-        source_path = os.path.join(Config.model_dir, f"{model_type}_model_best.pkl")
-
-        if not os.path.exists(source_path):
-            return jsonify({'error': '找不到模型文件'}), 404
-
-        # 保存模型副本
-        target_filename = f"{name}.pkl"
-        target_path = os.path.join(model_dir, target_filename)
-
-        # 拷贝模型文件
         shutil.copy2(source_path, target_path)
-
-        return jsonify({
-            'status': 'success',
-            'filename': target_filename,
-            'path': target_path
-        })
-
-    except Exception as e:
+    except OSError:
         logger.exception('保存模型出错')
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '保存模型失败'}), 500
 
-
-@app.route('/api/info', methods=['GET'])
-@login_required
-def get_api_info():
-    """获取API信息，用于调试"""
     return jsonify({
-        'api_version': '1.0',
-        'endpoints': [
-            {'path': '/api/user', 'methods': ['GET'], 'description': '获取当前用户信息'},
-            {'path': '/api/admin/users', 'methods': ['GET'], 'description': '获取所有用户列表'},
-            {'path': '/api/admin/user/<id>', 'methods': ['GET'], 'description': '获取单个用户信息'},
-            {'path': '/api/admin/create_user', 'methods': ['POST'], 'description': '创建新用户'},
-            {'path': '/api/admin/update_user/<id>', 'methods': ['PUT'], 'description': '更新用户信息'},
-            {'path': '/api/admin/delete_user/<id>', 'methods': ['DELETE'], 'description': '删除用户'}
-        ]
+        'status': 'success',
+        'filename': target_filename,
+        'path': os.path.relpath(target_path, Config.base_dir),
     })
 
 

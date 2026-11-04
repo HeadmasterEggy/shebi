@@ -25,7 +25,6 @@ class Config:
     train_path = _p("data", "train.txt")
     val_path = _p("data", "val.txt")
     test_path = _p("data", "test.txt")
-    pre_path = _p("data", "pre.txt")
     word2id_path = _p("word2vec", "word2id.txt")
     pre_word2vec_path = _p("word2vec", "wiki_word2vec_50.bin")
     corpus_word2vec_path = _p("word2vec", "word_vec.txt")

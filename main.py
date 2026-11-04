@@ -33,7 +33,7 @@ from data_Process import (
     build_word2vec,
     Data_set,
 )
-from eval import val_accuracy
+from training_control import ControlPoller, atomic_write_json, clear_command
 # 导入模型工具模块
 from utils import create_model
 
@@ -53,6 +53,27 @@ def set_seed(seed):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     print(f'设置随机种子为: {seed}')
+
+
+def val_accuracy(model, val_dataloader, device, criterion):
+    """验证集准确率（百分比）与平均每 batch 损失。
+
+    原先放在 eval.py 里：损失返回的是全部 batch 的总和（界面上 val_loss 15.1 对着
+    train_loss 0.35，量纲根本不同），且每次验证都往工作目录的 metrics_log.csv
+    追加一行——正是早期界面"编造指标"读取的那个文件。
+    """
+    model.eval()
+    correct = total = 0
+    total_loss = 0.0
+    with torch.no_grad():
+        for inputs, targets in val_dataloader:
+            inputs = inputs.to(device).long()
+            targets = targets.to(device).squeeze(1).long()
+            outputs = model(inputs)
+            total_loss += criterion(outputs, targets).item()
+            correct += (outputs.argmax(dim=1) == targets).sum().item()
+            total += targets.size(0)
+    return 100 * correct / max(total, 1), total_loss / max(len(val_dataloader), 1)
 
 
 def train(train_dataloader, model, device, epoches, lr, patience):
@@ -102,7 +123,20 @@ def train(train_dataloader, model, device, epoches, lr, patience):
     best_acc = 0
     counter = 0  # 初始化早停计数器
 
+    # Web 端的暂停 / 停止指令在 batch 之间生效
+    progress_state = {"epoch": 0}
+    poller = ControlPoller(
+        on_pause=lambda: update_training_progress(
+            progress_state["epoch"], epoches, None, None, None, 'paused', "训练已暂停"),
+        on_resume=lambda: update_training_progress(
+            progress_state["epoch"], epoches, None, None, None, 'running', "训练已继续"),
+    )
+    stop_requested = False
+    final_status, final_message = 'completed', "训练完成"
+    last_epoch = 0
+
     for epoch in range(epoches):
+        progress_state["epoch"] = epoch
         train_loss = 0.0
         correct = 0
         total = 0
@@ -113,6 +147,9 @@ def train(train_dataloader, model, device, epoches, lr, patience):
         train_dataloader_cur.set_description(
             '[Epoch: {:04d}/{:04d} lr: {:.6f}]'.format(epoch + 1, epoches, scheduler.get_last_lr()[0]))
         for i, data_ in enumerate(train_dataloader_cur):
+            if poller.check():
+                stop_requested = True
+                break
             try:
                 # 清空梯度
                 optimizer.zero_grad()
@@ -163,6 +200,14 @@ def train(train_dataloader, model, device, epoches, lr, patience):
                 )
                 continue
 
+        if stop_requested:
+            # 半个 epoch 的指标没有意义，不进 history；已保存的最佳权重保持不动
+            print(f'收到停止指令，在第 {epoch + 1} 轮中途停止')
+            final_status, final_message = 'stopped', f"训练已手动停止（第 {epoch + 1} 轮中途）"
+            break
+
+        last_epoch = epoch + 1
+
         # 计算整个epoch的指标
         avg_loss = train_loss / len(train_dataloader)
         avg_acc = 100 * correct / total
@@ -208,10 +253,7 @@ def train(train_dataloader, model, device, epoches, lr, patience):
             # 检查早停条件
             if counter >= patience:
                 print(f'早停机制触发，在第{epoch + 1}轮训练后停止')
-                update_training_progress(
-                    epoch + 1, epoches, avg_loss, val_loss, acc / 100, 'completed',
-                    f"早停机制触发，在第{epoch + 1}轮训练后停止"
-                )
+                final_message = f"早停机制触发，在第{epoch + 1}轮训练后停止"
                 break
 
             # 最后保存所有训练日志，使用更详细的命名方式
@@ -237,13 +279,14 @@ def train(train_dataloader, model, device, epoches, lr, patience):
             )
             continue
 
-    # 训练完成后，更新最终状态
-    update_training_progress(
-        epoches, epoches, history["train_loss"][-1] if history["train_loss"] else None,
-        history["val_loss"][-1] if history["val_loss"] else None,
-        history["val_acc"][-1] / 100 if history["val_acc"] else None,
-        'completed', "训练完成"
-    )
+    # 训练结束，写最终状态。
+    #
+    # 只更新状态、不再追加指标：每轮的指标在该轮结束时已经写进 history，
+    # 原实现在这里把最后一轮的 loss/acc 又追加一遍，曲线末尾总会多出一个重复点；
+    # 早停时还会把轮次写成 epoches，界面显示"10/10"而实际只跑了 4 轮。
+    update_training_progress(last_epoch, epoches, None, None, None, final_status, final_message)
+    clear_command()
+    return final_status
 
 
 def update_training_progress(current_epoch, total_epochs, train_loss, val_loss, val_acc, status, message=None):
@@ -305,9 +348,8 @@ def update_training_progress(current_epoch, total_epochs, train_loss, val_loss, 
         elif status != 'failed' and 'error' in progress:
             progress.pop('error', None)  # 移除错误信息
 
-        # 写入文件
-        with open(progress_file, 'w') as f:
-            json.dump(progress, f, indent=2)  # 使用缩进格式化JSON，便于调试
+        # 原子写入：Web 端轮询读这个文件，非原子写会让它读到半截 JSON
+        atomic_write_json(progress_file, progress, indent=2)
 
         print(f"进度已更新: 轮次 {current_epoch}/{total_epochs}, 状态: {status}")
     except Exception as e:
@@ -450,16 +492,14 @@ if __name__ == "__main__":
         train(train_dataloader, model=model, device=device, epoches=args.epochs, lr=args.learning_rate,
               patience=args.patience)
 
-        # 保存最终模型
-        try:
-            torch.save(model.state_dict(), model_path)
-            print(f"模型已保存为: {model_path}")
-        except Exception as e:
-            print(f"保存模型出错: {str(e)}")
-            traceback.print_exc()
-            update_training_progress(
-                args.epochs, args.epochs, None, None, None, 'failed', f"保存模型出错: {str(e)}"
-            )
+        # 不再在训练结束后保存"最终模型"。
+        #
+        # 原实现在这里把最后一轮的权重写回 *_model_best.pkl，覆盖掉训练过程中按验证集
+        # 准确率挑出来的最佳权重——文件名叫 best，存的却是 last。最后一轮一旦过拟合
+        # 或者刚被早停，线上加载到的就是比最佳点更差的模型。
+        # 最佳权重已在验证集准确率创新高时由 train() 保存。
+        if not os.path.exists(model_path):
+            print(f"警告：本次训练未产出权重文件 {model_path}")
 
     except Exception as e:
         print(f"训练过程出错: {str(e)}")

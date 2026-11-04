@@ -288,35 +288,23 @@ def text_to_array(word2id, seq_length, path):
     return np.array(sentences_array), label_array
 
 
+def sentences_to_array(word2id, seq_length, sentences):
+    """把已分词（空格分隔）的句子列表转成定长索引矩阵：未登录词记 0，前填充、后截断。"""
+    rows = []
+    for sentence in sentences:
+        ids = [word2id.get(word, 0) for word in sentence.split()]
+        if len(ids) < seq_length:
+            ids = [0] * (seq_length - len(ids)) + ids
+        else:
+            ids = ids[:seq_length]
+        rows.append(ids)
+    return np.array(rows, dtype=np.int64).reshape(len(rows), seq_length)
+
+
 def text_to_array_nolabel(word2id, seq_length, path):
-    """
-    @description: 文本转为索引数字模式 - 将原始文本（仅包括文本）里的每个词转为word2id对应的索引数字，并以数组返回。
-    @param {*}
-    - word2id: dict, 语料文本中包含的词汇集，词到索引的映射。
-    - seq_length: int, 序列的限定长度。若句子过长将被截断，若过短则用零填充。
-    - path: str, 待处理的原始文本数据集路径。
-    @return {*}
-    返回原始文本转化为索引数字数组后的数据集。
-    """
-
-    sentences_array = []
-
-    # 读取文件并处理每一行
+    """读取每行一句的已分词文本文件，转成索引矩阵（见 sentences_to_array）。"""
     with open(path, encoding="utf-8") as file:
-        for line in file.readlines():
-            words = line.strip().split()  # 分割句子成单词
-            indexed_sentence = [word2id.get(word, 0) for word in words]  # 将每个单词转为索引
-
-            # 填充或截断句子至指定长度
-            if len(indexed_sentence) < seq_length:
-                indexed_sentence = [0] * (seq_length - len(indexed_sentence)) + indexed_sentence  # 前填0
-            else:
-                indexed_sentence = indexed_sentence[:seq_length]  # 截断多余部分
-
-            sentences_array.append(indexed_sentence)
-
-    # 转换为NumPy数组并返回
-    return np.array(sentences_array)
+        return sentences_to_array(word2id, seq_length, [line.strip() for line in file])
 
 
 def prepare_data(w2id, train_path, val_path, test_path, seq_length):

@@ -25,22 +25,9 @@ class User(db.Model, UserMixin):
         """验证密码"""
         return check_password_hash(self.password_hash, password)
 
-    def is_administrator(self):
-        """检查用户是否为管理员"""
-        return self.is_admin
-
-    @staticmethod
-    def generate_password_hash(password):
-        """生成密码哈希的静态方法"""
-        return generate_password_hash(password)
-
     def set_password(self, password):
         """设置密码散列"""
         self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        """验证密码"""
-        return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f'<User {self.username}>'
