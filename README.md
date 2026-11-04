@@ -6,7 +6,7 @@
 BiLSTM+Attention 五种模型，含训练调度、日志分析、Web 服务与一层 Agent。
 
 > **分支说明**
-> - `main` —— 当前开发分支。在毕设基础上做了十四轮工程审计与修复（见 [CHANGELOG.md](CHANGELOG.md)），
+> - `main` —— 当前开发分支。在毕设基础上做了十五轮工程审计与修复（见 [CHANGELOG.md](CHANGELOG.md)），
 >   并外挂了一层 Agent（工具层 / ReAct 循环 / 多 Agent 编排 / 评论检索）。
 > - `thesis` —— 毕业设计完成时的原样快照，不含任何后续改造，需要对照时切过去即可。
 
@@ -60,7 +60,7 @@ SECRET_KEY=$(openssl rand -hex 32) docker compose up --build
 
 ## 工程审计
 
-毕设完成后做了十四轮审计与修复，逐轮的问题、根因与实测数字见 **[CHANGELOG.md](CHANGELOG.md)**。
+毕设完成后做了十五轮审计与修复，逐轮的问题、根因与实测数字见 **[CHANGELOG.md](CHANGELOG.md)**。
 几条影响最大的：
 
 - **TextCNN 在推理模式下坍缩**：BatchNorm 的 running stats 追不上持续更新的嵌入层，`eval()` 下
