@@ -139,7 +139,8 @@ def test_export_report_expands_citations_into_an_appendix(db, monkeypatch, tmp_p
         "title": "差评分析", "body": "- 物流配送慢 [review_id: 1]"})
     assert res.ok
     assert res.content["cited_reviews"] == [1]
-    text = open(res.content["path"], encoding="utf-8").read()
+    with open(res.content["path"], encoding="utf-8") as f:
+        text = f.read()
     assert "## 引用原文" in text
     assert "物流很慢，等了一个星期才到" in text
 
@@ -150,7 +151,8 @@ def test_export_report_marks_fabricated_ids_instead_of_silently_dropping(db, mon
     res = registry.invoke("export_report", {
         "title": "编造", "body": "- 质量问题 [review_id: 999999]"})
     assert res.ok
-    assert "不存在" in open(res.content["path"], encoding="utf-8").read()
+    with open(res.content["path"], encoding="utf-8") as f:
+        assert "不存在" in f.read()
 
 
 # ---------------- 副作用工具 ----------------

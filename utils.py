@@ -135,15 +135,17 @@ def initialize_model(model_type, w2vec, device=torch.device('cpu')):
     # 133 字节指针文件时，五个模型全部是这种状态。现在宁可报错也不给假结果。
     if not os.path.exists(best_model_path):
         raise ModelNotAvailable(f"{model_type} 模型尚未训练（找不到 {best_model_path}）")
+    # weights_only=True：只反序列化张量与基础容器。原来用 weights_only=False，
+    # 等于对权重文件做任意 pickle 反序列化——换掉一个 .pkl 就能在服务进程里执行代码。
+    # main.py 一直只保存 state_dict，不需要完整 pickle。
     try:
-        loaded_model = torch.load(best_model_path, map_location=device, weights_only=False)
+        state_dict = torch.load(best_model_path, map_location=device, weights_only=True)
     except Exception as e:
         raise ModelNotAvailable(f"{model_type} 模型权重无法加载（{e}），"
                                 f"可能只拉到了 Git LFS 指针文件，请重新训练或 git lfs pull") from e
-    if isinstance(loaded_model, dict):
-        model.load_state_dict(loaded_model)
-    else:
-        model = loaded_model
+    if not isinstance(state_dict, dict):
+        raise ModelNotAvailable(f"{best_model_path} 不是 state_dict，请用 main.py 重新训练")
+    model.load_state_dict(state_dict)
     logging.info(f"成功加载模型: {best_model_path} 到 {device} 设备")
 
     model.to(device)

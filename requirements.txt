@@ -1,12 +1,12 @@
 # --- Web ---
-Flask==3.0.3
+Flask==3.1.3
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
-Werkzeug==3.0.3
+Werkzeug==3.1.9
 gunicorn==23.0.0
 
 # --- ML / NLP ---
-torch==2.4.1
+torch==2.15.0
 numpy==1.26.4
 pandas==2.2.2
 gensim==4.3.3
@@ -24,5 +24,5 @@ openpyxl==3.1.5
 pydantic==2.13.5
 
 # --- 开发/测试（运行时不需要） ---
-pytest==8.3.3
+pytest==9.2.0
 pyflakes==3.2.0
